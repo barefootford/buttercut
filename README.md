@@ -3,16 +3,20 @@
 ![Very real butter dish](very-real-butter-dish.jpg)
 
 ## Edit video with Claude Code
-ButterCut analyzes footage and builds rough cuts and sequences for Final Cut Pro and Adobe Premiere. Two pieces work together to make this go: ButterCut, The Ruby gem. And ButterCut, a bunch of Claude Code Skills.
+ButterCut analyzes footage and builds roughcuts or sequences for Final Cut Pro and Adobe Premiere.
 
-Claude Code Skills can analyze and index your videos. These are done through **Libraries**. After all video is analyzed, it can build a narrative and save it as rough cut yaml file.
+Two pieces work together to make this go: ButterCut, The Ruby gem. And ButterCut, the Claude Code Skills.
+
+The Skills (library, transcribe-audio, analyze-video, and roughcut) analyze and index your videos. These are done through **Libraries** which contain paths to your footage, json audio transcripts, 'visual' transcripts and some state in library.yaml. After transcripts are generated, the skills can build a narrative by reading visual trancripts and then creating a yaml rough cut.
 
 ButterCut, the Ruby Gem, takes these clips with timings and builds XML.
 
-With both, you can get a whole rough cut going. It's fun and makes editing feel a bit like how we've been programming lately.
+It's fun and makes editing feel a bit like how we've been programming this year.
+
+ButterCut was inspired by ambitious open source work from [Chris Hocking](https://github.com/CommandPost/CommandPost) and [Andrew Arrow](https://github.com/andrewarrow/cutlass/tree/main).
 
 ## Requirements
-- Ruby 3.3.6 (file massaging scripts)
+- Ruby 3.3.6 (xml generation and file massaging)
 - Python 3.12.8 (WhisperX)
 - FFmpeg (video frame and metadata extraction)
 - WhisperX (transcribe footage with word level timing)
@@ -21,7 +25,7 @@ With both, you can get a whole rough cut going. It's fun and makes editing feel 
 
 ## Installation
 
-**Note:** Claude can probably handle all of this for you.
+**Note:** Claude Code can probably handle all of this for you.
 Use Claude Code's built-in installation check:
 ```plaintext
 You: "Check if my installation is set up correctly"
