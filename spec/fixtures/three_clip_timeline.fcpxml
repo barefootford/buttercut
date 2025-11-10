@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<fcpxml version="1.8">
+  <resources>
+    <format id="r1" height="720" width="1280" frameDuration="1001/24000s" colorSpace="1-1-1 (Rec. 709)"/>
+    <asset id="r2" name="MVI_0309_720p.mov" uid="" src="file:///Users/andrew/code/ruby_cut/media/MVI_0309_720p.mov" audioRate="48000" hasAudio="1" hasVideo="1" format="r1" duration="101101/24000s"/>
+    <asset id="r3" name="MVI_0323_720p.mov" uid="" src="file:///Users/andrew/code/ruby_cut/media/MVI_0323_720p.mov" audioRate="48000" hasAudio="1" hasVideo="1" format="r1" duration="29029/4800s"/>
+    <asset id="r4" name="P1044445_with_timecodes.MOV" uid="" src="file:///Users/andrew/code/ruby_cut/media/P1044445_with_timecodes.MOV" audioRate="48000" hasAudio="1" hasVideo="1" format="r1" duration="1001/200s"/>
+  </resources>
+  <library location="./">
+    <event name="MVI_0309_720p" uid="">
+      <project name="MVI_0309_720p" uid="" modDate="2025-10-31 17:25:16 GMT-7">
+        <sequence duration="61061/4000s" format="r1" tcStart="0s" audioRate="48k">
+          <spine>
+            <asset-clip name="MVI_0309_720p.mov" ref="r2" start="0s" offset="0s" duration="101101/24000s" audioRole="dialogue"/>
+            <asset-clip name="MVI_0323_720p.mov" ref="r3" start="0s" offset="101101/24000s" duration="29029/4800s" audioRole="dialogue"/>
+            <asset-clip name="P1044445_with_timecodes.MOV" ref="r4" start="647746099/8000s" offset="41041/4000s" duration="1001/200s" audioRole="dialogue"/>
+          </spine>
+        </sequence>
+      </project>
+    </event>
+  </library>
+</fcpxml>

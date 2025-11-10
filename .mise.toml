@@ -1,0 +1,11 @@
+# Mise configuration for video-agent project
+# This locks down tool versions to ensure reproducible transcription
+
+[tools]
+python = "3.12.8"
+ruby = "3.3.6"
+
+# Notes on dependencies:
+# - whisperx 3.4.2 requires pyannote-audio <4.0.0
+# - pyannote-audio 4.x removed the 'use_auth_token' parameter
+# - We use pyannote-audio 3.4.0 for compatibility

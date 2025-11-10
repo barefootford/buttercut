@@ -1,0 +1,21 @@
+# Library metadata
+library_name: [library-name]
+created_date: [YYYY-MM-DD]
+last_updated: [YYYY-MM-DD]
+language: english
+user_context: ""
+# Whenever you ask the user questions about the library, save a summarized version here.
+# ie; The man wearing the dark blue long sleeve shirt is "Andrew". The small brown dog is "Sammy". This footage was shot over one evening.
+
+# Full footage summary - progressively updated after each video is transcribed. This can be up to 10-20 lines summarizing all of the footage we have.
+footage_summary: "No footage analyzed yet."
+# "This footage appears to be wedding footage. It includes the bride and groom getting dressed, preparing for the wedding ceremomy, the ceremony, and the post ceremony dinner and party."
+# "This footage appears to be a vlog. The footage starts in The Richmond District in San Francisco, includes a bus ride on the 38R, and concludes at a Ruby Meetup in downtown San Francisco."
+
+# Video files and transcription status
+videos:
+  - path: /full/path/to/video_file.mp4
+    duration: "00:05:32"
+    file_size_mb: 245
+    transcript_path: # path to saved transcript
+    visual_transcript_path: # path to saved transcript that has been annotated with visual video frame descriptions

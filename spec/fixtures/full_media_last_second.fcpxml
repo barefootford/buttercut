@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<fcpxml version="1.8">
+  <resources>
+    <format id="r1" height="720" width="1280" frameDuration="1001/24000s" colorSpace="1-1-1 (Rec. 709)"/>
+    <asset id="__ASSET_ID_MVI_0309__" name="MVI_0309_720p.mov" uid="__ASSET_UID_MVI_0309__" src="__SRC_MVI_0309__" start="0s" audioRate="48000" hasAudio="1" hasVideo="1" format="r1" duration="101101/24000s"/>
+    <asset id="__ASSET_ID_MVI_0323__" name="MVI_0323_720p.mov" uid="__ASSET_UID_MVI_0323__" src="__SRC_MVI_0323__" start="0s" audioRate="48000" hasAudio="1" hasVideo="1" format="r1" duration="29029/4800s"/>
+    <asset id="__ASSET_ID_GH5__" name="P1044376_timecode_fixture.mov" uid="__ASSET_UID_GH5__" src="__SRC_P1044376__" start="626629003/8000s" audioRate="48000" hasAudio="1" hasVideo="1" format="r1" duration="1001/1000s"/>
+  </resources>
+  <library location="./">
+    <event name="__EVENT_LABEL__" uid="event-uid">
+      <project name="__PROJECT_LABEL__" uid="project-uid" modDate="2025-10-31 17:25:16 GMT-7">
+        <sequence duration="3003/1000s" format="r1" tcStart="0s" audioRate="48k">
+          <spine>
+            <asset-clip name="MVI_0309_720p.mov" ref="__ASSET_ID_MVI_0309__" start="77077/24000s" offset="0s" duration="1001/1000s" audioRole="dialogue">
+              <adjust-volume amount="-13.100000000000001db"/>
+            </asset-clip>
+            <asset-clip name="MVI_0323_720p.mov" ref="__ASSET_ID_MVI_0323__" start="121121/24000s" offset="1001/1000s" duration="1001/1000s" audioRole="dialogue">
+              <adjust-volume amount="-13.100000000000001db"/>
+            </asset-clip>
+            <asset-clip name="P1044376_timecode_fixture.mov" ref="__ASSET_ID_GH5__" start="626629003/8000s" offset="1001/500s" duration="1001/1000s" audioRole="dialogue">
+              <adjust-volume amount="-13.100000000000001db"/>
+            </asset-clip>
+          </spine>
+        </sequence>
+      </project>
+    </event>
+  </library>
+</fcpxml>

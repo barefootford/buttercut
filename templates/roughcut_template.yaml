@@ -1,0 +1,42 @@
+# Rough Cut Template
+# This template defines the structure for video rough cuts
+
+# User-facing description of what this rough cut contains
+description: "Brief description of the rough cut - what story it tells, target duration, and editorial approach"
+
+# Working notes for the agent during rough cut creation
+notes: |
+  Working notes area for editorial decisions, narrative structure planning,
+  pacing considerations, and any issues or concerns identified during editing.
+
+  Consider:
+  - Story arc and key narrative beats
+  - Pacing and rhythm
+  - Transitions between segments
+  - B-roll placement opportunities
+  - Audio/dialogue clarity
+
+# Coverage summary of available footage
+footage_coverage: |
+  Overview of what footage is available and how it could be used.
+  Include notes about strongest segments, potential issues, and creative opportunities.
+
+# The actual rough cut - ordered list of clips to use
+clips:
+  # Example clip structure (replace with actual selections)
+  - source_file: "DJI_20250423171212_0210_D.mov"  # filename only, path comes from library.yaml
+    in_point: "00:00:03"      # Start time in HH:MM:SS format
+    out_point: "00:00:28"      # End time in HH:MM:SS format
+    dialogue: "In order to tell this one, I've got to zoom back about 10, 12, 13 years ago to when I barely just moved to San Francisco"
+    visual_description: "[Man with mustache speaking directly to camera in medium-close shot. Outdoor urban SF street setting with residential buildings in background. Tan corduroy jacket. Handheld camera.]"
+
+  - source_file: "DJI_20250423174726_0238_D.mov"
+    in_point: "00:00:00"
+    out_point: "00:00:05"
+    dialogue: ""
+    visual_description: "[POV from inside San Francisco Muni bus looking out window at passing street. Yellow safety handrails visible. Transit journey B-roll.]"
+
+# Rough cut metadata
+metadata:
+  created_date: ""  # Will be populated when rough cut is created
+  total_duration: ""  # Calculated from all clip durations

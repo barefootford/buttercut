@@ -1,0 +1,24 @@
+# Python dependencies for video-agent transcription workflow
+#
+# Setup:
+#   mise install                    # Install Python 3.12.8 & Ruby 3.3.6
+#   pip install -r requirements.txt # Install packages
+#
+# Prerequisites:
+#   - mise (https://mise.jdx.dev/)
+#   - ffmpeg (brew install ffmpeg)
+
+# WhisperX - video transcription with timestamp alignment
+whisperx==3.4.2
+
+# CRITICAL: pyannote-audio must be <4.0.0 for whisperx 3.4.2 compatibility
+# Version 4.x removed 'use_auth_token' parameter that whisperx still uses
+# If you see: TypeError: Inference.__init__() got an unexpected keyword argument 'use_auth_token'
+# Run: pip install "pyannote-audio<4.0.0"
+pyannote-audio==3.4.0
+
+# Additional dependencies (installed by whisperx/pyannote but pinned for reproducibility)
+torch>=2.0.0
+torchaudio>=2.0.0
+transformers>=4.30.0
+faster-whisper>=0.9.0

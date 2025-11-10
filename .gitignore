@@ -1,0 +1,18 @@
+/tmp
+.DS_Store
+/libraries
+/media
+
+# Ruby
+*.gem
+.bundle/
+vendor/bundle/
+
+# IDE
+.vscode/
+.idea/
+.ruby-lsp/
+
+# Python
+*.pyc
+__pycache__/
