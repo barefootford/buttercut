@@ -1,4 +1,7 @@
 # ButterCut
+
+![Very real butter dish](very-real-butter-dish.jpg)
+
 ## Edit video with Claude Code
 ButterCut analyzes footage and builds rough cuts and sequences for Final Cut Pro and Adobe Premiere. Two pieces work together to make this go: ButterCut, The Ruby gem. And ButterCut, a bunch of Claude Code Skills.
 
