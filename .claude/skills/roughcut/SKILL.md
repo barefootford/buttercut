@@ -70,16 +70,17 @@ This skill handles the editorial process of creating rough cut timeline scripts 
 ### 3. Analyze Footage and Gather User Preferences
 
 **Read and Analyze:**
-- Read the entire combined visual transcript JSON file
+- Read the entire combined visual transcript JSON file, if possible.
+- The file may be very large depending on the amount of footage. If it's too large, read it in chunks, creating your roughcut incrementally. Adding and removing clips as you read different parts of the combined visual transcript.
 - Study the footage deeply - understand what story elements you have
 - Identify narrative threads, emotional beats, and visual opportunities
 - Track which segments come from which source files using the `source_file` field in each video object
 
 **Interactive User Consultation:**
-After analyzing the footage, use the AskUserQuestion tool to ask 3 questions about their rough cut preferences. Ask questions about:
+After analyzing the footage, use the AskUserQuestion tool to ask 3 questions about their rough cut preferences. Ask questions like this, but custom tailored to their video footage:
 - Narrative structure (chronological, thematic, or hook-based opening)
 - Target duration (1 minute, 5 minute, 10 minute, etc)
-- Pacing (Faster cuts, changes every 3-5 seconds, or slower cuts, with long stretches of dialogue?)
+- Pacing (Faster cuts, slower cuts, etc)
 
 ### 4. Create Rough Cut from Combined Transcript - THE CORE EDITORIAL PROCESS
 
