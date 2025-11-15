@@ -127,10 +127,25 @@ Using the user's preferences as your guide, consider:
 - Confirm the narrative flow makes sense
 - Trust your judgment - you're the editor making something watchable
 
-### 5. Export to Final Cut Pro XML
-- After creating the YAML rough cut, immediately export to FCPXML format
-- Always use `.fcpxml` extension, not xml.
-- Run the export script:
+### 5. Export to Video Editor XML
+
+**Ask User for Editor Preference:**
+- Use the AskUserQuestion tool to ask which video editor they want to use
+- Provide three options:
+  - **Final Cut Pro X**: Uses FCPXML 1.8 format (`.fcpxml` extension)
+  - **Adobe Premiere Pro**: Uses xmeml version 5 format (`.xml` extension)
+  - **DaVinci Resolve**: Uses xmeml version 5 format (`.xml` extension)
+
+**Export Based on Editor Choice:**
+- After creating the YAML rough cut, immediately export to the appropriate format
+- Run the export script with the editor parameter:
 ```bash
-./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library-name]/roughcuts/[roughcut_name]_datetime1.yaml libraries/[library-name]/roughcuts/[roughcut_name]_datetime1.fcpxml
+# For Final Cut Pro X:
+./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library-name]/roughcuts/[roughcut_name]_datetime1.yaml libraries/[library-name]/roughcuts/[roughcut_name]_datetime1.fcpxml fcpx
+
+# For Adobe Premiere Pro:
+./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library-name]/roughcuts/[roughcut_name]_datetime1.yaml libraries/[library-name]/roughcuts/[roughcut_name]_datetime1.xml premiere
+
+# For DaVinci Resolve:
+./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library-name]/roughcuts/[roughcut_name]_datetime1.yaml libraries/[library-name]/roughcuts/[roughcut_name]_datetime1.xml resolve
 ```

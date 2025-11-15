@@ -11,13 +11,15 @@ def timecode_to_seconds(timecode)
 end
 
 def main
-  if ARGV.length != 2
-    puts "Usage: #{$0} <roughcut.yaml> <output.fcpxml>"
+  if ARGV.length < 2 || ARGV.length > 3
+    puts "Usage: #{$0} <roughcut.yaml> <output.xml> [editor]"
+    puts "  editor: fcpx (default), premiere, or resolve"
     exit 1
   end
 
   roughcut_path = ARGV[0]
   output_path = ARGV[1]
+  editor_choice = ARGV[2] || 'fcpx'
 
   unless File.exist?(roughcut_path)
     puts "Error: Rough cut file not found: #{roughcut_path}"
@@ -75,7 +77,22 @@ def main
     }
   end
 
-  puts "Converting #{buttercut_clips.length} clips to Final Cut Pro XML..."
+  # Validate and normalize editor choice
+  editor_symbol = case editor_choice.downcase
+  when 'fcpx', 'finalcutpro', 'finalcut', 'fcp'
+    :fcpx
+  when 'premiere', 'premierepro', 'adobepremiere'
+    :fcp7
+  when 'resolve', 'davinci', 'davinciresolve'
+    :fcp7
+  else
+    puts "Error: Unknown editor '#{editor_choice}'. Use 'fcpx', 'premiere', or 'resolve'"
+    exit 1
+  end
+
+  editor_name = editor_symbol == :fcpx ? "Final Cut Pro X" : "#{editor_choice.capitalize}"
+
+  puts "Converting #{buttercut_clips.length} clips to #{editor_name} XML..."
 
   # Generate Ruby code to call ButterCut
   ruby_code = <<~RUBY
@@ -83,7 +100,7 @@ def main
 
     clips = #{buttercut_clips.inspect}
 
-    generator = ButterCut.new(clips, editor: :fcpx)
+    generator = ButterCut.new(clips, editor: :#{editor_symbol})
     generator.save('#{output_path}')
 
     puts "Successfully exported to #{output_path}"

@@ -9,7 +9,8 @@ The project has two main components:
 
 Currently supports:
 - **Final Cut Pro X** (FCPXML 1.8 format)
-- **Final Cut Pro 7 / Adobe Premiere Pro** (xmeml version 5)
+- **Adobe Premiere Pro** (xmeml version 5)
+- **DaVinci Resolve** (xmeml version 5)
 
 ## Core Workflow
 
@@ -75,7 +76,7 @@ Each library has a `library.yaml` file that serves as your persistent memory and
 - `lib/buttercut.rb` - Factory class that creates editor-specific generators
 - `lib/buttercut/editor_base.rb` - Shared validation, metadata extraction, and timeline math
 - `lib/buttercut/fcpx.rb` - Final Cut Pro X implementation (FCPXML 1.8)
-- `lib/buttercut/fcp7.rb` - Final Cut Pro 7 / Premiere implementation (xmeml v5)
+- `lib/buttercut/fcp7.rb` - Final Cut Pro 7 / Premiere / DaVinci Resolve implementation (xmeml v5)
 - `.claude/skills/` - Claude Code skills for AI-powered workflow
 - `spec/` - RSpec test suite
 - `templates/` - Library and project templates

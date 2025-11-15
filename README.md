@@ -7,7 +7,7 @@
 *Click to watch the ButterCut demo on YouTube*
 
 ## Edit video with Claude Code
-ButterCut analyzes footage and builds roughcuts or sequences for Final Cut Pro and Adobe Premiere.
+ButterCut analyzes footage and builds roughcuts or sequences for Final Cut Pro, Adobe Premiere, and DaVinci Resolve.
 
 Two pieces work together to make this go: ButterCut, The Ruby gem. And ButterCut, the Claude Code Skills.
 
@@ -99,7 +99,7 @@ whisperx --help
 | Editor Symbol | Format | Typical Import Target |
 | ------------- | ------ | --------------------- |
 | `:fcpx`       | FCPXML 1.8 | Final Cut Pro X |
-| `:fcp7`       | xmeml version 5 | Final Cut Pro 7 / Adobe Premiere Pro |
+| `:fcp7`       | xmeml version 5 | Final Cut Pro 7 / Adobe Premiere Pro / DaVinci Resolve |
 
 ## Usage
 
@@ -151,12 +151,19 @@ Claude: [Asks 3 preference questions]
 You: "Start with presentations (5 sec clips), then interviews,
       then my closing reflection. 3-5 minutes, conversational pacing."
 
+Claude: [Asks which video editor you want to use]
+        - Final Cut Pro X
+        - Adobe Premiere Pro
+        - DaVinci Resolve
+
+You: "Final Cut Pro X"
+
 Claude: [Creates roughcut with editorial decisions]
         ✓ Combined visual transcripts
         ✓ Selected 29 clips (4:32 total)
         ✓ Exported to FCPXML
 
-Result: Ready-to-import Final Cut Pro timeline at:
+Result: Ready-to-import timeline at:
         libraries/[library]/roughcuts/[name]_[datetime].fcpxml
 ```
 
@@ -178,8 +185,7 @@ videos = [
 fcpx_generator = ButterCut.new(videos, editor: :fcpx)
 fcpx_generator.save('timeline.fcpxml')
 
-# Final Cut Pro 7 / Adobe Premiere timeline
-# This opened up correctly for me, but this isn't really tested yet.
+# Final Cut Pro 7 / Adobe Premiere / DaVinci Resolve timeline
 fcp7_generator = ButterCut.new(videos, editor: :fcp7)
 fcp7_generator.save('timeline.xml')
 ```
