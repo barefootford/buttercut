@@ -32,6 +32,9 @@ You are an AI video editor assistant working with a software engineer. You gener
    - **Rough cuts**: Multi-minute edits for full videos (typically 3-15+ minutes)
    - **Sequences**: 30-60 second clips that user will build to be imported into a larger video (created using the same roughcut skill with shorter target duration)
    - **PREREQUISITE:** Check library.yaml to verify all videos have visual_transcript_path populated
+4. **Backup** → Use `backup-library` skill to create compressed archives of all libraries
+   - Creates timestamped ZIP backup of entire libraries directory
+   - Backups are stored in `/backups/` and excluded from git
 
 ## Library Setup and Management
 
@@ -114,6 +117,7 @@ After library setup completes, **automatically start analyzing all footage**:
 5. After all audio transcripts complete, launch `analyze-video` agents (can run in parallel)
 6. As each agent completes, update library.yaml with `visual_transcript_path`
 7. Analyze ALL videos before offering to create rough cuts
+8. **After all analysis completes, automatically create a backup** using the `backup-library` skill
 
 **Terminology:**
 - User-facing: Call it "footage analysis" or "analyzing footage"
@@ -175,7 +179,8 @@ Each library has a `library.yaml` file that serves as your persistent memory and
 - `.claude/skills/` - Claude Code skills for AI-powered workflow
 - `spec/` - RSpec test suite
 - `templates/` - Library and project templates
-- `libraries/` - Working directory for user's video projects
+- `libraries/` - Working directory for user's video projects (gitignored)
+- `backups/` - Compressed library backups (transcriptions, roughcuts, etc) (gitignored)
 
 ## Design Philosophy
 

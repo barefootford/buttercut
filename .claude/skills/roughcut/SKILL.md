@@ -149,3 +149,7 @@ Using the user's preferences as your guide, consider:
 # For DaVinci Resolve:
 ./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library-name]/roughcuts/[roughcut_name]_datetime1.yaml libraries/[library-name]/roughcuts/[roughcut_name]_datetime1.xml resolve
 ```
+
+### 6. Create Backup
+
+**After exporting the XML file, automatically create a backup** using the `backup-library` skill. This preserves the completed rough cut work without requiring the user to request it.

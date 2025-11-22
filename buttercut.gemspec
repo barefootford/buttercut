@@ -17,15 +17,18 @@ Gem::Specification.new do |spec|
     ".claude/**/*",
     "templates/**/*",
     "dtd/**/*",
+    "bin/**/*",
     "README.md",
     "CLAUDE.md",
-    "LICENSE"
+    "LICENSE",
+    "buttercut.yaml"
   ]
 
   spec.require_paths = ["lib"]
 
   # Runtime dependencies
   spec.add_dependency "nokogiri", "~> 1.13"
+  spec.add_dependency "rubyzip", "~> 2.3"
 
   # Development dependencies
   spec.add_development_dependency "rspec", "~> 3.12"

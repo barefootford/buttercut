@@ -1,8 +1,9 @@
 PATH
   remote: .
   specs:
-    buttercut (0.1.0)
+    buttercut (0.1.1)
       nokogiri (~> 1.13)
+      rubyzip (~> 2.3)
 
 GEM
   remote: https://rubygems.org/
@@ -38,6 +39,7 @@ GEM
       diff-lcs (>= 1.2.0, < 2.0)
       rspec-support (~> 3.13.0)
     rspec-support (3.13.6)
+    rubyzip (2.4.1)
 
 PLATFORMS
   aarch64-linux-gnu
