@@ -220,6 +220,6 @@ xmllint --dtdvalid "dtd/FCPXMLv1_8.dtd" "/path/to/your/file.fcpxml"
 This will check if the generated FCPXML conforms to the FCPXML 1.8 specification.
 - Whenever you export xml files, always include a datetime timestamp so it's clear when they were generated
 
-## We are building incrementally
+## Claude Skills
 
-If you have advice on how to make this simpler or more effective, let the engineer know! This could be architecture changes, CLAUDE.md changes, or changes to Claude skills (.claude/skills/).
+When creating new Claude skills, aim to keep them to 50 lines. Only very complicated skills (ie transcription and roughcuts) should be larger than that. If the skill is complicated and seems like it can't be explained in 50 lines, consider if they should be broken up across multiple skills or if the complexity can be contained inside a ruby script saved adjacent to the skill.
