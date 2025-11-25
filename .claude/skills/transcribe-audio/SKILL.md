@@ -80,4 +80,4 @@ After audio transcription, use the **analyze-video** skill to add visual descrip
 
 ## Installation
 
-Ensure WhisperX is installed. Use the **installation-check** skill to verify dependencies.
+Ensure WhisperX is installed. Use the **setup** skill to verify dependencies.
