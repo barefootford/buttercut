@@ -4,6 +4,33 @@ Fully automatic installation. Run each step in order, waiting for each to comple
 
 **Note:** ButterCut encourages the use of the CPU version of WhisperX only. This simplifies installation and works reliably on all modern Macs with Apple Silicon.
 
+## Step 0: Check Install Location
+
+Check the current working directory. Warn if ButterCut is in a problematic location:
+
+**Problematic locations:**
+- `~/Desktop/` - Desktop gets cluttered, easy to accidentally delete
+- `~/Downloads/` - Often cleaned up automatically
+- `~/Library/Mobile Documents/` (iCloud) - Sync causes issues with git and large files
+- Any path containing spaces - Some CLI tools have issues
+
+**Recommended locations:**
+- `~/code/buttercut`
+- `~/projects/buttercut`
+
+If in a problematic location, ask if they'd like to move it. If yes:
+
+1. Run `mkdir -p ~/code` (or `~/projects` if that exists)
+2. Run `cp -R [current-path] ~/code/buttercut`
+3. Tell the user:
+   ```
+   I've copied ButterCut to ~/code/buttercut. To finish:
+   1. Delete [current-path] (drag to Trash)
+   2. Run this in Terminal: cd ~/code/buttercut && claude
+   ```
+
+If they prefer to stay in the current location, continue with setup.
+
 ## Step 1: Xcode Command Line Tools
 
 ```bash
