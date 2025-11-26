@@ -4,7 +4,7 @@
 
 Give Claude Code your video footage. Claude analyzes it, then builds roughcuts and sequences for Final Cut, Premiere, and Resolve.
 
-Behind the scenes Claude uses ButterCut Skills and a nifty Ruby library to generate timelines for your editor.
+Behind the scenes Claude uses ButterCut Skills and a little Ruby library to generate timelines for your editor.
 
 ## Watch the Demo
 
@@ -14,9 +14,23 @@ Behind the scenes Claude uses ButterCut Skills and a nifty Ruby library to gener
 
 ## Getting Started
 
-1. **Clone or download ButterCut**
-2. **Open Claude Code** in the ButterCut directory
-3. **Tell Claude: "Install ButterCut"**
+**Clone ButterCut:**
+```bash
+git clone https://github.com/barefootford/buttercut.git && cd buttercut
+```
+
+**Open Claude Code:**
+```bash
+claude
+
+# or skip permission prompts (faster, but riskier):
+claude --dangerously-skip-permissions
+```
+
+**Tell Claude to install ButterCut:**
+```
+> Install ButterCut
+```
 
 Claude will check your system and install any missing dependencies (Ruby, Python, FFmpeg, WhisperX).
 
@@ -24,7 +38,7 @@ For manual installation, see [docs/installation.md](docs/installation.md).
 
 ## Usage
 
-First tell Claude to create a **Library**. A library encompasses (links to) video footage and audio and visual transcripts. Then tell Claude you want to create a **rough cut** or **sequence**.
+First tell Claude to create a **Library**. A library organizes your video footage along with audio and visual transcripts. Then tell Claude you want to create a **rough cut** or **sequence**.
 
 ### Creating a Video Library
 
@@ -88,7 +102,7 @@ Result: Ready-to-import timeline at:
         libraries/[library]/roughcuts/[name]_[datetime].fcpxml
 ```
 
-Claude makes editorial decisions based on transcript analysis and your preferences, creating a structured YAML roughcut. The roughcut is then exported for your editor using the Ruby library.
+Claude makes editorial decisions based on transcript analysis and your preferences, then exports a timeline for your editor.
 
 ### XML Generation
 
