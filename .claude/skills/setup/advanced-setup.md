@@ -29,7 +29,15 @@ Required for FFmpeg. If you prefer another package manager, adapt accordingly.
 which brew || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-### 3. Ruby 3.3.6
+### 3. Libyaml (Ruby Dependency)
+
+Required for Ruby's psych extension. Install before compiling Ruby:
+
+```bash
+brew install libyaml
+```
+
+### 4. Ruby 3.3.6
 
 Install using your preferred version manager (rbenv, asdf, mise, rvm, etc.).
 
@@ -41,13 +49,13 @@ Verify:
 ruby --version  # Should show 3.3.6
 ```
 
-### 4. Bundler
+### 5. Bundler
 
 ```bash
 gem install bundler
 ```
 
-### 5. Python 3.12.8
+### 6. Python 3.12.8
 
 Install using your preferred version manager (pyenv, asdf, mise, etc.).
 
@@ -59,7 +67,7 @@ Verify:
 python3 --version  # Should show 3.12.8
 ```
 
-### 6. FFmpeg
+### 7. FFmpeg
 
 ```bash
 brew install ffmpeg
@@ -67,7 +75,7 @@ brew install ffmpeg
 
 Or install via your preferred method.
 
-### 7. WhisperX
+### 8. WhisperX
 
 Two options depending on how you manage Python:
 
@@ -106,7 +114,7 @@ pip install whisperx
 
 Ensure `whisperx` is in your PATH.
 
-### 8. ButterCut Ruby Dependencies
+### 9. ButterCut Ruby Dependencies
 
 From the buttercut directory:
 

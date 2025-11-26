@@ -59,6 +59,12 @@ eval "$(/opt/homebrew/bin/brew shellenv)"
 
 Verify with `brew --version`. Don't proceed until brew works.
 
+Install libyaml (required for Ruby's psych extension):
+
+```bash
+brew install libyaml
+```
+
 ## Step 3: Mise (Version Manager)
 
 ```bash
