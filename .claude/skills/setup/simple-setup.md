@@ -45,11 +45,23 @@ xcode-select -p
 
 Should return `/Library/Developer/CommandLineTools` or similar.
 
-## Step 2: Homebrew
+## Step 2: Homebrew (Manual Installation Required)
+
+Check if Homebrew is installed:
 
 ```bash
-which brew || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+which brew
 ```
+
+If not installed, **tell the user to run the install command themselves**. Homebrew requires interactive terminal access (password prompts, confirmations) and cannot be installed by the agent directly.
+
+Tell the user to run:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+Wait for the user to confirm installation is complete before continuing.
 
 After install, add to PATH (Apple Silicon):
 
@@ -94,6 +106,8 @@ From the buttercut directory:
 mise trust
 mise install
 ```
+
+**Note:** Ruby is compiled from source and can take 5-10 minutes. This is normal.
 
 Verify versions:
 

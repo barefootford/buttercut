@@ -23,7 +23,9 @@ xcode-select -p 2>/dev/null || xcode-select --install
 
 ### 2. Homebrew
 
-Required for FFmpeg. If you prefer another package manager, adapt accordingly.
+Required for FFmpeg and libyaml. If you prefer another package manager, adapt accordingly.
+
+**Note:** Homebrew installation requires interactive terminal access (password prompts, confirmations). If running via an agent, the user must run the install command manually.
 
 ```bash
 which brew || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
