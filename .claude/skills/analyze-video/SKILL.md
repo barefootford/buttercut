@@ -15,12 +15,14 @@ Videos must have audio transcripts. Run **transcribe-audio** skill first if need
 
 ### 1. Copy & Clean Audio Transcript
 
-Don't read the audio transcript, just copy it and then prepare it by using the prepare_visual_script.rb file. This removes word-level timing data and prettifies the JSON for easier editing:
+Copy the audio transcript (.txt) and prepare it by using the prepare_visual_script.rb file. This removes word-level timing data and converts to compressed format:
 
 ```bash
-cp libraries/[library]/transcripts/video.json libraries/[library]/transcripts/visual_video.json
-ruby .claude/skills/analyze-video/prepare_visual_script.rb libraries/[library]/transcripts/visual_video.json
+cp libraries/[library]/transcripts/video.txt libraries/[library]/transcripts/visual_video.txt
+ruby .claude/skills/analyze-video/prepare_visual_script.rb libraries/[library]/transcripts/visual_video.txt
 ```
+
+Note: The script can also handle legacy .json files and will convert them to .txt automatically.
 
 ### 2. Extract Frames (Binary Search)
 
@@ -39,33 +41,22 @@ ffmpeg -ss 00:00:02 -i video.mov -vframes 1 -vf "scale=1280:-1" /tmp/frames/[vid
 
 ### 3. Add Visual Descriptions
 
-Read the visual video json file that you created earlier.
+Read the visual video text file that you created earlier.
 
-**Read the JPG frames** from `/tmp/frames/[video_name]/` using Read tool, then **Edit** `visual_video.json`:
+**Read the JPG frames** from `/tmp/frames/[video_name]/` using Read tool, then **Edit** `visual_video.txt`:
 
-Do these incrementally. You don't need to create a program or script to do this, just incrementally edit the json whenever you read new frames.
+Do these incrementally. You don't need to create a program or script to do this, just incrementally edit the compressed transcript whenever you read new frames.
 
-**Dialogue segments - add `visual` field:**
-```json
-{
-  "start": 2.917,
-  "end": 7.586,
-  "text": "Hey, good afternoon everybody.",
-  "visual": "Man in red shirt speaking to camera in medium shot. Home office with bookshelf. Natural lighting.",
-  "words": [...]
-}
+**Dialogue segments - add visual line:**
+```
+# 2.92-7.59 | Hey, good afternoon everybody.
+v: Man in red shirt speaking to camera in medium shot. Home office with bookshelf. Natural lighting.
 ```
 
-**B-roll segments - insert new entries:**
-```json
-{
-  "start": 35.474,
-  "end": 56.162,
-  "text": "",
-  "visual": "Green bicycle parked in front of building. Urban street with trees.",
-  "b_roll": true,
-  "words": []
-}
+**B-roll segments - use b: prefix:**
+```
+b: 35.47-56.16 |
+  Green bicycle parked in front of building. Urban street with trees.
 ```
 
 **Guidelines:**
@@ -82,7 +73,7 @@ rm -rf /tmp/frames/[video_name]
 Return structured response:
 ```
 ✓ [video_filename.mov] analyzed successfully
-  Visual transcript: libraries/[library]/transcripts/visual_video.json
+  Visual transcript: libraries/[library]/transcripts/visual_video.txt
   Video path: /full/path/to/video_filename.mov
 ```
 

@@ -41,7 +41,7 @@ whisperx "/full/path/to/video.mov" \
 
 ### 3. Prepare Audio Transcript
 
-After WhisperX completes, format the JSON using our prepare_audio_script:
+After WhisperX completes, compress the JSON using our prepare_audio_script:
 
 ```bash
 ruby .claude/skills/transcribe-audio/prepare_audio_script.rb \
@@ -51,8 +51,9 @@ ruby .claude/skills/transcribe-audio/prepare_audio_script.rb \
 
 This script:
 - Adds video source path as metadata
-- Removes unnecessary fields to reduce file size
-- Prettifies JSON
+- Removes unnecessary fields
+- Converts to compressed text format (75% token reduction)
+- Outputs as .txt file with word-level timing
 
 ### 4. Return Success Response
 
@@ -60,7 +61,7 @@ After audio preparation completes, return this structured response to the parent
 
 ```
 ✓ [video_filename.mov] transcribed successfully
-  Audio transcript: libraries/[library-name]/transcripts/video_name.json
+  Audio transcript: libraries/[library-name]/transcripts/video_name.txt
   Video path: /full/path/to/video_filename.mov
 ```
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 require 'json'
+require_relative '../../../lib/buttercut/transcript_compressor'
 
 if ARGV.length < 2
   puts "Usage: ruby prepare_audio_script.rb <json_file> <video_filepath>"
@@ -17,11 +18,10 @@ end
 begin
   json_data = JSON.parse(File.read(input_file))
 
-  # Add video source path as metadata at the top
+  # Add video source path as metadata
   json_data['video_path'] = video_path
 
   # Remove "score" from words array to slim down file size
-  # Keep "end" times in both segments and words for accurate rough cut timecoding
   if json_data['segments']
     json_data['segments'].each do |segment|
       if segment['words']
@@ -39,8 +39,17 @@ begin
     end
   end
 
-  File.write(input_file, JSON.pretty_generate(json_data))
-  puts "Prettified: #{input_file} (video path added, scores removed)"
+  # Convert to compressed format
+  compressed = Buttercut::TranscriptCompressor.compress(json_data, include_words: true)
+
+  # Change extension from .json to .txt
+  output_file = input_file.sub(/\.json$/, '.txt')
+  File.write(output_file, compressed)
+
+  # Remove original JSON file
+  File.delete(input_file) if output_file != input_file
+
+  puts "Compressed: #{output_file} (75% token reduction, video path added)"
 rescue JSON::ParserError => e
   puts "Error: Invalid JSON in #{input_file}"
   puts e.message

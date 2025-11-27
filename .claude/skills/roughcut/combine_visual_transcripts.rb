@@ -10,9 +10,14 @@ if library_name.nil? || roughcut_name.nil?
   exit 1
 end
 
-# Find all visual transcript files
+# Find all visual transcript files (prefer .txt, fall back to .json for legacy)
 transcripts_dir = "libraries/#{library_name}/transcripts"
-visual_files = Dir.glob("#{transcripts_dir}/visual_*.json").sort
+visual_files = Dir.glob("#{transcripts_dir}/visual_*.txt").sort
+
+# Fall back to JSON if no TXT files found
+if visual_files.empty?
+  visual_files = Dir.glob("#{transcripts_dir}/visual_*.json").sort
+end
 
 if visual_files.empty?
   puts "No visual transcripts found in #{transcripts_dir}"
@@ -22,7 +27,8 @@ end
 # Concatenate all visual transcripts with newlines
 output_dir = "/tmp/#{library_name}"
 FileUtils.mkdir_p(output_dir)
-output_file = "#{output_dir}/#{roughcut_name}_combined_visual_transcript.json"
+file_ext = visual_files.first.end_with?('.txt') ? '.txt' : '.json'
+output_file = "#{output_dir}/#{roughcut_name}_combined_visual_transcript#{file_ext}"
 
 File.open(output_file, 'w') do |out|
   visual_files.each_with_index do |file, index|

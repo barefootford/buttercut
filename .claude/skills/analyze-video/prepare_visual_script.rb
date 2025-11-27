@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 require 'json'
+require_relative '../../../lib/buttercut/transcript_compressor'
 
 abort "Usage: ruby prepare_visual_script.rb <json_file>" if ARGV.empty?
 abort "Error: File not found: #{ARGV[0]}" unless File.exist?(ARGV[0])
@@ -10,16 +11,17 @@ begin
   data['segments']&.each { |s| s.delete('words') }
   data.delete('word_segments')
 
-  # Reorder keys: language and video_path first, then segments, then everything else
-  reordered = {}
-  reordered['language'] = data['language'] if data['language']
-  reordered['video_path'] = data['video_path'] if data['video_path']
-  reordered['segments'] = data['segments'] if data['segments']
-  # Add any other keys that might exist
-  data.each { |k, v| reordered[k] = v unless reordered.key?(k) }
+  # Convert to compressed format (without word-level timing)
+  compressed = Buttercut::TranscriptCompressor.compress(data, include_words: false)
 
-  File.write(ARGV[0], JSON.pretty_generate(reordered))
-  puts "Prettified: #{ARGV[0]} (word-level timing removed)"
+  # Change extension from .json to .txt
+  output_file = ARGV[0].sub(/\.json$/, '.txt')
+  File.write(output_file, compressed)
+
+  # Remove original JSON file
+  File.delete(ARGV[0]) if output_file != ARGV[0]
+
+  puts "Compressed: #{output_file} (75% token reduction, word-level timing removed)"
 rescue JSON::ParserError => e
   abort "Error: Invalid JSON - #{e.message}"
 end

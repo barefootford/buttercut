@@ -1,5 +1,6 @@
 require_relative 'buttercut/fcpx'
 require_relative 'buttercut/fcp7'
+require_relative 'buttercut/transcript_compressor'
 
 # ButterCut - Video editor XML generator
 #
