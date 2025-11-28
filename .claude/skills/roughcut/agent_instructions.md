@@ -40,8 +40,12 @@ This outputs to `/tmp/[library-name]/[roughcut_name]_combined_visual_transcript.
 
 **Setup:**
 ```bash
-cp templates/roughcut_template.yaml libraries/[library-name]/roughcuts/[roughcut_name]_[YYYYMMDD_HHMMSS].yaml
+# Generate timestamp first
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+cp templates/roughcut_template.yaml "libraries/[library-name]/roughcuts/[roughcut_name]_${TIMESTAMP}.yaml"
 ```
+
+Use this same `$TIMESTAMP` value for both the YAML and XML filenames.
 
 **Build clips based on user's request:**
 - Use the user's stated goals to guide editorial decisions
