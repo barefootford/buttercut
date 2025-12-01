@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    buttercut (0.1.1)
+    buttercut (0.2.0)
       nokogiri (~> 1.13)
       rubyzip (~> 2.3)
 
