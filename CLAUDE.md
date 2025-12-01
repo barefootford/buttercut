@@ -31,7 +31,7 @@ You are an AI video editor assistant working with a software engineer. You gener
 3. **Edit** → Use `roughcut` skill to create timeline scripts from transcripts
    - **Rough cuts**: Multi-minute edits for full videos (typically 3-15+ minutes)
    - **Sequences**: 30-60 second clips that user will build to be imported into a larger video (created using the same roughcut skill with shorter target duration)
-   - **PREREQUISITE:** Check library.yaml to verify all videos have visual_transcript_path populated
+   - **PREREQUISITE:** Check library.yaml to verify all videos have visual_transcript populated
 4. **Backup** → Use `backup-library` skill to create compressed archives of all libraries
    - Creates timestamped ZIP backup of entire libraries directory
    - Backups are stored in `/backups/` and excluded from git
@@ -98,9 +98,9 @@ Note: A single `/tmp/` directory at the root is used for all temporary files. Cr
 Duplicate `templates/library_template.yaml` to create `libraries/[library-name]/library.yaml`:
 
 For each video file:
-1. Use `ffprobe` to get duration and file size
-2. Add entry to library.yaml with empty `transcript_path` and `visual_transcript_path`
-3. Empty paths mean "todo", valid paths mean "done"
+1. Use `ffprobe` to get duration
+2. Add entry to library.yaml with empty `transcript` and `visual_transcript`
+3. Empty fields mean "todo", valid filenames mean "done"
 
 The `language` field stores the language code for all videos in this library.
 
@@ -113,15 +113,15 @@ After library setup completes, **automatically start analyzing all footage**:
 1. Inform user: "Library setup complete. Found [N] videos ([total size]). Starting footage analysis..."
 2. Read library.yaml to get language code and find videos needing transcription
 3. Launch `transcribe-audio` agents (can run in parallel for multiple videos)
-4. As each agent completes, update library.yaml with `transcript_path`
+4. As each agent completes, update library.yaml with `transcript` (filename only, not full path)
 5. After all audio transcripts complete, launch `analyze-video` agents (can run in parallel)
-6. As each agent completes, update library.yaml with `visual_transcript_path`
+6. As each agent completes, update library.yaml with `visual_transcript` (filename only, not full path)
 7. Analyze ALL videos before offering to create rough cuts
 8. **After all analysis completes, automatically create a backup** using the `backup-library` skill
 
 **Terminology:**
 - User-facing: Call it "footage analysis" or "analyzing footage"
-- Internal/file names: Use "transcription" (library.yaml, transcript_path, etc.)
+- Internal/file names: Use "transcription" (library.yaml, transcript, etc.)
 
 **If user requests rough cut before analysis completes:**
 - Warn: "I can create a rough cut now, but I'll do a better job after analyzing all the footage. Continue anyway?"
@@ -156,9 +156,11 @@ When processing multiple videos, use parallel agents for maximum throughput:
 
 Each library has a `library.yaml` file that serves as your persistent memory and the SOURCE OF TRUTH. This file contains all library metadata, footage descriptions, transcription status, and key learnings. Always read this file when working on a library and you need guidance for how/where to save files.
 
+**If library structure seems wrong, check CHANGELOG.md.** The library.yaml format has evolved over versions. If you encounter unexpected field names (like `transcript_path` instead of `transcript`), read CHANGELOG.md to understand breaking changes and available migration scripts.
+
 **Use actual filenames.** Never use generic labels like "Video 1" or "Clip A" - always reference actual filenames like "DJI_20250423171212_0210_D.mov" for clear traceability.
 
-**Visual transcripts are mandatory.** Before creating any rough cut or sequence, verify ALL videos have both audio and visual transcripts. Check `library.yaml` - every video entry must have a `visual_transcript_path` with a file path (not empty or null or ""). Visual descriptions are essential for shot selection, pacing decisions, and B-roll placement.
+**Visual transcripts are mandatory.** Before creating any rough cut or sequence, verify ALL videos have both audio and visual transcripts. Check `library.yaml` - every video entry must have a `visual_transcript` with a filename (not empty or null or ""). Transcripts are stored in `libraries/[library-name]/transcripts/`. Visual descriptions are essential for shot selection, pacing decisions, and B-roll placement.
 
 **Be curious and ask questions.** Occasionally ask users questions about their libraries and footage to better understand context, creative intent, and preferences. When you receive answers, add this information to the `user_context` key in the library.yaml file. This builds institutional knowledge that improves future rough cut and sequence decisions and helps maintain continuity across editing sessions.
 

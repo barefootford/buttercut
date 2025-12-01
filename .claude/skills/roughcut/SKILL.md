@@ -20,8 +20,8 @@ Before launching the roughcut agent, verify all transcripts are complete:
 
 2. **Verify visual transcripts:**
    Read `libraries/[library-name]/library.yaml` and check that every video entry has both:
-   - `transcript_path` populated (audio transcript)
-   - `visual_transcript_path` populated (visual descriptions)
+   - `transcript` populated (audio transcript filename)
+   - `visual_transcript` populated (visual descriptions filename)
 
    If any visual transcripts are missing:
    - Inform user that transcript processing must be completed first

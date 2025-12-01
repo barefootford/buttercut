@@ -16,6 +16,5 @@ footage_summary: "No footage analyzed yet."
 videos:
   - path: /full/path/to/video_file.mp4
     duration: "00:05:32"
-    file_size_mb: 245
-    transcript_path: # path to saved transcript
-    visual_transcript_path: # path to saved transcript that has been annotated with visual video frame descriptions
+    transcript: # filename only (stored in libraries/[library-name]/transcripts/)
+    visual_transcript: # filename only (visual_*.json with frame descriptions)

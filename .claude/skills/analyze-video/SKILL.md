@@ -1,6 +1,6 @@
 ---
 name: analyze-video
-description: Adds visual descriptions to transcripts by extracting and analyzing video frames with ffmpeg. Creates visual transcript with periodic visual descriptions of the video clip. Use when all files have audio transcripts present (transcript_path) but but don't yet have visual transcripts created (visual_transcript_path).
+description: Adds visual descriptions to transcripts by extracting and analyzing video frames with ffmpeg. Creates visual transcript with periodic visual descriptions of the video clip. Use when all files have audio transcripts present (transcript) but don't yet have visual transcripts created (visual_transcript).
 ---
 
 # Skill: Analyze Video

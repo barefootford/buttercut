@@ -5,6 +5,31 @@ All notable changes to ButterCut will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-12-01
+
+### Changed
+- **BREAKING**: Simplified library.yaml transcript fields
+  - `transcript_path` → `transcript` (filename only, not full path)
+  - `visual_transcript_path` → `visual_transcript` (filename only, not full path)
+  - Transcripts are always stored in `libraries/[library-name]/transcripts/`
+  - Reduces library.yaml size by ~45% for large libraries
+- **Hundredths-of-second timestamp precision** in roughcuts
+  - Timestamps now use `HH:MM:SS.ss` format instead of `HH:MM:SS`
+  - Preserves timing within ~10ms of WhisperX transcript data
+  - Prevents clipping words at edit points
+
+### Removed
+- `file_size_mb` field from library.yaml (not used for editorial decisions)
+
+### Migration
+```bash
+# Back up your libraries first (creates ZIP in /backups/)
+ruby .claude/skills/backup-library/backup_libraries.rb
+
+# Migrate library.yaml files to new field names
+ruby scripts/001_migrate_0.2_to_0.3.rb --all
+```
+
 ## [0.2.0] - 2025-11-25
 
 ### Added
