@@ -25,14 +25,14 @@ footage_coverage: |
 clips:
   # Example clip structure (replace with actual selections)
   - source_file: "DJI_20250423171212_0210_D.mov"  # filename only, path comes from library.yaml
-    in_point: "00:00:03"      # Start time in HH:MM:SS format
-    out_point: "00:00:28"      # End time in HH:MM:SS format
+    in_point: "00:00:02.92"     # Start time in HH:MM:SS.ss format (hundredths precision)
+    out_point: "00:00:28.35"    # End time in HH:MM:SS.ss format
     dialogue: "In order to tell this one, I've got to zoom back about 10, 12, 13 years ago to when I barely just moved to San Francisco"
     visual_description: "[Man with mustache speaking directly to camera in medium-close shot. Outdoor urban SF street setting with residential buildings in background. Tan corduroy jacket. Handheld camera.]"
 
   - source_file: "DJI_20250423174726_0238_D.mov"
-    in_point: "00:00:00"
-    out_point: "00:00:05"
+    in_point: "00:00:00.00"
+    out_point: "00:00:05.24"
     dialogue: ""
     visual_description: "[POV from inside San Francisco Muni bus looking out window at passing street. Yellow safety handrails visible. Transit journey B-roll.]"
 

@@ -95,14 +95,14 @@ cp templates/roughcut_template.yaml "libraries/[library-name]/roughcuts/[roughcu
 
 **Build clips based on user's request:**
 - Use the user's stated goals to guide editorial decisions
-- Convert timestamps from seconds to `HH:MM:SS` format (round to nearest second)
+- Convert timestamps from seconds to `HH:MM:SS.ss` format (hundredths of second precision)
 - Reference video files using `source_file` from the combined JSON
 
 **CRITICAL - Timecode Logic:**
 - `in_point`: Start time of FIRST segment you want
 - `out_point`: End time of LAST segment you want
-- Use `start` and `end` from segments
-- Example: segment at 2.849s-29.63s → in_point: `00:00:02`, out_point: `00:00:29`
+- Use `start` and `end` from segments directly (preserve sub-second precision)
+- Example: segment at 2.849s-29.63s → in_point: `00:00:02.85`, out_point: `00:00:29.63`
 
 **CRITICAL - Required Fields:**
 Each clip needs:
@@ -111,7 +111,7 @@ Each clip needs:
 
 **Metadata:**
 - `created_date`: `YYYY-MM-DD HH:MM:SS`
-- `total_duration`: Sum of all clips in `HH:MM:SS` format
+- `total_duration`: Sum of all clips in `HH:MM:SS.ss` format
 
 ### 5. Export to Video Editor
 

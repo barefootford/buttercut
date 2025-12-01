@@ -4,9 +4,11 @@
 require 'yaml'
 
 def timecode_to_seconds(timecode)
-  # Convert HH:MM:SS to seconds
-  parts = timecode.split(':').map(&:to_i)
-  hours, minutes, seconds = parts
+  # Convert HH:MM:SS or HH:MM:SS.s to seconds (supports decimal seconds)
+  parts = timecode.split(':')
+  hours = parts[0].to_i
+  minutes = parts[1].to_i
+  seconds = parts[2].to_f  # to_f handles both "03" and "03.5"
   hours * 3600 + minutes * 60 + seconds
 end
 
