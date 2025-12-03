@@ -2,6 +2,8 @@
 
 **Make Claude your Video Editor**
 
+[buttercut.io](https://buttercut.io)
+
 Give Claude Code your video footage. Claude analyzes it, then builds roughcuts and sequences for Final Cut, Premiere, and Resolve.
 
 Behind the scenes Claude uses ButterCut Skills and a little Ruby library to generate timelines for your editor.
