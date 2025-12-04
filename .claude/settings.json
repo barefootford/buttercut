@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(backup-library)",
+      "Skill(release)",
+      "Skill(update-buttercut)",
+      "Skill(setup)",
+      "Skill(transcribe-audio)",
+      "Skill(roughcut)",
+      "Skill(analyze-video)",
+      "Read(libraries/**)",
+      "Edit(libraries/**)",
+      "Write(libraries/**)",
+      "Read(templates/**)",
+      "Read(.claude/**)",
+      "Bash(ffprobe:*)",
+      "Bash(ffmpeg:*)",
+      "Bash(whisperx:*)",
+      "Bash(ruby:.claude/**)",
+      "Bash(mkdir:libraries/**)",
+      "Bash(mkdir:tmp/**)",
+      "Bash(rm:tmp/**)",
+      "Bash(ls:*)",
+      "Bash(zip:*)",
+      "Bash(cp:libraries/**)",
+      "Bash(unzip:backups/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
