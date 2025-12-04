@@ -24,13 +24,13 @@ ruby .claude/skills/analyze-video/prepare_visual_script.rb libraries/[library]/t
 
 ### 2. Extract Frames (Binary Search)
 
-Create frame directory: `mkdir -p /tmp/frames/[video_name]`
+Create frame directory: `mkdir -p tmp/frames/[video_name]`
 
 **Videos ≤30s:** Extract one frame at 2s
 **Videos >30s:** Extract start (2s), middle (duration/2), end (duration-2s)
 
 ```bash
-ffmpeg -ss 00:00:02 -i video.mov -vframes 1 -vf "scale=1280:-1" /tmp/frames/[video_name]/start.jpg
+ffmpeg -ss 00:00:02 -i video.mov -vframes 1 -vf "scale=1280:-1" tmp/frames/[video_name]/start.jpg
 ```
 
 **Subdivide when:** Footage start, middle and end have different subjects, setting or angle changes
@@ -41,7 +41,7 @@ ffmpeg -ss 00:00:02 -i video.mov -vframes 1 -vf "scale=1280:-1" /tmp/frames/[vid
 
 Read the visual video json file that you created earlier.
 
-**Read the JPG frames** from `/tmp/frames/[video_name]/` using Read tool, then **Edit** `visual_video.json`:
+**Read the JPG frames** from `tmp/frames/[video_name]/` using Read tool, then **Edit** `visual_video.json`:
 
 Do these incrementally. You don't need to create a program or script to do this, just incrementally edit the json whenever you read new frames.
 
@@ -76,7 +76,7 @@ Do these incrementally. You don't need to create a program or script to do this,
 ### 4. Cleanup & Return
 
 ```bash
-rm -rf /tmp/frames/[video_name]
+rm -rf tmp/frames/[video_name]
 ```
 
 Return structured response:
