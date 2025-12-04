@@ -16,6 +16,10 @@ Behind the scenes Claude uses ButterCut Skills and a little Ruby library to gene
 
 ## Getting Started
 
+[![ButterCut Install Video](https://img.youtube.com/vi/BCMQzg-HiTw/0.jpg)](https://www.youtube.com/watch?v=BCMQzg-HiTw)
+
+*Click to watch the ButterCut install video on YouTube*
+
 **Clone ButterCut:**
 ```bash
 git clone https://github.com/barefootford/buttercut.git && cd buttercut
