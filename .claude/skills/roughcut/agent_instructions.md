@@ -46,45 +46,19 @@ This outputs to `tmp/[library-name]/[roughcut_name]_combined_visual_transcript.j
 ```bash
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 ```
-Use this same `$TIMESTAMP` for the scratchpad, YAML, and XML filenames.
+Use this same `$TIMESTAMP` for the YAML and XML filenames.
 
 **Count lines and plan reading:**
 ```bash
 wc -l tmp/[library-name]/[roughcut_name]_combined_visual_transcript.json
 ```
 
-**Create a todo list for chunked reading:**
-Based on line count, create todos to read in 1000-line chunks. Each chunk gets TWO tasks: read, then write notes.
+**Read the combined transcript in 5000-line chunks:**
+- For files under 10,000 lines: Read in 5000-line chunks
+- For files over 10,000 lines: Read in 5000-line chunks
+- Use the Read tool with offset and limit parameters
 
-Create/append to scratchpad file at `tmp/[library-name]/[roughcut_name]_scratchpad_${TIMESTAMP}.md`
-
-Example todo list for 5362 lines:
-1. Read lines 1-1000
-2. Write notes to scratchpad (chunk 1)
-3. Read lines 1001-2000
-4. Write notes to scratchpad (chunk 2)
-5. Read lines 2001-3000
-6. Write notes to scratchpad (chunk 3)
-7. Read lines 3001-4000
-8. Write notes to scratchpad (chunk 4)
-9. Write final approach to scratchpad
-10. Create roughcut YAML
-
-**Read each chunk:**
-Use the Read tool with offset and limit:
-```
-Read file with offset=[start_line] limit=1000
-```
-
-**Write notes after each chunk:**
-Create/append to scratchpad file.
-
-Notes should capture:
-- Key dialogue moments
-- Potential story beats or narrative moments
-
-**Write final approach after all chunks:**
-After reading all footage, add a "## Final Approach" section to the scratchpad with a rough narrative structure.
+After reading through footage sequentially, you can spend a little time thinking, and then create the roughcut yaml file.
 
 ### 4. Create Rough Cut YAML
 
