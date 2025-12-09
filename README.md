@@ -1,5 +1,8 @@
 # ButterCut
 
+[![Run in Smithery](https://smithery.ai/badge/skills/barefootford)](https://smithery.ai/skills?ns=barefootford&utm_source=github&utm_medium=badge)
+
+
 **Make Claude your Video Editor**
 
 [buttercut.io](https://buttercut.io)
