@@ -10,13 +10,13 @@ Behind the scenes Claude uses ButterCut Skills and a little Ruby library to gene
 
 ## Watch the Demo
 
-[![I Taught Claude Code to Edit Movies](https://img.youtube.com/vi/FBkfr1yWf_s/0.jpg)](https://www.youtube.com/watch?v=FBkfr1yWf_s)
+[![I Taught Claude Code to Edit Movies](https://img.youtube.com/vi/FBkfr1yWf_s/maxresdefault.jpg)](https://www.youtube.com/watch?v=FBkfr1yWf_s)
 
 *Click to watch "I Taught Claude Code to Edit Movies" on YouTube*
 
 ## Getting Started
 
-[![ButterCut Install Video](https://img.youtube.com/vi/BCMQzg-HiTw/0.jpg)](https://www.youtube.com/watch?v=BCMQzg-HiTw)
+[![ButterCut Install Video](https://img.youtube.com/vi/BCMQzg-HiTw/maxresdefault.jpg)](https://www.youtube.com/watch?v=BCMQzg-HiTw)
 
 *Click to watch the ButterCut install video on YouTube*
 
