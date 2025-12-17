@@ -5,7 +5,7 @@ description: Transcribes video audio using WhisperX, preserving original timesta
 
 # Skill: Transcribe Audio
 
-Transcribes video audio using WhisperX and creates clean JSON transcripts with word-level timing data.
+Transcribes video audio using WhisperX and creates clean JSON transcripts with word-level timing data. Includes optional LLM refinement to correct domain-specific terminology.
 
 ## When to Use
 - Videos need audio transcripts before visual analysis
@@ -16,15 +16,19 @@ Use WhisperX, NOT standard Whisper. WhisperX preserves the original video timeli
 
 ## Workflow
 
-### 1. Read Language from Library File
+### 1. Read Context from Library File
 
-Read the library's `library.yaml` to get the language code:
+Read the library's `library.yaml` to get:
+- `language` - language code for WhisperX
+- `footage_summary` - description of footage content
+- `user_context` - user-provided context (names, terminology, etc.)
 
 ```yaml
 # Library metadata
 library_name: [library-name]
-language: en  # Language code stored here
-...
+language: en
+user_context: "The presenter is Andrew Ford. He mentions TubeSalt (his SaaS product) and ButterCut (his video editing tool)."
+footage_summary: "Tutorial videos about Ruby programming and video editing workflows."
 ```
 
 ### 2. Run WhisperX
@@ -54,14 +58,76 @@ This script:
 - Removes unnecessary fields to reduce file size
 - Prettifies JSON
 
-### 4. Return Success Response
+### 4. Refine Transcript (if context available)
 
-After audio preparation completes, return this structured response to the parent agent:
+WhisperX transcribes without domain knowledge, so specialized terminology often gets mangled (names, brands, technical jargon). If `footage_summary` or `user_context` contain useful context, refine the transcript using Haiku.
+
+**Skip this step if:**
+- `footage_summary` is "No footage analyzed yet." AND `user_context` is empty
+- Both fields lack domain-specific terms to guide corrections
+
+**To refine:**
+
+1. Read the transcript JSON file
+2. Use the Task tool with `model: "haiku"` to identify corrections:
+
+```
+You are reviewing an audio transcript from video footage for transcription errors.
+
+CONTEXT:
+{footage_summary}
+{user_context}
+
+Your task is to identify transcription errors caused by the speech-to-text model not understanding the subject matter.
+
+Common issues to find:
+- Proper nouns (people, companies, products, places)
+- Subject-specific terminology and jargon
+- Acronyms and abbreviations spoken aloud
+- Names that sound like common words
+
+Return a JSON array of proposed corrections. Each correction should have:
+- "original": the incorrectly transcribed word/phrase
+- "corrected": what it should be
+- "reason": brief explanation (e.g., "product name", "person's name", "technical term")
+
+Example output:
+[
+  {"original": "tube salt", "corrected": "TubeSalt", "reason": "product name"},
+  {"original": "butter cut", "corrected": "ButterCut", "reason": "product name"},
+  {"original": "Andrew forward", "corrected": "Andrew Ford", "reason": "person's name"}
+]
+
+If no corrections are needed, return an empty array: []
+
+Here is the transcript JSON to review:
+{transcript_json}
+```
+
+3. Present corrections to user for approval:
+
+```
+Proposed transcript corrections for [video_filename.mov]:
+
+  "tube salt" → "TubeSalt" (product name)
+  "butter cut" → "ButterCut" (product name)
+  "Andrew forward" → "Andrew Ford" (person's name)
+
+Apply these corrections?
+```
+
+4. If user approves, apply corrections to the transcript JSON and save
+5. If user rejects or modifies, handle accordingly
+
+### 5. Return Success Response
+
+After transcription (and refinement if applicable) completes, return this structured response to the parent agent:
 
 ```
 ✓ [video_filename.mov] transcribed successfully
   Audio transcript: libraries/[library-name]/transcripts/video_name.json
   Video path: /full/path/to/video_filename.mov
+  Refined: yes/no
 ```
 
 **DO NOT update library.yaml** - the parent agent will handle this to avoid race conditions when running multiple transcriptions in parallel.
