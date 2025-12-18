@@ -62,14 +62,14 @@ AskUserQuestion tool with:
 
 Before launching the timeline agent, verify transcripts are complete:
 
-1. **Verify audio transcripts:**
+1. **Verify visual transcripts:**
    Read `libraries/[library-name]/library.yaml` and check that every video entry has:
-   - `transcript` populated (audio transcript filename)
+   - `visual_transcript` populated (visual transcript filename)
 
-   If transcripts are missing:
-   - Inform user that transcription must be completed first
-   - Ask if they want to run the `transcribe-audio` skill
-   - Do not proceed until transcripts are complete
+   If visual transcripts are missing:
+   - Inform user that footage analysis must be completed first
+   - Ask if they want to run the `transcribe-audio` and `analyze-video` skills
+   - Do not proceed until visual transcripts are complete
 
 ## Gather Roughcut Requirements
 

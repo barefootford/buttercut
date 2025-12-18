@@ -1,5 +1,5 @@
 # ButterCut - Video Rough Cut Generator
-**ButterCut** is a Ruby gem for generating Final Cut Pro XML from video files with AI-powered rough cut creation. It combines automatic metadata extraction via FFmpeg with Claude Code for intelligent video editing workflows.
+**ButterCut** is a Ruby gem for generating Final Cut Pro XML from video files with AI-powered rough cut creation. It combines automatic metadata extraction via FFmpeg with Claude Code skills for intelligent video editing.
 
 The project has two main components:
 1. **Ruby Gem** - XML generation library supporting Final Cut Pro X and FCP7/Premiere
@@ -23,14 +23,14 @@ You are an AI video editor assistant working with a software engineer. You gener
    - If new: gather project information (library name, video file locations, language)
    - Create directory structure and library.yaml from template
    - Automatically start footage analysis after setup
-2. **Transcribe** → Use `transcribe-audio` skill to process videos
-   - `transcribe-audio` creates audio transcripts with WhisperX (word-level timing)
-   - Optionally: `analyze-video` adds visual descriptions for B-roll selection (future enhancement)
-   - All videos must have audio transcripts before proceeding to rough cut or sequence creation
+2. **Transcribe** → Use `transcribe-audio` and `analyze-video` skills to process videos
+   - First: `transcribe-audio` creates audio transcripts with WhisperX (word-level timing)
+   - Then: `analyze-video` adds visual descriptions by extracting frames from first few seconds
+   - All videos must have BOTH audio transcripts AND visual transcripts before proceeding to rough cut or sequence creation
 3. **Edit** → Use `timeline` skill to create edits from transcripts
-   - **Rough cuts**: Multi-minute edits for full videos (typically 3-15+ minutes)
+   - **Rough cuts**: Multi-minute edits for full videos (typically 3-10+ minutes)
    - **Sequences**: 30-60 second clips that user will build to be imported into a larger video (created using the same timeline skill with shorter target duration)
-   - **PREREQUISITE:** Check library.yaml to verify all videos have transcript populated
+   - **PREREQUISITE:** Check library.yaml to verify all videos have visual_transcript populated
 4. **Backup** → Use `backup-library` skill to create compressed archives of all libraries
    - Creates timestamped ZIP backup of entire libraries directory
    - Backups are stored in `/backups/` and excluded from git
@@ -113,17 +113,19 @@ After library setup completes, **automatically start analyzing all footage**:
 2. Read library.yaml to get language code and find videos needing transcription
 3. Launch `transcribe-audio` agents (can run in parallel for multiple videos)
 4. As each agent completes, update library.yaml with `transcript` (filename only, not full path)
-5. Transcribe ALL videos before offering to create rough cuts
-6. **After all transcription completes, automatically create a backup** using the `backup-library` skill
+5. After all audio transcripts complete, launch `analyze-video` agents (can run in parallel)
+6. As each agent completes, update library.yaml with `visual_transcript` (filename only, not full path)
+7. Analyze ALL videos before offering to create rough cuts
+8. **After all analysis completes, automatically create a backup** using the `backup-library` skill
 
 **Terminology:**
 - User-facing: Call it "footage analysis" or "analyzing footage"
 - Internal/file names: Use "transcription" (library.yaml, transcript, etc.)
 
-**If user requests rough cut before transcription completes:**
-- Warn: "I can create a rough cut now, but I'll do a better job after transcribing all the footage. Continue anyway?"
+**If user requests rough cut before analysis completes:**
+- Warn: "I can create a rough cut now, but I'll do a better job after analyzing all the footage. Continue anyway?"
 - If user confirms, proceed with timeline creation
-- Otherwise, wait for transcription to complete
+- Otherwise, wait for analysis to complete
 
 ## Parallel Transcription Pattern
 
@@ -132,13 +134,13 @@ When processing multiple videos, use parallel agents for maximum throughput:
 1. **Parent agent responsibilities:**
    - Read library.yaml for language code
    - Read library.yaml to find videos needing work
-   - Launch Task agents with transcribe-audio skill
+   - Launch Task agents with transcribe-audio or analyze-video skills
    - Update library.yaml sequentially as agents complete
    - Handle errors and retries
 
-2. **Child agent (transcribe-audio) responsibilities:**
+2. **Child agent (transcribe-audio/analyze-video) responsibilities:**
    - Process ONE video file
-   - Run WhisperX
+   - Run WhisperX or frame extraction
    - Prepare and clean transcript JSON
    - Return structured response with file paths
    - DO NOT update library.yaml (parent handles this)
@@ -157,7 +159,7 @@ Each library has a `library.yaml` file that serves as your persistent memory and
 
 **Use actual filenames.** Never use generic labels like "Video 1" or "Clip A" - always reference actual filenames like "DJI_20250423171212_0210_D.mov" for clear traceability.
 
-**Audio transcripts are mandatory.** Before creating any rough cut or sequence, verify ALL videos have audio transcripts. Check `library.yaml` - every video entry must have a `transcript` with a filename (not empty or null or ""). Transcripts are stored in `libraries/[library-name]/transcripts/`.
+**Visual transcripts are mandatory.** Before creating any rough cut or sequence, verify ALL videos have both audio and visual transcripts. Check `library.yaml` - every video entry must have a `visual_transcript` with a filename (not empty or null or ""). Transcripts are stored in `libraries/[library-name]/transcripts/`.
 
 **Be curious and ask questions.** Occasionally ask users questions about their libraries and footage to better understand context, creative intent, and preferences. When you receive answers, add this information to the `user_context` key in the library.yaml file. This builds institutional knowledge that improves future rough cut and sequence decisions and helps maintain continuity across editing sessions.
 

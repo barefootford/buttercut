@@ -145,7 +145,7 @@ Library setup complete! I've successfully processed all 10 wedding video clips:
 This is wedding reception footage shot on camcorder at night. The venue features an elegant outdoor pavilion with string light canopies, formal dining tables with gold charger plates and burgundy tablecloths, and a decorated storefront entrance with fairy lights and gold garland. Footage captures casual conversations between guests, a champagne toast scene, and even includes one clip of snowy outdoor conditions. The overall atmosphere is intimate, formal, and celebratory.
 
 **What's next?**
-Now that all footage is analyzed, you can create a rough cut by using the `roughcut` skill. The rough cut generator will use the visual transcripts and audio transcripts to create a Final Cut Pro XML file based on your editorial direction.
+Now that all footage is analyzed, you can create a rough cut by using the `timeline` skill. The rough cut generator will use the visual transcripts and audio transcripts to create a Final Cut Pro XML file based on your editorial direction.
 
 All files are saved in:
 - Library: `/Users/andrew/code/buttercut/libraries/wedding/library.yaml`
