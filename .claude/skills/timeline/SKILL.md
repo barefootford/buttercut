@@ -7,7 +7,7 @@ description: Creates video rough cuts using a text-based timeline format optimiz
 
 This skill creates rough cuts using a simplified text-based timeline format. It's a collaborative, iterative process - the agent proposes structure, makes selections, and refines the edit based on user feedback until the user is satisfied.
 
-**Key features:** Uses a plain-text timeline format optimized for LLM comprehension, focusing on dialogue. B-roll support coming soon.
+**Key features:** Uses a plain-text timeline format optimized for LLM comprehension, combining dialogue with visual descriptions. Includes B-roll clips for cutaways.
 
 ## Scripts
 
@@ -22,8 +22,8 @@ This skill includes three Ruby scripts:
 **Usage:**
 ```bash
 # Generate text timeline from transcripts
-./.claude/skills/timeline/combine_to_timeline.rb [library-name] [timeline-name]
-# Output: tmp/[library-name]/[timeline-name]_timeline.txt
+./.claude/skills/timeline/combine_to_timeline.rb [library-name]
+# Output: tmp/[library-name]/timeline.txt (overwrites existing)
 
 # Preview a rough cut by extracting the dialogue
 ./.claude/skills/timeline/dialogue_extractor.rb libraries/[library-name]/roughcuts/[file].yaml
@@ -131,7 +131,7 @@ YOUR TASK:
 4. Return the path to the final YAML file
 
 DELIVERABLES:
-- Timeline file at: tmp/{library_name}/{timeline_name}_timeline.txt
+- Timeline file at: tmp/{library_name}/timeline.txt
 - Rough cut YAML file at: libraries/{library_name}/roughcuts/{timeline_name}_{datetime}.yaml
 
 Begin by reading the agent instructions file.

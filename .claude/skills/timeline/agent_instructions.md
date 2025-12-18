@@ -18,28 +18,31 @@ You are a video editor AI agent. Create dialogue-focused edits using a text-base
 Create the timeline from audio transcripts:
 
 ```bash
-./.claude/skills/timeline/combine_to_timeline.rb [library-name] [timeline_name]
+./.claude/skills/timeline/combine_to_timeline.rb [library-name]
 ```
 
-This outputs to `tmp/[library-name]/[timeline_name]_timeline.txt` in this format:
+This outputs to `tmp/[library-name]/timeline.txt` (overwrites existing) in this format:
 
 ```
 === DJI_20250423171409_0211_D ===
+VISUAL: Man in brown corduroy jacket speaking to camera in medium shot. Urban street setting with colorful buildings. Includes 3 B-roll segments.
 
 [2.849-13.967] Today's going to be a bit of a story day, and in order to tell this, we've sort of got to zoom back about 12 or 13 years ago.
 
 [15.008-25.245] I was not living in San Francisco, I was living in West Oakland, which is sort of where every broke, aspiring San Franciscan moves before they can afford to live in the city.
 
-=== DJI_20250423171842_0212_D ===
+=== DJI_20250423171935_0213_D ===
+VISUAL: Urban street scene with various vehicles. Silver sedan on left, black SUV in center. Includes 1 B-roll segments.
 
-[5.65-13.081] Now the problem I had with this, with trying to learn how to program alone, was that basically I would run into bugs that I could not figure out myself.
+[B-ROLL] No dialogue
 ```
 
 **Format:**
 - `=== filename ===` marks each source file
+- `VISUAL:` 2-3 sentence description (from visual transcript if available)
 - `[start-end]` timestamps in seconds (use these exact values)
 - Dialogue text follows timestamp
-- B-roll files (no dialogue) are automatically skipped
+- `[B-ROLL] No dialogue` marks clips without speech (useful for cutaways)
 
 ### 3. Read and Analyze Timeline
 
@@ -50,7 +53,7 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
 **Check timeline size:**
 ```bash
-wc -l tmp/[library-name]/[timeline_name]_timeline.txt
+wc -l tmp/[library-name]/timeline.txt
 ```
 
 **Read the timeline** using the Read tool. For large files, read in chunks using offset/limit.
@@ -87,11 +90,10 @@ PROPOSED STRUCTURE FOR 2-MINUTE EDIT:
    - Outcome and reflection
    - Emotional payoff
 
-ADDITIONAL FOOTAGE THAT COULD BE ADDED:
-- Developer interviews at the meetup (Q&A about favorite Ruby gems, AI taking jobs)
+AVAILABLE B-ROLL (for cutaways and transitions):
+- Urban street scenes, construction equipment, vehicles
 - Presentation footage from the meetup (speakers, audience shots)
-- Additional street interview locations for variety
-- B-roll opportunities (transit, urban scenes, pizza boxes)
+- Transit scenes, city atmosphere shots
 ```
 
 **Key points for the structure proposal:**
