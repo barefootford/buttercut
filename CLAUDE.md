@@ -23,15 +23,14 @@ You are an AI video editor assistant working with a software engineer. You gener
    - If new: gather project information (library name, video file locations, language)
    - Create directory structure and library.yaml from template
    - Automatically start footage analysis after setup
-2. **Transcribe** → Use `transcribe-audio` and `analyze-video` skills to process videos
-   - First: `transcribe-audio` creates audio transcripts with WhisperX (word-level timing)
-   - Then: `analyze-video` adds visual descriptions by extracting and analyzing frames
-   - All videos must have BOTH audio transcripts AND visual transcripts before proceeding to rough cut or sequence creation
-   - Visual transcripts are essential for B-roll selection, shot composition, and editorial decisions
-3. **Edit** → Use `roughcut` skill to create timeline scripts from transcripts
+2. **Transcribe** → Use `transcribe-audio` skill to process videos
+   - `transcribe-audio` creates audio transcripts with WhisperX (word-level timing)
+   - Optionally: `analyze-video` adds visual descriptions for B-roll selection (future enhancement)
+   - All videos must have audio transcripts before proceeding to rough cut or sequence creation
+3. **Edit** → Use `timeline` skill to create edits from transcripts
    - **Rough cuts**: Multi-minute edits for full videos (typically 3-15+ minutes)
-   - **Sequences**: 30-60 second clips that user will build to be imported into a larger video (created using the same roughcut skill with shorter target duration)
-   - **PREREQUISITE:** Check library.yaml to verify all videos have visual_transcript populated
+   - **Sequences**: 30-60 second clips that user will build to be imported into a larger video (created using the same timeline skill with shorter target duration)
+   - **PREREQUISITE:** Check library.yaml to verify all videos have transcript populated
 4. **Backup** → Use `backup-library` skill to create compressed archives of all libraries
    - Creates timestamped ZIP backup of entire libraries directory
    - Backups are stored in `/backups/` and excluded from git
@@ -114,19 +113,17 @@ After library setup completes, **automatically start analyzing all footage**:
 2. Read library.yaml to get language code and find videos needing transcription
 3. Launch `transcribe-audio` agents (can run in parallel for multiple videos)
 4. As each agent completes, update library.yaml with `transcript` (filename only, not full path)
-5. After all audio transcripts complete, launch `analyze-video` agents (can run in parallel)
-6. As each agent completes, update library.yaml with `visual_transcript` (filename only, not full path)
-7. Analyze ALL videos before offering to create rough cuts
-8. **After all analysis completes, automatically create a backup** using the `backup-library` skill
+5. Transcribe ALL videos before offering to create rough cuts
+6. **After all transcription completes, automatically create a backup** using the `backup-library` skill
 
 **Terminology:**
 - User-facing: Call it "footage analysis" or "analyzing footage"
 - Internal/file names: Use "transcription" (library.yaml, transcript, etc.)
 
-**If user requests rough cut before analysis completes:**
-- Warn: "I can create a rough cut now, but I'll do a better job after analyzing all the footage. Continue anyway?"
-- If user confirms, proceed with rough cut creation
-- Otherwise, wait for analysis to complete
+**If user requests rough cut before transcription completes:**
+- Warn: "I can create a rough cut now, but I'll do a better job after transcribing all the footage. Continue anyway?"
+- If user confirms, proceed with timeline creation
+- Otherwise, wait for transcription to complete
 
 ## Parallel Transcription Pattern
 
@@ -135,13 +132,13 @@ When processing multiple videos, use parallel agents for maximum throughput:
 1. **Parent agent responsibilities:**
    - Read library.yaml for language code
    - Read library.yaml to find videos needing work
-   - Launch Task agents with transcribe-audio or analyze-video skills
+   - Launch Task agents with transcribe-audio skill
    - Update library.yaml sequentially as agents complete
    - Handle errors and retries
 
-2. **Child agent (transcribe-audio/analyze-video) responsibilities:**
+2. **Child agent (transcribe-audio) responsibilities:**
    - Process ONE video file
-   - Run WhisperX or frame extraction
+   - Run WhisperX
    - Prepare and clean transcript JSON
    - Return structured response with file paths
    - DO NOT update library.yaml (parent handles this)
@@ -160,7 +157,7 @@ Each library has a `library.yaml` file that serves as your persistent memory and
 
 **Use actual filenames.** Never use generic labels like "Video 1" or "Clip A" - always reference actual filenames like "DJI_20250423171212_0210_D.mov" for clear traceability.
 
-**Visual transcripts are mandatory.** Before creating any rough cut or sequence, verify ALL videos have both audio and visual transcripts. Check `library.yaml` - every video entry must have a `visual_transcript` with a filename (not empty or null or ""). Transcripts are stored in `libraries/[library-name]/transcripts/`. Visual descriptions are essential for shot selection, pacing decisions, and B-roll placement.
+**Audio transcripts are mandatory.** Before creating any rough cut or sequence, verify ALL videos have audio transcripts. Check `library.yaml` - every video entry must have a `transcript` with a filename (not empty or null or ""). Transcripts are stored in `libraries/[library-name]/transcripts/`.
 
 **Be curious and ask questions.** Occasionally ask users questions about their libraries and footage to better understand context, creative intent, and preferences. When you receive answers, add this information to the `user_context` key in the library.yaml file. This builds institutional knowledge that improves future rough cut and sequence decisions and helps maintain continuity across editing sessions.
 
@@ -224,4 +221,4 @@ This will check if the generated FCPXML conforms to the FCPXML 1.8 specification
 
 ## Claude Skills
 
-When creating new Claude skills, aim to keep them to 50 lines. Only very complicated skills (ie transcription and roughcuts) should be larger than that. If the skill is complicated and seems like it can't be explained in 50 lines, consider if they should be broken up across multiple skills or if the complexity can be contained inside a ruby script saved adjacent to the skill.
+When creating new Claude skills, aim to keep them to 50 lines. Only very complicated skills (ie transcription and timeline) should be larger than that. If the skill is complicated and seems like it can't be explained in 50 lines, consider if they should be broken up across multiple skills or if the complexity can be contained inside a ruby script saved adjacent to the skill.

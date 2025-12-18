@@ -186,11 +186,11 @@ libraries/wedding/
 ```plaintext
 You: "Create a rough cut showing the best moments from the reception"
 
-Claude: [Uses roughcut skill]
-  - Reads all visual and audio transcripts
-  - Selects best clips based on your direction
-  - Generates rough cut YAML
-  - Exports to FCPXML format
+Claude: [Uses timeline skill]
+  - Reads all audio transcripts
+  - Proposes story structure for your approval
+  - Selects clips based on your direction
+  - Generates rough cut YAML and exports to FCPXML
 
 Result: timeline_2025-11-10.fcpxml ready to import into Final Cut Pro
 ```

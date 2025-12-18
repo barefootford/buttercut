@@ -1,6 +1,6 @@
 ---
 name: backup-library
-description: Creates compressed ZIP backups of libraries directory. Backs up library.yaml, transcripts, and roughcuts (not video files). This skill can also be useful when you need to restore a library.
+description: Creates compressed ZIP backups of libraries directory. Backs up library.yaml, transcripts, and timelines (not video files). This skill can also be useful when you need to restore a library.
 ---
 
 # Skill: Backup Library

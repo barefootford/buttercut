@@ -74,10 +74,10 @@ Claude handles the parallel processing, metadata extraction, and transcript gene
 Once your library is analyzed, Claude can create rough cuts through an interactive conversation:
 
 ```plaintext
-You: "Let's create a new roughcut"
+You: "Let's create a new rough cut"
 
-Claude: [Loads roughcut skill and analyzes footage]
-        What should this roughcut focus on?
+Claude: [Loads timeline skill and analyzes footage]
+        What should this rough cut focus on?
         - Full story
         - Just the meetup coverage
         - Short teaser sequence
@@ -99,8 +99,8 @@ Claude: [Asks which video editor you want to use]
 
 You: "Final Cut Pro X"
 
-Claude: [Creates roughcut with editorial decisions]
-        ✓ Combined visual transcripts
+Claude: [Proposes story structure, then selects clips]
+        ✓ Proposed 4-act structure
         ✓ Selected 29 clips (4:32 total)
         ✓ Exported to FCPXML
 
