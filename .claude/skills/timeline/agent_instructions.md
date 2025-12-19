@@ -65,55 +65,76 @@ As you read, identify:
 - Key moments and themes
 - Variety of footage types available
 
-### 4. Propose Story Structure
+### 4. Propose Three Story Structures
 
-**Before selecting specific clips**, propose an abstract story structure to the user. This is a high-level outline without specific timings or clip references.
+**Before selecting specific clips**, propose THREE different story structures to the user. These are high-level outlines without specific timings or clip references. Each structure should offer a meaningfully different creative approach.
 
-Present the structure as narrative beats or acts, followed by additional footage options:
-
-```
-PROPOSED STRUCTURE FOR 2-MINUTE EDIT:
-
-1. OPENING (≈20-30s)
-   - Hook the viewer with the core premise
-   - Establish time and place
-
-2. THE CHALLENGE (≈30-40s)
-   - What problem needed solving?
-   - Why was it difficult?
-
-3. THE SOLUTION (≈40-50s)
-   - How was the problem addressed?
-   - Key turning point moment
-
-4. RESOLUTION (≈20-30s)
-   - Outcome and reflection
-   - Emotional payoff
-
-AVAILABLE B-ROLL (for cutaways and transitions):
-- Urban street scenes, construction equipment, vehicles
-- Presentation footage from the meetup (speakers, audience shots)
-- Transit scenes, city atmosphere shots
-```
-
-**Key points for the structure proposal:**
-- Keep it abstract - describe themes and beats, not specific dialogue
-- Calculate and show total estimated duration in the header
-- Suggest approximate durations per section
-- List additional footage separately so user can choose to include it
-
-### 5. Get User Approval
-
-Use AskUserQuestion to confirm the structure:
+**Present all three structures, then give your recommendation:**
 
 ```
-Does this structure work for you?
-- Yes, proceed with this structure
-- Modify it (tell me what to change)
-- Start over with a different approach
+STRUCTURE A: "The Journey" (Chronological)
+Target: ~2 minutes
+
+1. ARRIVAL (≈30s) - First impressions, establishing the place
+2. EXPLORATION (≈50s) - Discovering key locations and experiences
+3. HIGHLIGHT (≈30s) - The standout moment of the trip
+4. REFLECTION (≈20s) - What it all meant, closing thoughts
+
+---
+
+STRUCTURE B: "The Food Story" (Thematic)
+Target: ~2 minutes
+
+1. THE QUEST (≈20s) - Setting up what we're looking for
+2. FIRST TASTE (≈40s) - Initial food experience
+3. GOING DEEPER (≈40s) - More discoveries, building intensity
+4. THE VERDICT (≈20s) - Final thoughts and recommendations
+
+---
+
+STRUCTURE C: "Mood Piece" (Atmospheric)
+Target: ~2 minutes
+
+1. COLD OPEN (≈15s) - Jump straight into action, no setup
+2. MONTAGE (≈60s) - Rapid cuts across locations, music-driven
+3. PAUSE (≈30s) - One slower, reflective moment
+4. FINALE (≈15s) - End on a strong visual or line
+
+---
+
+MY RECOMMENDATION: Structure A
+
+I recommend "The Journey" because the footage has strong chronological markers
+and the narrator explicitly references the progression of their day. The
+arrival footage is particularly compelling and would hook viewers immediately.
+
+AVAILABLE B-ROLL (for any structure):
+- Street scenes, architecture, atmosphere shots
+- Food preparation and restaurant interiors
+- Transit and movement footage
 ```
 
-**Wait for user approval before proceeding.** If they want modifications, adjust the structure and ask again.
+**Key points for proposing structures:**
+- Make each structure meaningfully different (chronological vs thematic vs stylistic)
+- Give each structure a memorable name
+- Keep descriptions abstract - themes and beats, not specific dialogue
+- Show approximate durations per section
+- **Always include a recommendation with brief reasoning** based on the footage
+- List B-roll options separately (applies to all structures)
+
+### 5. Get User Choice
+
+Use AskUserQuestion to let the user choose:
+
+```
+Which structure would you like to use?
+- Structure A: "The Journey" (Recommended)
+- Structure B: "The Food Story"
+- Structure C: "Mood Piece"
+- None of these - let me describe what I want
+```
+
+**Wait for user selection before proceeding.** If they choose "None of these", ask what approach they'd prefer and propose a revised structure.
 
 ### 6. Make Selections
 

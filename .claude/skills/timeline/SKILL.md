@@ -7,8 +7,6 @@ description: Creates video rough cuts using a text-based timeline format optimiz
 
 This skill creates rough cuts using a simplified text-based timeline format. It's a collaborative, iterative process - the agent proposes structure, makes selections, and refines the edit based on user feedback until the user is satisfied.
 
-**Key features:** Uses a plain-text timeline format optimized for LLM comprehension, combining dialogue with visual descriptions. Includes B-roll clips for cutaways.
-
 ## Scripts
 
 This skill includes three Ruby scripts:
@@ -89,16 +87,16 @@ Use AskUserQuestion with questions tailored to what's missing and what's in the 
 - **Structure**: Chronological vs thematic vs highlight reel
 - **Specific content**: If footage has interviews, ask which people to feature; if multiple locations, which to prioritize
 
-**Example with programmer-story-vlog library:**
+**Example with a New Orleans travel vlog:**
 If user says "make a roughcut", you might ask:
 1. "How long should this video be?" (they didn't specify)
-2. "What should be the main focus?" (options based on footage: Origin story narration, Ruby meetup interviews, Mix of both)
-3. "Should I include the technical meetup presentations or just the interviews?" (specific to this footage)
+2. "What should be the main focus?" (options based on footage: Food experiences, Music and nightlife, Historical sites, Mix of everything)
+3. "Should I include the street walking footage as transitions between locations?" (specific to travel footage)
 
-If user says "5-minute video about the interviews", you'd skip duration and focus, instead asking:
-1. "Which interviewees should I prioritize?" (Bart, Eduardo, or equal time for all)
-2. "Include any of the narrator's street scenes as transitions?"
-3. "Casual conversation feel or more structured Q&A format?"
+If user says "5-minute video about the food", you'd skip duration and focus, instead asking:
+1. "Which restaurants should I prioritize?" (Café Du Monde, Commander's Palace, or equal coverage)
+2. "Include B-roll of the French Quarter between restaurant scenes?"
+3. "Upbeat travel show feel or slower documentary style?"
 
 **Step 3: Compile the creative brief**
 Combine the user's initial request + their answers into a clear brief for the timeline agent.
@@ -126,9 +124,10 @@ LIBRARY CONTEXT:
 
 YOUR TASK:
 1. Read the timeline creation instructions from .claude/skills/timeline/agent_instructions.md
-2. Follow those instructions to create the edit
-3. This is a COLLABORATIVE process - work with the user through multiple iterations until they're satisfied
-4. Return the path to the final YAML file
+2. Propose THREE different story structures with your recommendation for which is best
+3. After user selects a structure, create the edit following the instructions
+4. This is a COLLABORATIVE process - work with the user through multiple iterations until they're satisfied
+5. Return the path to the final YAML file
 
 DELIVERABLES:
 - Timeline file at: tmp/{library_name}/timeline.txt
@@ -146,7 +145,7 @@ When the agent returns with the YAML file path:
 - Present a summary to the user:
   - Total duration and clip count
   - Structure breakdown (section names with durations)
-  - 1-2 sentences of actual dialogue from each section
+  - 2-3 sentences of real dialogue embedded in each section of the movie
 
 **Step 2: Ask what they want to do next**
 Use AskUserQuestion with these options:
@@ -154,8 +153,8 @@ Use AskUserQuestion with these options:
 ```
 AskUserQuestion tool with:
 - question: "What would you like to do next?"
-- header: "Next step"
-- multiSelect: true
+- header: "Next Move"
+- multiSelect: false
 - options:
   - label: "Export to editor"
     description: "Generate XML for Final Cut Pro, Premiere, or DaVinci Resolve"
@@ -168,69 +167,5 @@ AskUserQuestion tool with:
 **Step 3: Handle responses**
 
 - **Export to editor**: Ask which editor (FCPX, Premiere, Resolve), run `export_to_fcpxml.rb`, create backup, share path
-- **Show full dialogue**: Display the complete dialogue_extractor output
-- **Make changes**: See "Suggesting Changes" below
-
-If user selects multiple options, handle them in order (e.g., show dialogue first, then export).
-
-## Suggesting Changes
-
-When the user wants to make changes, don't just ask an open-ended question. Instead:
-
-**Step 1: Launch an agent to analyze the roughcut and suggest improvements**
-
-```
-Task tool with:
-- subagent_type: "general-purpose"
-- model: "haiku"
-- description: "Analyze roughcut and suggest improvements"
-- prompt: |
-    Analyze this roughcut dialogue and suggest 4 improvements: 2 things to ADD and 2 things to REWORK.
-
-    ROUGHCUT DIALOGUE:
-    {paste full dialogue from dialogue_extractor.rb}
-
-    ORIGINAL BRIEF:
-    {paste the creative brief/user request}
-
-    Suggest 4 concrete improvements:
-    - 2 things to ADD (new content, scenes, or elements not currently in the edit)
-    - 2 things to REWORK (modify, trim, reorder, or improve existing scenes)
-
-    For each suggestion:
-    - Be specific (name clips, sections, or content)
-    - Explain the benefit
-    - Keep suggestions actionable
-
-    Format:
-    ADD:
-    1. [Title]: [Brief explanation]
-    2. [Title]: [Brief explanation]
-
-    REWORK:
-    1. [Title]: [Brief explanation]
-    2. [Title]: [Brief explanation]
-```
-
-**Step 2: Present suggestions as options**
-
-Note: AskUserQuestion automatically includes an "Other" option, so don't add one manually.
-
-```
-AskUserQuestion tool with:
-- question: "What changes would you like to make?"
-- header: "Changes"
-- multiSelect: false
-- options:
-  - label: "Add: [Add suggestion 1 title]"
-    description: [Add suggestion 1 explanation]
-  - label: "Add: [Add suggestion 2 title]"
-    description: [Add suggestion 2 explanation]
-  - label: "Rework: [Rework suggestion 1 title]"
-    description: [Rework suggestion 1 explanation]
-  - label: "Rework: [Rework suggestion 2 title]"
-    description: [Rework suggestion 2 explanation]
-```
-
-**Step 3: Apply the changes**
-Resume the timeline agent with the selected change (or user's custom request if "Something else").
+- **Show full dialogue**: Display complete dialogue from dialogue_extractor.rb output
+- **Make changes**: Ask what the user wants to change, and then launch an appropriate agent/subtask to make the change or investigate the users task.
