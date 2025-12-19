@@ -4,7 +4,7 @@
 
 [buttercut.io](https://buttercut.io)
 
-Give Claude Code your video footage. Claude analyzes it, then builds roughcuts and sequences for Final Cut, Premiere, and Resolve.
+Give Claude Code your video footage. Claude analyzes it, then builds timelines for Final Cut, Premiere, and Resolve.
 
 Behind the scenes Claude uses ButterCut Skills and a little Ruby library to generate timelines for your editor.
 
@@ -105,7 +105,7 @@ Claude: [Proposes story structure, then selects clips]
         ✓ Exported to FCPXML
 
 Result: Ready-to-import timeline at:
-        libraries/[library]/roughcuts/[name]_[datetime].fcpxml
+        libraries/[library]/timelines/[name]_[datetime].fcpxml
 ```
 
 Claude makes editorial decisions based on transcript analysis and your preferences, then exports a timeline for your editor.

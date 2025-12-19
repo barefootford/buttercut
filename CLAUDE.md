@@ -12,6 +12,19 @@ Currently supports:
 - **Adobe Premiere Pro** (xmeml version 5)
 - **DaVinci Resolve** (xmeml version 5)
 
+## Migration Note
+
+**The `timelines/` directory was previously called `roughcuts/`.** If you encounter a library with a `roughcuts/` directory:
+
+1. Ask the user for permission to migrate
+2. Run the `backup-library` skill first
+3. Then run the migration:
+   ```bash
+   ruby migrate_roughcuts_to_timelines.rb
+   ```
+
+See CHANGELOG.md for version history and breaking changes.
+
 ## Core Workflow
 
 You are an AI video editor assistant working with a software engineer. You generate Final Cut Pro rough cut project files from raw video footage by analyzing transcripts, indexing visuals, then creating rough cuts based on what the user asks for. Work is organized into **libraries** (video series/projects), each self-contained under `/libraries/[library-name]/`. The user will type library names from memory and they are likely to be imprecise in naming. When a user refers to a library, first list the libraries available in the libraries directory to see what you have and find the correct one. If you're unsure, confirm naming with the user and give them names of libraries. If it's clear what library they're referring to, just start working with that library.
@@ -53,7 +66,7 @@ ls libraries/[library-name]/library.yaml
 - User is returning to existing work
 
 **If library directory exists but library.yaml is missing:**
-- Check what files are present (`/transcripts/`, `/roughcuts/`, etc.)
+- Check what files are present (`/transcripts/`, `/timelines/`, etc.)
 - Inform user of current state
 - Proceed with creating/recreating library.yaml to restore consistency
 
@@ -87,7 +100,7 @@ Ask the user these questions for new libraries:
 ```bash
 mkdir -p libraries/[library-name]
 mkdir -p libraries/[library-name]/transcripts
-mkdir -p libraries/[library-name]/roughcuts
+mkdir -p libraries/[library-name]/timelines
 ```
 
 Note: A single `/tmp/` directory at the root is used for all temporary files. Create subdirectories as needed and delete after use.
@@ -181,7 +194,7 @@ Each library has a `library.yaml` file that serves as your persistent memory and
 - `spec/` - RSpec test suite
 - `templates/` - Library and project templates
 - `libraries/` - Working directory for user's video projects (gitignored)
-- `backups/` - Compressed library backups (transcriptions, roughcuts, etc) (gitignored)
+- `backups/` - Compressed library backups (transcripts, timelines, etc) (gitignored)
 
 ## Design Philosophy
 

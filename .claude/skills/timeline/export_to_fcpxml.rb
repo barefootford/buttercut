@@ -32,8 +32,8 @@ def main
   roughcut = YAML.load_file(roughcut_path, permitted_classes: [Date, Time, Symbol])
 
   # Find library name from path
-  # Path pattern: libraries/[library-name]/roughcuts/[roughcut-name].yaml
-  library_match = roughcut_path.match(%r{libraries/([^/]+)/roughcuts})
+  # Path pattern: libraries/[library-name]/timelines/[timeline-name].yaml
+  library_match = roughcut_path.match(%r{libraries/([^/]+)/timelines})
   unless library_match
     puts "Error: Could not extract library name from path: #{roughcut_path}"
     exit 1

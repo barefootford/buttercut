@@ -59,7 +59,7 @@ Perfect! Setting up the library and starting footage analysis...
 ```
 ✓ Created libraries/wedding/
 ✓ Created libraries/wedding/transcripts/
-✓ Created libraries/wedding/roughcuts/
+✓ Created libraries/wedding/timelines/
 ✓ Created library.yaml with metadata for all 10 videos
 ```
 
@@ -164,7 +164,7 @@ libraries/wedding/
 │   ├── MVI_0316.json
 │   ├── visual_MVI_0316.json
 │   └── [...18 more transcript files]
-└── roughcuts/                            # Ready for rough cut creation
+└── timelines/                            # Ready for timeline creation
 ```
 
 ---

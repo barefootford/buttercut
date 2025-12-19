@@ -26,7 +26,7 @@ This skill includes three Ruby scripts:
 # Output: tmp/[library-name]/timeline.txt (overwrites existing)
 
 # Preview a rough cut by extracting the dialogue
-./.claude/skills/timeline/dialogue_extractor.rb libraries/[library-name]/roughcuts/[file].yaml
+./.claude/skills/timeline/dialogue_extractor.rb libraries/[library-name]/timelines/[file].yaml
 
 # Export to video editor xml
 ./.claude/skills/timeline/export_to_fcpxml.rb [roughcut.yaml] [output.xml] [editor]
@@ -132,7 +132,7 @@ YOUR TASK:
 
 DELIVERABLES:
 - Timeline file at: tmp/{library_name}/timeline.txt
-- Rough cut YAML file at: libraries/{library_name}/roughcuts/{timeline_name}_{datetime}.yaml
+- Timeline YAML file at: libraries/{library_name}/timelines/{timeline_name}_{datetime}.yaml
 
 Begin by reading the agent instructions file.
 ```

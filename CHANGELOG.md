@@ -5,6 +5,26 @@ All notable changes to ButterCut will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-12-19
+
+### Changed
+- **BREAKING**: Renamed `roughcuts/` directory to `timelines/` in all libraries
+  - Skill renamed from `roughcut` to `timeline`
+  - Template renamed from `roughcut_template.yaml` to `timeline_template.yaml`
+  - All path references updated throughout codebase
+- **Simplified visual analysis**: Now extracts 2 frames from video start instead of binary search across entire video
+- **Interactive workflow**: Timeline skill now proposes story structure for approval before selecting clips
+
+### Added
+- `dialogue_extractor.rb` - Preview rough cuts as readable dialogue text
+- `combine_to_timeline.rb` - Generates human-readable timeline format from transcripts
+
+### Migration
+```bash
+# Migrate existing libraries from roughcuts/ to timelines/
+ruby migrate_roughcuts_to_timelines.rb
+```
+
 ## [0.3.0] - 2025-12-01
 
 ### Changed

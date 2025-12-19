@@ -143,7 +143,7 @@ DJI_20250423215028_0254_D: 24.31-42.49, 43.03-63.57
 
 **Setup:**
 ```bash
-cp templates/roughcut_template.yaml "libraries/[library-name]/roughcuts/[timeline_name]_${TIMESTAMP}.yaml"
+cp templates/timeline_template.yaml "libraries/[library-name]/timelines/[timeline_name]_${TIMESTAMP}.yaml"
 ```
 
 **Build the YAML** from your selections:
@@ -172,7 +172,7 @@ cp templates/roughcut_template.yaml "libraries/[library-name]/roughcuts/[timelin
 After creating the YAML, run the dialogue extractor to show the user the full edit:
 
 ```bash
-./.claude/skills/timeline/dialogue_extractor.rb libraries/[library-name]/roughcuts/[filename].yaml
+./.claude/skills/timeline/dialogue_extractor.rb libraries/[library-name]/timelines/[filename].yaml
 ```
 
 This outputs a clean dialogue preview with clip numbers, source files, durations, and full dialogue text.
