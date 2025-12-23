@@ -6,7 +6,7 @@
       "Skill(update-buttercut)",
       "Skill(setup)",
       "Skill(transcribe-audio)",
-      "Skill(roughcut)",
+      "Skill(timeline)",
       "Skill(analyze-video)",
       "Read(libraries/**)",
       "Edit(libraries/**)",

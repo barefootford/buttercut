@@ -1,6 +1,6 @@
 ---
 name: analyze-video
-description: Adds visual descriptions to transcripts by extracting and analyzing video frames with ffmpeg. Creates visual transcript with periodic visual descriptions of the video clip. Use when all files have audio transcripts present (transcript) but don't yet have visual transcripts created (visual_transcript).
+description: Adds visual descriptions to transcripts by extracting and analyzing video frames with ffmpeg. Creates visual transcript with a visual description of the video clip. Use when all files have audio transcripts present (transcript) but don't yet have visual transcripts created (visual_transcript).
 ---
 
 # Skill: Analyze Video
@@ -22,30 +22,24 @@ cp libraries/[library]/transcripts/video.json libraries/[library]/transcripts/vi
 ruby .claude/skills/analyze-video/prepare_visual_script.rb libraries/[library]/transcripts/visual_video.json
 ```
 
-### 2. Extract Frames (Binary Search)
+### 2. Extract Frames
 
-Create frame directory: `mkdir -p tmp/frames/[video_name]`
-
-**Videos ≤30s:** Extract one frame at 2s
-**Videos >30s:** Extract start (2s), middle (duration/2), end (duration-2s)
+Create frame directory and extract 2 frames from the beginning of the video:
 
 ```bash
-ffmpeg -ss 00:00:02 -i video.mov -vframes 1 -vf "scale=1280:-1" tmp/frames/[video_name]/start.jpg
+mkdir -p tmp/frames/[video_name]
+ffmpeg -ss 00:00:01 -i video.mov -vframes 1 -vf "scale=1280:-1" tmp/frames/[video_name]/frame_1s.jpg
+ffmpeg -ss 00:00:05 -i video.mov -vframes 1 -vf "scale=1280:-1" tmp/frames/[video_name]/frame_5s.jpg
 ```
 
-**Subdivide when:** Footage start, middle and end have different subjects, setting or angle changes
-**Stop when:** The footage no longer seems to be changing or only has minor changes
-**Never sample** more frequently than once per 30 seconds
+For very short videos (<5s), just extract the 1s frame.
 
-### 3. Add Visual Descriptions
+### 3. Add Visual Description
 
 Read the visual video json file that you created earlier.
 
-**Read the JPG frames** from `tmp/frames/[video_name]/` using Read tool, then **Edit** `visual_video.json`:
+**Read the JPG frames** from `tmp/frames/[video_name]/` using Read tool, then **Edit** `visual_video.json` to add a `visual` field to the **first segment only**:
 
-Do these incrementally. You don't need to create a program or script to do this, just incrementally edit the json whenever you read new frames.
-
-**Dialogue segments - add `visual` field:**
 ```json
 {
   "start": 2.917,
@@ -56,11 +50,11 @@ Do these incrementally. You don't need to create a program or script to do this,
 }
 ```
 
-**B-roll segments - insert new entries:**
+**For B-roll clips** (no dialogue), add a single segment:
 ```json
 {
-  "start": 35.474,
-  "end": 56.162,
+  "start": 0.0,
+  "end": 10.5,
   "text": "",
   "visual": "Green bicycle parked in front of building. Urban street with trees.",
   "b_roll": true,
@@ -69,9 +63,9 @@ Do these incrementally. You don't need to create a program or script to do this,
 ```
 
 **Guidelines:**
-- Descriptions should be 3 sentences max.
-- First segment: detailed (subject, setting, shot type, lighting, camera style)
-- Continuing shots: brief if similar, otherwise can be up to 3 sentences if drastically different.
+- One visual description per video (on the first segment)
+- 2-3 sentences: subject, setting, shot type, lighting
+- Assume the shot stays consistent throughout the clip
 
 ### 4. Cleanup & Return
 

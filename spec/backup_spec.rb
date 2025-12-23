@@ -23,7 +23,7 @@ RSpec.describe LibraryBackup do
         lib_path = File.join(libraries_dir, lib_name)
         FileUtils.mkdir_p(lib_path)
         FileUtils.mkdir_p(File.join(lib_path, 'transcripts'))
-        FileUtils.mkdir_p(File.join(lib_path, 'roughcuts'))
+        FileUtils.mkdir_p(File.join(lib_path, 'timelines'))
 
         File.write(
           File.join(lib_path, 'library.yaml'),
@@ -32,7 +32,7 @@ RSpec.describe LibraryBackup do
 
         File.write(File.join(lib_path, 'transcripts', 'video1_transcript.json'), '{"test": "data"}')
         File.write(File.join(lib_path, 'transcripts', 'video1_visual.json'), '{"test": "visual"}')
-        File.write(File.join(lib_path, 'roughcuts', 'roughcut1.yaml'), 'test: roughcut')
+        File.write(File.join(lib_path, 'timelines', 'timeline1.yaml'), 'test: timeline')
       end
     end
 
@@ -53,7 +53,7 @@ RSpec.describe LibraryBackup do
         expect(zip.find_entry('libraries/library2/library.yaml')).not_to be_nil
         expect(zip.find_entry('libraries/library1/transcripts/video1_transcript.json')).not_to be_nil
         expect(zip.find_entry('libraries/library1/transcripts/video1_visual.json')).not_to be_nil
-        expect(zip.find_entry('libraries/library1/roughcuts/roughcut1.yaml')).not_to be_nil
+        expect(zip.find_entry('libraries/library1/timelines/timeline1.yaml')).not_to be_nil
       end
     end
 

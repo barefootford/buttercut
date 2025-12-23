@@ -59,7 +59,7 @@ Perfect! Setting up the library and starting footage analysis...
 ```
 ✓ Created libraries/wedding/
 ✓ Created libraries/wedding/transcripts/
-✓ Created libraries/wedding/roughcuts/
+✓ Created libraries/wedding/timelines/
 ✓ Created library.yaml with metadata for all 10 videos
 ```
 
@@ -145,7 +145,7 @@ Library setup complete! I've successfully processed all 10 wedding video clips:
 This is wedding reception footage shot on camcorder at night. The venue features an elegant outdoor pavilion with string light canopies, formal dining tables with gold charger plates and burgundy tablecloths, and a decorated storefront entrance with fairy lights and gold garland. Footage captures casual conversations between guests, a champagne toast scene, and even includes one clip of snowy outdoor conditions. The overall atmosphere is intimate, formal, and celebratory.
 
 **What's next?**
-Now that all footage is analyzed, you can create a rough cut by using the `roughcut` skill. The rough cut generator will use the visual transcripts and audio transcripts to create a Final Cut Pro XML file based on your editorial direction.
+Now that all footage is analyzed, you can create a rough cut by using the `timeline` skill. The rough cut generator will use the visual transcripts and audio transcripts to create a Final Cut Pro XML file based on your editorial direction.
 
 All files are saved in:
 - Library: `/Users/andrew/code/buttercut/libraries/wedding/library.yaml`
@@ -164,7 +164,7 @@ libraries/wedding/
 │   ├── MVI_0316.json
 │   ├── visual_MVI_0316.json
 │   └── [...18 more transcript files]
-└── roughcuts/                            # Ready for rough cut creation
+└── timelines/                            # Ready for timeline creation
 ```
 
 ---
@@ -186,11 +186,11 @@ libraries/wedding/
 ```plaintext
 You: "Create a rough cut showing the best moments from the reception"
 
-Claude: [Uses roughcut skill]
-  - Reads all visual and audio transcripts
-  - Selects best clips based on your direction
-  - Generates rough cut YAML
-  - Exports to FCPXML format
+Claude: [Uses timeline skill]
+  - Reads all audio transcripts
+  - Proposes story structure for your approval
+  - Selects clips based on your direction
+  - Generates rough cut YAML and exports to FCPXML
 
 Result: timeline_2025-11-10.fcpxml ready to import into Final Cut Pro
 ```

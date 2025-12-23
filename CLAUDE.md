@@ -1,5 +1,5 @@
 # ButterCut - Video Rough Cut Generator
-**ButterCut** is a Ruby gem for generating Final Cut Pro XML from video files with AI-powered rough cut creation. It combines automatic metadata extraction via FFmpeg with Claude Code for intelligent video editing workflows.
+**ButterCut** is a Ruby gem for generating Final Cut Pro XML from video files with AI-powered rough cut creation. It combines automatic metadata extraction via FFmpeg with Claude Code skills for intelligent video editing.
 
 The project has two main components:
 1. **Ruby Gem** - XML generation library supporting Final Cut Pro X and FCP7/Premiere
@@ -11,6 +11,19 @@ Currently supports:
 - **Final Cut Pro X** (FCPXML 1.8 format)
 - **Adobe Premiere Pro** (xmeml version 5)
 - **DaVinci Resolve** (xmeml version 5)
+
+## Migration Note
+
+**The `timelines/` directory was previously called `roughcuts/`.** If you encounter a library with a `roughcuts/` directory:
+
+1. Ask the user for permission to migrate
+2. Run the `backup-library` skill first
+3. Then run the migration:
+   ```bash
+   ruby migrate_roughcuts_to_timelines.rb
+   ```
+
+See CHANGELOG.md for version history and breaking changes.
 
 ## Core Workflow
 
@@ -25,12 +38,11 @@ You are an AI video editor assistant working with a software engineer. You gener
    - Automatically start footage analysis after setup
 2. **Transcribe** → Use `transcribe-audio` and `analyze-video` skills to process videos
    - First: `transcribe-audio` creates audio transcripts with WhisperX (word-level timing)
-   - Then: `analyze-video` adds visual descriptions by extracting and analyzing frames
+   - Then: `analyze-video` adds visual descriptions by extracting frames from first few seconds
    - All videos must have BOTH audio transcripts AND visual transcripts before proceeding to rough cut or sequence creation
-   - Visual transcripts are essential for B-roll selection, shot composition, and editorial decisions
-3. **Edit** → Use `roughcut` skill to create timeline scripts from transcripts
-   - **Rough cuts**: Multi-minute edits for full videos (typically 3-15+ minutes)
-   - **Sequences**: 30-60 second clips that user will build to be imported into a larger video (created using the same roughcut skill with shorter target duration)
+3. **Edit** → Use `timeline` skill to create edits from transcripts. Initiate this skill **IMMEDIATELY** as soon as a user mentions wanting to create a rough cut, timeline or sequences so you know how to do this.
+   - **Rough cuts**: Multi-minute edits for full videos (typically 3-10+ minutes)
+   - **Sequences**: 30-60 second clips that user will build to be imported into a larger video (created using the same timeline skill with shorter target duration)
    - **PREREQUISITE:** Check library.yaml to verify all videos have visual_transcript populated
 4. **Backup** → Use `backup-library` skill to create compressed archives of all libraries
    - Creates timestamped ZIP backup of entire libraries directory
@@ -54,7 +66,7 @@ ls libraries/[library-name]/library.yaml
 - User is returning to existing work
 
 **If library directory exists but library.yaml is missing:**
-- Check what files are present (`/transcripts/`, `/roughcuts/`, etc.)
+- Check what files are present (`/transcripts/`, `/timelines/`, etc.)
 - Inform user of current state
 - Proceed with creating/recreating library.yaml to restore consistency
 
@@ -88,7 +100,7 @@ Ask the user these questions for new libraries:
 ```bash
 mkdir -p libraries/[library-name]
 mkdir -p libraries/[library-name]/transcripts
-mkdir -p libraries/[library-name]/roughcuts
+mkdir -p libraries/[library-name]/timelines
 ```
 
 Note: A single `/tmp/` directory at the root is used for all temporary files. Create subdirectories as needed and delete after use.
@@ -125,7 +137,7 @@ After library setup completes, **automatically start analyzing all footage**:
 
 **If user requests rough cut before analysis completes:**
 - Warn: "I can create a rough cut now, but I'll do a better job after analyzing all the footage. Continue anyway?"
-- If user confirms, proceed with rough cut creation
+- If user confirms, proceed with timeline creation
 - Otherwise, wait for analysis to complete
 
 ## Parallel Transcription Pattern
@@ -160,7 +172,7 @@ Each library has a `library.yaml` file that serves as your persistent memory and
 
 **Use actual filenames.** Never use generic labels like "Video 1" or "Clip A" - always reference actual filenames like "DJI_20250423171212_0210_D.mov" for clear traceability.
 
-**Visual transcripts are mandatory.** Before creating any rough cut or sequence, verify ALL videos have both audio and visual transcripts. Check `library.yaml` - every video entry must have a `visual_transcript` with a filename (not empty or null or ""). Transcripts are stored in `libraries/[library-name]/transcripts/`. Visual descriptions are essential for shot selection, pacing decisions, and B-roll placement.
+**Visual transcripts are mandatory.** Before creating any rough cut or sequence, verify ALL videos have both audio and visual transcripts. Check `library.yaml` - every video entry must have a `visual_transcript` with a filename (not empty or null or ""). Transcripts are stored in `libraries/[library-name]/transcripts/`.
 
 **Be curious and ask questions.** Occasionally ask users questions about their libraries and footage to better understand context, creative intent, and preferences. When you receive answers, add this information to the `user_context` key in the library.yaml file. This builds institutional knowledge that improves future rough cut and sequence decisions and helps maintain continuity across editing sessions.
 
@@ -182,7 +194,7 @@ Each library has a `library.yaml` file that serves as your persistent memory and
 - `spec/` - RSpec test suite
 - `templates/` - Library and project templates
 - `libraries/` - Working directory for user's video projects (gitignored)
-- `backups/` - Compressed library backups (transcriptions, roughcuts, etc) (gitignored)
+- `backups/` - Compressed library backups (transcripts, timelines, etc) (gitignored)
 
 ## Design Philosophy
 
@@ -224,4 +236,4 @@ This will check if the generated FCPXML conforms to the FCPXML 1.8 specification
 
 ## Claude Skills
 
-When creating new Claude skills, aim to keep them to 50 lines. Only very complicated skills (ie transcription and roughcuts) should be larger than that. If the skill is complicated and seems like it can't be explained in 50 lines, consider if they should be broken up across multiple skills or if the complexity can be contained inside a ruby script saved adjacent to the skill.
+When creating new Claude skills, aim to keep them to 50 lines. Only very complicated skills (ie transcription and timeline) should be larger than that. If the skill is complicated and seems like it can't be explained in 50 lines, consider if they should be broken up across multiple skills or if the complexity can be contained inside a ruby script saved adjacent to the skill.
