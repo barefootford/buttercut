@@ -12,7 +12,7 @@ class ButterCut
     DEFAULT_VOLUME_ADJUSTMENT = "-13.100000000000001db"
 
     attr_reader :clips, :initial_offset, :volume_adjustment, :sequence_frame_rate,
-                :sequence_width, :sequence_height, :windows_file_paths
+                :sequence_width, :sequence_height, :windows_file_paths, :audio_track
 
     def initialize(clips, options = {})
       raise ArgumentError, "No clips provided" if clips.nil? || clips.empty?
@@ -39,11 +39,17 @@ class ButterCut
       @sequence_width = options[:sequence_width]
       @sequence_height = options[:sequence_height]
       @windows_file_paths = options.fetch(:windows_file_paths, false)  # Default false, Linux-first
+      @audio_track = options[:audio_track]  # Optional path to audio file (music track)
 
       @metadata_cache = {}
       @clips.each do |clip|
         path = clip[:path]
         @metadata_cache[path] = extract_metadata_from_ffprobe(path)
+      end
+
+      # Cache audio track metadata if provided
+      if @audio_track
+        @metadata_cache[@audio_track] = extract_metadata_from_ffprobe(@audio_track)
       end
     end
 
@@ -92,6 +98,24 @@ class ButterCut
       metadata = extract_metadata(video_path)
       audio_stream = metadata['streams'].find { |s| s['codec_type'] == 'audio' }
       audio_stream['sample_rate']
+    end
+
+    def audio_duration(audio_path)
+      metadata = extract_metadata(audio_path)
+      metadata['format']['duration'].to_f
+    end
+
+    def audio_duration_to_fraction(audio_path, frame_duration)
+      duration_seconds = audio_duration(audio_path)
+      frame_num, frame_denom = frame_duration.match(/(\d+)\/(\d+)/).captures.map(&:to_i)
+      fps = frame_denom.to_f / frame_num
+
+      total_frames = (duration_seconds * fps).round
+      result_num = total_frames * frame_num
+      result_denom = frame_denom
+
+      divisor = gcd(result_num, result_denom)
+      "#{result_num / divisor}/#{result_denom / divisor}s"
     end
 
     def nominal_frame_rate(video_path)

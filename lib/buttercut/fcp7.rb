@@ -83,6 +83,12 @@ class ButterCut
                     build_audio_clipitem(xml, payload)
                   end
                 end
+                # Add music track if audio_track option is provided
+                if audio_track
+                  xml.track do
+                    build_music_track(xml, sequence_duration_frames, timebase, ntsc_flag, sequence_audio_rate)
+                  end
+                end
               end
             end
           end
@@ -343,6 +349,55 @@ class ButterCut
 
     def asset_audio_rate(asset)
       asset[:audio_rate] || format_audio_rate || '48000'
+    end
+
+    def build_music_track(xml, sequence_duration_frames, timebase, ntsc_flag, sequence_audio_rate)
+      music_path = audio_track
+      music_filename = get_filename(music_path)
+      music_basename = get_basename(music_filename)
+      music_file_url = path_to_file_url(music_path)
+      music_sample_rate = audio_sample_rate(music_path)
+
+      # Calculate music duration in frames
+      timeline_frame_duration = format_frame_duration
+      music_duration_fraction = audio_duration_to_fraction(music_path, timeline_frame_duration)
+      music_duration_frames = frames_for_fraction(music_duration_fraction, timeline_frame_duration)
+
+      # Trim music to sequence length if longer
+      effective_duration = [music_duration_frames, sequence_duration_frames].min
+      music_file_id = "file-music-#{deterministic_asset_id(get_absolute_path(music_path))}"
+
+      xml.clipitem(id: 'clipitem-music-1') do
+        xml.name music_basename
+        xml.enabled 'TRUE'
+        xml.duration effective_duration
+        xml.start 0
+        xml.end_ effective_duration
+        xml.in_ 0
+        xml.out effective_duration
+        xml.file(id: music_file_id) do
+          xml.name music_filename
+          xml.pathurl music_file_url
+          xml.rate do
+            xml.timebase timebase
+            xml.ntsc ntsc_flag
+          end
+          xml.duration music_duration_frames
+          xml.media do
+            xml.audio do
+              xml.samplecharacteristics do
+                xml.samplerate music_sample_rate
+                xml.sampledepth 16
+              end
+            end
+          end
+        end
+        xml.sourcetrack do
+          xml.mediatype 'audio'
+          xml.trackindex 1
+        end
+        xml.channelcount 2
+      end
     end
   end
 end
