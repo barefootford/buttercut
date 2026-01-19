@@ -238,14 +238,16 @@ RSpec.describe ButterCut::FCP7 do
       expect(xml).to include("<name>Basic Motion</name>")
     end
 
-    it 'does not add rotation parameter (Premiere handles rotation from metadata)' do
+    it 'applies correct rotation for portrait clips (rotation=90 becomes -90 in FCP7)' do
       generator = described_class.new(
         [{ path: portrait_clip_path }],
         sequence_width: 1080,
         sequence_height: 1920
       )
       xml = generator.to_xml
-      expect(xml).not_to include("<parameterid>rotation</parameterid>")
+      expect(xml).to include("<parameterid>rotation</parameterid>")
+      # rotation=90 in metadata should become -90 in FCP7 (clockwise)
+      expect(xml).to match(/<parameterid>rotation<\/parameterid>.*?<value>-90<\/value>/m)
     end
   end
 
