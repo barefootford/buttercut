@@ -91,16 +91,42 @@ Each clip needs:
 
 Ask user for editor choice (Final Cut Pro X, Adobe Premiere Pro, or DaVinci Resolve).
 
-Export based on choice:
+**Export command syntax:**
 ```bash
-# Final Cut Pro X:
-./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].yaml libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].fcpxml fcpx
+./.claude/skills/roughcut/export_to_fcpxml.rb <roughcut.yaml> <output.xml> [editor] [fps] [width] [height] [options]
+```
 
-# Premiere Pro:
-./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].yaml libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].xml premiere
+**Options:**
+- `editor`: `fcpx` (default), `premiere`, or `resolve`
+- `fps`: Override sequence frame rate (e.g., `50` for 50fps)
+- `width height`: Custom sequence dimensions (e.g., `1080 1920` for portrait/vertical video)
+- `--windows-file-paths`: Convert Linux paths to Windows format (use when running in WSL and editing on Windows)
+- `--audio <file>`: Add audio/music track to sequence (automatically trimmed to fit sequence duration)
+
+**Detect WSL environment:**
+```bash
+# Check if running in WSL (paths start with /mnt/)
+if [[ -f /proc/version ]] && grep -qi microsoft /proc/version; then
+  echo "Running in WSL - use --windows-file-paths for Premiere/Resolve on Windows"
+fi
+```
+
+**Export examples:**
+```bash
+# Final Cut Pro X (standard):
+./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library]/roughcuts/[name].yaml libraries/[library]/roughcuts/[name].fcpxml fcpx
+
+# Premiere Pro (standard landscape):
+./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library]/roughcuts/[name].yaml libraries/[library]/roughcuts/[name].xml premiere
+
+# Premiere Pro (portrait 1080x1920 at 50fps, WSL to Windows paths):
+./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library]/roughcuts/[name].yaml libraries/[library]/roughcuts/[name].xml premiere 50 1080 1920 --windows-file-paths
+
+# With music track (audio trimmed to sequence length):
+./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library]/roughcuts/[name].yaml libraries/[library]/roughcuts/[name].xml premiere 50 1080 1920 --windows-file-paths --audio /path/to/music.mp3
 
 # DaVinci Resolve:
-./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].yaml libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].xml resolve
+./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library]/roughcuts/[name].yaml libraries/[library]/roughcuts/[name].xml resolve
 ```
 
 ### 6. Create Backup
