@@ -248,4 +248,71 @@ RSpec.describe ButterCut::FCP7 do
       expect(xml).not_to include("<parameterid>rotation</parameterid>")
     end
   end
+
+  describe 'audio_track option' do
+    let(:music_path) { '/tmp/music.m4a' }
+
+    let(:music_metadata) do
+      {
+        clip_a_path => build_metadata(
+          duration_seconds: 4.0,
+          frame_rate: '25/1'
+        ),
+        music_path => {
+          'streams' => [
+            {
+              'codec_type' => 'audio',
+              'sample_rate' => '44100'
+            }
+          ],
+          'format' => {
+            'duration' => '180.0'  # 3 minutes
+          }
+        }
+      }
+    end
+
+    before do
+      allow_any_instance_of(described_class).to receive(:extract_metadata_from_ffprobe) do |_instance, path|
+        music_metadata.fetch(path)
+      end
+    end
+
+    it 'adds a second audio track for music' do
+      generator = described_class.new(
+        [{ path: clip_a_path }],
+        audio_track: music_path
+      )
+      xml = generator.to_xml
+      # Should have two audio tracks
+      expect(xml.scan(/<track>/).count).to eq(3)  # 1 video + 2 audio tracks
+    end
+
+    it 'includes music file metadata' do
+      generator = described_class.new(
+        [{ path: clip_a_path }],
+        audio_track: music_path
+      )
+      xml = generator.to_xml
+      expect(xml).to include('clipitem-music-1')
+      expect(xml).to include('file://') # music file URL
+    end
+
+    it 'trims music to sequence duration when longer' do
+      generator = described_class.new(
+        [{ path: clip_a_path }],  # 4 seconds
+        audio_track: music_path   # 180 seconds
+      )
+      xml = generator.to_xml
+      # Music should be trimmed to 4 seconds (100 frames at 25fps)
+      expect(xml).to match(/<clipitem id="clipitem-music-1">.*?<duration>100<\/duration>/m)
+    end
+
+    it 'does not add music track when audio_track not specified' do
+      generator = described_class.new([{ path: clip_a_path }])
+      xml = generator.to_xml
+      expect(xml).not_to include('clipitem-music')
+      expect(xml.scan(/<track>/).count).to eq(2)  # 1 video + 1 audio track
+    end
+  end
 end

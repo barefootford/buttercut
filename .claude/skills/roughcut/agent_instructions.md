@@ -93,7 +93,7 @@ Ask user for editor choice (Final Cut Pro X, Adobe Premiere Pro, or DaVinci Reso
 
 **Export command syntax:**
 ```bash
-./.claude/skills/roughcut/export_to_fcpxml.rb <roughcut.yaml> <output.xml> [editor] [fps] [width] [height] [--windows-file-paths]
+./.claude/skills/roughcut/export_to_fcpxml.rb <roughcut.yaml> <output.xml> [editor] [fps] [width] [height] [options]
 ```
 
 **Options:**
@@ -101,6 +101,7 @@ Ask user for editor choice (Final Cut Pro X, Adobe Premiere Pro, or DaVinci Reso
 - `fps`: Override sequence frame rate (e.g., `50` for 50fps)
 - `width height`: Custom sequence dimensions (e.g., `1080 1920` for portrait/vertical video)
 - `--windows-file-paths`: Convert Linux paths to Windows format (use when running in WSL and editing on Windows)
+- `--audio <file>`: Add audio/music track to sequence (automatically trimmed to fit sequence duration)
 
 **Detect WSL environment:**
 ```bash
@@ -120,6 +121,9 @@ fi
 
 # Premiere Pro (portrait 1080x1920 at 50fps, WSL to Windows paths):
 ./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library]/roughcuts/[name].yaml libraries/[library]/roughcuts/[name].xml premiere 50 1080 1920 --windows-file-paths
+
+# With music track (audio trimmed to sequence length):
+./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library]/roughcuts/[name].yaml libraries/[library]/roughcuts/[name].xml premiere 50 1080 1920 --windows-file-paths --audio /path/to/music.mp3
 
 # DaVinci Resolve:
 ./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library]/roughcuts/[name].yaml libraries/[library]/roughcuts/[name].xml resolve
