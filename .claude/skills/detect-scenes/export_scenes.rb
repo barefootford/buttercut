@@ -1,0 +1,135 @@
+#!/usr/bin/env ruby
+# Export detected scenes YAML to Premiere Pro XML using ButterCut.
+# Unlike export_to_fcpxml.rb, this reads source_video from the scenes YAML directly
+# instead of requiring a library.yaml lookup.
+#
+# All output goes into a buttercut/ subfolder next to the source video files:
+#   <source_video_dir>/buttercut/scenes_C1605.yaml
+#   <source_video_dir>/buttercut/xml/C1605_couple_01_20260207_1530.xml
+#
+# Usage:
+#   ruby export_scenes.rb <scenes.yaml|"glob"> [editor] [--windows-file-paths] [--handles 0.5]
+
+require 'yaml'
+require 'date'
+require 'fileutils'
+
+def timecode_to_seconds(timecode)
+  parts = timecode.split(':')
+  hours = parts[0].to_i
+  minutes = parts[1].to_i
+  seconds = parts[2].to_f
+  hours * 3600 + minutes * 60 + seconds
+end
+
+def main
+  if ARGV.length < 1
+    puts "Usage: #{$0} <scenes.yaml|\"glob\"> [editor] [--windows-file-paths] [--handles N]"
+    puts "  editor: premiere (default), resolve, or fcpx"
+    puts "  --windows-file-paths: convert Linux/WSL paths to Windows format"
+    puts "  --handles N: add N seconds of padding to each clip (default: 0)"
+    puts "\n  Output goes to <source_video_dir>/buttercut/xml/"
+    exit 1
+  end
+
+  windows_file_paths = ARGV.include?('--windows-file-paths')
+
+  handles = 0.0
+  handles_index = ARGV.index('--handles')
+  if handles_index && ARGV[handles_index + 1]
+    handles = ARGV[handles_index + 1].to_f
+  end
+
+  args = ARGV.reject.with_index do |a, i|
+    a == '--windows-file-paths' || a == '--handles' || (handles_index && i == handles_index + 1)
+  end
+
+  scenes_input = args[0]
+  editor_choice = args[1] || 'premiere'
+
+  # Resolve glob or single file
+  scene_files = if scenes_input.include?('*')
+                  Dir.glob(scenes_input)
+                else
+                  [scenes_input]
+                end
+
+  abort "Error: No scene files found matching: #{scenes_input}" if scene_files.empty?
+
+  editor_symbol = case editor_choice.downcase
+  when 'fcpx', 'finalcutpro', 'finalcut', 'fcp' then :fcpx
+  when 'premiere', 'premierepro', 'adobepremiere' then :fcp7
+  when 'resolve', 'davinci', 'davinciresolve' then :fcp7
+  else
+    abort "Error: Unknown editor '#{editor_choice}'. Use 'premiere', 'resolve', or 'fcpx'"
+  end
+
+  timestamp = Time.now.strftime('%Y%m%d_%H%M')
+  total_exported = 0
+
+  scene_files.each do |scene_file|
+    unless File.exist?(scene_file)
+      puts "Warning: Scene file not found: #{scene_file}"
+      next
+    end
+
+    scenes = YAML.load_file(scene_file, permitted_classes: [Date, Time, Symbol])
+    source_video = scenes['source_video']
+
+    unless source_video
+      puts "Warning: No source_video in #{scene_file}, skipping"
+      next
+    end
+
+    # Output XML to buttercut/xml/ subfolder next to source video
+    source_dir = File.dirname(source_video)
+    xml_dir = File.join(source_dir, 'buttercut', 'xml')
+    FileUtils.mkdir_p(xml_dir)
+
+    basename = File.basename(source_video, '.*')
+
+    scenes['clips'].each_with_index do |clip, idx|
+      couple_num = format('%02d', idx + 1)
+      start_at = timecode_to_seconds(clip['in_point'])
+      out_point = timecode_to_seconds(clip['out_point'])
+
+      # Apply handles (padding)
+      start_at = [start_at - handles, 0].max
+      out_point += handles
+
+      duration = out_point - start_at
+      next if duration <= 0
+
+      buttercut_clip = [{
+        path: source_video,
+        start_at: start_at.to_f,
+        duration: duration.to_f
+      }]
+
+      output_file = File.join(xml_dir, "#{basename}_couple_#{couple_num}_#{timestamp}.xml")
+      options_parts = ["windows_file_paths: #{windows_file_paths}"]
+      options_part = options_parts.join(', ')
+
+      ruby_code = <<~RUBY
+        require 'buttercut'
+        clips = #{buttercut_clip.inspect}
+        generator = ButterCut.new(clips, editor: :#{editor_symbol}, #{options_part})
+        generator.save('#{output_file}')
+      RUBY
+
+      lib_path = File.join(__dir__, "../../../lib")
+      success = system("ruby", "-I", lib_path, "-e", ruby_code)
+
+      if success
+        puts "  Exported: #{File.basename(output_file)}"
+        total_exported += 1
+      else
+        puts "  Error exporting couple #{couple_num} from #{basename}"
+      end
+    end
+  end
+
+  puts "\nExported #{total_exported} scene(s)"
+end
+
+main
