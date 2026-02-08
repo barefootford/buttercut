@@ -20,6 +20,7 @@ Splits dance videos into individual couple clips using a visual tree search — 
 - **Find the new couple, not the gap.** Between couples there's often a brief camera pan where no one is clearly featured. The cut point must be at the END of the pan — the first frame where the NEW couple is clearly the primary subject — NOT at the start of the pan when the old couple leaves.
 - **Err toward more scenes.** When unsure if two segments are the same or different couples, split them. It's much easier for the editor to merge two clips than to re-split one.
 - **Verify start and end of every clip.** After finalizing cut points, generate a quick contact sheet of the first and last 2 seconds of each clip to confirm the same couple appears at both ends. If different people appear at the start vs end, there's a missed transition inside that clip.
+- **Check portrait vs landscape per video.** Before exporting, run `ffprobe` on each source video to check its rotation/dimensions. Some videos in a batch may be portrait (phone held vertically) while others are landscape. ButterCut handles portrait rotation automatically, but mixing orientations in a single batch causes wrong scaling/rotation if not detected per-file. Always verify orientation individually — never assume all videos in a folder share the same orientation.
 
 ## Workflow
 
