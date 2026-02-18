@@ -53,10 +53,7 @@ Use this same `$TIMESTAMP` for the YAML and XML filenames.
 wc -l tmp/[library-name]/[roughcut_name]_combined_visual_transcript.json
 ```
 
-**Read the combined transcript in 5000-line chunks:**
-- For files under 10,000 lines: Read in 5000-line chunks
-- For files over 10,000 lines: Read in 5000-line chunks
-- Use the Read tool with offset and limit parameters
+**Read the combined transcript in 5000-line chunks** using the Read tool with offset and limit parameters.
 
 After reading through footage sequentially, you can spend a little time thinking, and then create the roughcut yaml file.
 
