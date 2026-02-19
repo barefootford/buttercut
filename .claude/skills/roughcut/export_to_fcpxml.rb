@@ -2,6 +2,7 @@
 # Export rough cut YAML to Final Cut Pro XML using ButterCut
 
 require 'yaml'
+require 'buttercut'
 
 def timecode_to_seconds(timecode)
   # Convert HH:MM:SS or HH:MM:SS.s to seconds (supports decimal seconds)
@@ -96,27 +97,10 @@ def main
 
   puts "Converting #{buttercut_clips.length} clips to #{editor_name} XML..."
 
-  # Generate Ruby code to call ButterCut
-  ruby_code = <<~RUBY
-    require 'buttercut'
+  generator = ButterCut.new(buttercut_clips, editor: editor_symbol)
+  generator.save(output_path)
 
-    clips = #{buttercut_clips.inspect}
-
-    generator = ButterCut.new(clips, editor: :#{editor_symbol})
-    generator.save('#{output_path}')
-
-    puts "Successfully exported to #{output_path}"
-  RUBY
-
-  # Execute the Ruby code with lib path
-  system("ruby", "-I", File.join(__dir__, "../../../lib"), "-e", ruby_code)
-
-  if $?.success?
-    puts "\n✓ Rough cut exported to: #{output_path}"
-  else
-    puts "\n✗ Error exporting rough cut"
-    exit 1
-  end
+  puts "\n✓ Rough cut exported to: #{output_path}"
 end
 
 main

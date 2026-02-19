@@ -91,13 +91,13 @@ Ask user for editor choice (Final Cut Pro X, Adobe Premiere Pro, or DaVinci Reso
 Export based on choice:
 ```bash
 # Final Cut Pro X:
-./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].yaml libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].fcpxml fcpx
+bundle exec ./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].yaml libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].fcpxml fcpx
 
 # Premiere Pro:
-./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].yaml libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].xml premiere
+bundle exec ./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].yaml libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].xml premiere
 
 # DaVinci Resolve:
-./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].yaml libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].xml resolve
+bundle exec ./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].yaml libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].xml resolve
 ```
 
 ### 6. Create Backup
