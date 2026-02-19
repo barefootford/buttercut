@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 # Export rough cut YAML to Final Cut Pro XML using ButterCut
 
+require 'date'
 require 'yaml'
 require 'buttercut'
 

@@ -42,12 +42,6 @@ This outputs to `tmp/[library-name]/[roughcut_name]_combined_visual_transcript.j
 
 ### 3. Read and Analyze Combined Transcript
 
-**Generate timestamp for this roughcut session:**
-```bash
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-```
-Use this same `$TIMESTAMP` for the YAML and XML filenames.
-
 **Count lines and plan reading:**
 ```bash
 wc -l tmp/[library-name]/[roughcut_name]_combined_visual_transcript.json
@@ -59,9 +53,11 @@ After reading through footage sequentially, you can spend a little time thinking
 
 ### 4. Create Rough Cut YAML
 
+**Generate a timestamp** using `date +%Y%m%d_%H%M%S` and use the resulting value as a literal string in all filenames for this roughcut session (YAML and XML).
+
 **Setup:**
 ```bash
-cp templates/roughcut_template.yaml "libraries/[library-name]/roughcuts/[roughcut_name]_${TIMESTAMP}.yaml"
+cp templates/roughcut_template.yaml "libraries/[library-name]/roughcuts/[roughcut_name]_[timestamp].yaml"
 ```
 
 **Build clips based on user's request:**
