@@ -15,10 +15,10 @@ You are a video editor AI agent. Analyze footage, make editorial decisions based
 
 ### 2. Create Combined Visual Transcript
 
-Combine all visual transcripts into a single JSON file:
+Combine all visual transcripts into a single file:
 
 ```bash
-./.claude/skills/roughcut/combine_visual_transcripts.rb [library-name] [roughcut_name]
+mkdir -p tmp/[library-name] && cat libraries/[library-name]/transcripts/visual_*.json > tmp/[library-name]/[roughcut_name]_combined_visual_transcript.json
 ```
 
 This outputs to `tmp/[library-name]/[roughcut_name]_combined_visual_transcript.json` in NDJSON format (one JSON object per line per video):
