@@ -5,6 +5,22 @@ All notable changes to ButterCut will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-02-24
+
+### Changed
+- **~2x faster roughcut generation** - Removed scratchpad workflow and increased transcript chunk size from 1000 to 5000 lines (~3.5min vs ~6-7min)
+- **Persistent editor preference** - Editor choice (fcpx/premiere/resolve) saved to library.yaml, no longer prompted each time
+- Replaced shell-out code generation in export script with direct ButterCut require under bundle exec
+- Simplified transcript combining: replaced Ruby script with shell pipeline for NDJSON output
+- Temporary files now use project `tmp/` directory instead of system `/tmp`
+
+### Added
+- Claude Code project settings for auto-allowing common workflow operations (skills, ffprobe, ffmpeg, whisperx)
+- Worktree creation skill for working with libraries across git worktrees
+
+### Fixed
+- Timestamp variable not persisting across shell calls during export
+
 ## [0.3.0] - 2025-12-01
 
 ### Changed
