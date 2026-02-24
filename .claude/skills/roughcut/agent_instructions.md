@@ -82,7 +82,7 @@ Each clip needs:
 
 ### 5. Export to Video Editor
 
-Ask user for editor choice (Final Cut Pro X, Adobe Premiere Pro, or DaVinci Resolve).
+Check `library.yaml` for the `editor` field. If it's set, use that value. If it's not set or empty, ask the user for their editor choice (Final Cut Pro X, Adobe Premiere Pro, or DaVinci Resolve), then save their choice back to `library.yaml` (`fcpx`, `premiere`, or `resolve`).
 
 Export based on choice:
 ```bash

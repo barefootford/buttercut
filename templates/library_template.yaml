@@ -3,6 +3,7 @@ library_name: [library-name]
 created_date: [YYYY-MM-DD]
 last_updated: [YYYY-MM-DD]
 language: english
+editor: # preferred video editor: fcpx, premiere, or resolve
 user_context: ""
 # Whenever you ask the user questions about the library, save a summarized version here.
 # ie; The man wearing the dark blue long sleeve shirt is "Andrew". The small brown dog is "Sammy". This footage was shot over one evening.
