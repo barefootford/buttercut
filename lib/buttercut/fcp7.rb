@@ -120,10 +120,13 @@ class ButterCut
         timeline_start_frames = frames_for_fraction(clip[:timeline_offset], timeline_frame_duration)
         timeline_end_frames = timeline_start_frames + timeline_duration_frames
 
-        source_in_frames = frames_for_fraction(clip[:source_in], asset[:frame_duration])
-        source_duration_frames = frames_for_fraction(clip[:source_duration], asset[:frame_duration])
+        # FCP7/Premiere: clipitem <in>/<out> are in the SEQUENCE timebase,
+        # not the file's native timebase (Apple FCP7 XML spec).
+        source_in_frames = frames_for_fraction(clip[:source_in], timeline_frame_duration)
+        source_duration_frames = frames_for_fraction(clip[:source_duration], timeline_frame_duration)
         source_out_frames = source_in_frames + source_duration_frames
 
+        # File-level duration and timecode stay in the file's native timebase
         asset_duration_frames = frames_for_fraction(asset[:asset_duration], asset[:frame_duration])
         asset_timecode_start = frames_for_fraction(asset[:timecode], asset[:frame_duration])
 
@@ -236,10 +239,12 @@ class ButterCut
       seq_width = format_width.to_f
       seq_height = format_height.to_f
 
-      # Calculate effective dimensions after rotation and determine FCP rotation value
-      # Video metadata rotation indicates clockwise rotation needed to display correctly
-      # FCP7 uses: positive = counter-clockwise, negative = clockwise
-      # So we negate the metadata value for FCP7
+      # Calculate effective dimensions after rotation and determine FCP rotation value.
+      # Premiere does NOT auto-apply rotation from side_data when importing FCP7 XML,
+      # so we must apply it explicitly via the Basic Motion filter.
+      # FCP7 uses: positive = counter-clockwise, negative = clockwise.
+      # Metadata rotation=90 means "rotate 90° CW to display upright" → FCP7 -90.
+      # Metadata rotation=-90 means "rotate 90° CCW to display upright" → FCP7 90.
       if rotation == 90
         effective_width = clip_height
         effective_height = clip_width
@@ -380,8 +385,11 @@ class ButterCut
       music_duration_fraction = audio_duration_to_fraction(music_path, timeline_frame_duration)
       music_duration_frames = frames_for_fraction(music_duration_fraction, timeline_frame_duration)
 
+      # Calculate audio start offset in frames
+      audio_start_frames = audio_start ? (audio_start.to_f * timebase).round : 0
+
       # Trim music to sequence length if longer
-      effective_duration = [music_duration_frames, sequence_duration_frames].min
+      effective_duration = [music_duration_frames - audio_start_frames, sequence_duration_frames].min
       music_file_id = "file-music-#{deterministic_asset_id(get_absolute_path(music_path))}"
 
       xml.clipitem(id: 'clipitem-music-1') do
@@ -390,8 +398,8 @@ class ButterCut
         xml.duration effective_duration
         xml.start 0
         xml.end_ effective_duration
-        xml.in_ 0
-        xml.out effective_duration
+        xml.in_ audio_start_frames
+        xml.out audio_start_frames + effective_duration
         xml.file(id: music_file_id) do
           xml.name music_filename
           xml.pathurl music_file_url
