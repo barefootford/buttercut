@@ -1,11 +1,10 @@
 #!/usr/bin/env ruby
-# Export detected scenes YAML to Premiere Pro XML using ButterCut.
-# Unlike export_to_fcpxml.rb, this reads source_video from the scenes YAML directly
-# instead of requiring a library.yaml lookup.
+# Export detected scenes YAML to XML using ButterCut.
+# Reads source_video from the scenes YAML directly — no library.yaml needed.
 #
 # All output goes into a buttercut/ subfolder next to the source video files:
 #   <source_video_dir>/buttercut/scenes_C1605.yaml
-#   <source_video_dir>/buttercut/xml/C1605_couple_01_20260207_1530.xml
+#   <source_video_dir>/buttercut/xml/C1605_scene_01_20260207_1530.xml
 #
 # Usage:
 #   ruby export_scenes.rb <scenes.yaml|"glob"> [editor] [--windows-file-paths] [--handles 0.5]
@@ -13,6 +12,7 @@
 require 'yaml'
 require 'date'
 require 'fileutils'
+require 'buttercut'
 
 def timecode_to_seconds(timecode)
   parts = timecode.split(':')
@@ -89,7 +89,7 @@ def main
     basename = File.basename(source_video, '.*')
 
     scenes['clips'].each_with_index do |clip, idx|
-      couple_num = format('%02d', idx + 1)
+      scene_num = format('%02d', idx + 1)
       start_at = timecode_to_seconds(clip['in_point'])
       out_point = timecode_to_seconds(clip['out_point'])
 
@@ -100,32 +100,19 @@ def main
       duration = out_point - start_at
       next if duration <= 0
 
-      buttercut_clip = [{
+      buttercut_clips = [{
         path: source_video,
         start_at: start_at.to_f,
         duration: duration.to_f
       }]
 
-      output_file = File.join(xml_dir, "#{basename}_couple_#{couple_num}_#{timestamp}.xml")
-      options_parts = ["windows_file_paths: #{windows_file_paths}"]
-      options_part = options_parts.join(', ')
+      output_file = File.join(xml_dir, "#{basename}_scene_#{scene_num}_#{timestamp}.xml")
 
-      ruby_code = <<~RUBY
-        require 'buttercut'
-        clips = #{buttercut_clip.inspect}
-        generator = ButterCut.new(clips, editor: :#{editor_symbol}, #{options_part})
-        generator.save('#{output_file}')
-      RUBY
+      generator = ButterCut.new(buttercut_clips, editor: editor_symbol, windows_file_paths: windows_file_paths)
+      generator.save(output_file)
 
-      lib_path = File.join(__dir__, "../../../lib")
-      success = system("ruby", "-I", lib_path, "-e", ruby_code)
-
-      if success
-        puts "  Exported: #{File.basename(output_file)}"
-        total_exported += 1
-      else
-        puts "  Error exporting couple #{couple_num} from #{basename}"
-      end
+      puts "  Exported: #{File.basename(output_file)}"
+      total_exported += 1
     end
   end
 
