@@ -132,6 +132,7 @@ def main
   options[:sequence_height] = sequence_height if sequence_height
   options[:windows_file_paths] = windows_file_paths
   options[:audio_track] = audio_track if audio_track
+  options[:audio_start] = roughcut['audio_start'] if roughcut['audio_start']
 
   generator = ButterCut.new(buttercut_clips, **options)
   generator.save(output_path)
