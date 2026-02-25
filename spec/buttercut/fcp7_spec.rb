@@ -316,5 +316,26 @@ RSpec.describe ButterCut::FCP7 do
       expect(xml).not_to include('clipitem-music')
       expect(xml.scan(/<track>/).count).to eq(2)  # 1 video + 1 audio track
     end
+
+    it 'offsets music in/out when audio_start is specified' do
+      generator = described_class.new(
+        [{ path: clip_a_path }],  # 4 seconds at 25fps
+        audio_track: music_path,
+        audio_start: 10.0         # skip first 10 seconds
+      )
+      xml = generator.to_xml
+      # 10 seconds at 25fps = 250 frames offset
+      expect(xml).to match(/<clipitem id="clipitem-music-1">.*?<in>250<\/in>/m)
+      expect(xml).to match(/<clipitem id="clipitem-music-1">.*?<out>350<\/out>/m)
+    end
+
+    it 'uses zero offset when audio_start is not specified' do
+      generator = described_class.new(
+        [{ path: clip_a_path }],
+        audio_track: music_path
+      )
+      xml = generator.to_xml
+      expect(xml).to match(/<clipitem id="clipitem-music-1">.*?<in>0<\/in>/m)
+    end
   end
 end
