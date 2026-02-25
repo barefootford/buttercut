@@ -7,7 +7,7 @@
 #   <source_video_dir>/buttercut/xml/C1605_scene_01_20260207_1530.xml
 #
 # Usage:
-#   ruby export_scenes.rb <scenes.yaml|"glob"> [editor] [--windows-file-paths] [--handles 0.5]
+#   ruby export_scenes.rb <scenes.yaml|"glob"> [editor] [--windows-file-paths] [--handles 0.5] [--sequence-fps 25]
 
 require 'yaml'
 require 'date'
@@ -28,6 +28,7 @@ def main
     puts "  editor: premiere (default), resolve, or fcpx"
     puts "  --windows-file-paths: convert Linux/WSL paths to Windows format"
     puts "  --handles N: add N seconds of padding to each clip (default: 0)"
+    puts "  --sequence-fps N: override sequence frame rate (e.g., 25 for 25fps)"
     puts "\n  Output goes to <source_video_dir>/buttercut/xml/"
     exit 1
   end
@@ -40,8 +41,16 @@ def main
     handles = ARGV[handles_index + 1].to_f
   end
 
+  sequence_fps = nil
+  fps_index = ARGV.index('--sequence-fps')
+  if fps_index && ARGV[fps_index + 1]
+    sequence_fps = ARGV[fps_index + 1].to_i
+  end
+
   args = ARGV.reject.with_index do |a, i|
-    a == '--windows-file-paths' || a == '--handles' || (handles_index && i == handles_index + 1)
+    a == '--windows-file-paths' ||
+      a == '--handles' || (handles_index && i == handles_index + 1) ||
+      a == '--sequence-fps' || (fps_index && i == fps_index + 1)
   end
 
   scenes_input = args[0]
@@ -108,7 +117,9 @@ def main
 
       output_file = File.join(xml_dir, "#{basename}_scene_#{scene_num}_#{timestamp}.xml")
 
-      generator = ButterCut.new(buttercut_clips, editor: editor_symbol, windows_file_paths: windows_file_paths)
+      options = { editor: editor_symbol, windows_file_paths: windows_file_paths }
+      options[:sequence_frame_rate] = sequence_fps if sequence_fps
+      generator = ButterCut.new(buttercut_clips, **options)
       generator.save(output_file)
 
       puts "  Exported: #{File.basename(output_file)}"
