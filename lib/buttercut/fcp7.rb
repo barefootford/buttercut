@@ -123,7 +123,17 @@ class ButterCut
         # FCP7/Premiere: clipitem <in>/<out> are in the SEQUENCE timebase,
         # not the file's native timebase (Apple FCP7 XML spec).
         source_in_frames = frames_for_fraction(clip[:source_in], timeline_frame_duration)
-        source_duration_frames = frames_for_fraction(clip[:source_duration], timeline_frame_duration)
+
+        # Speed adjustment: at non-1.0 speed, source frames consumed differs from timeline frames.
+        # speed < 1.0 (slow down) = fewer source frames consumed
+        # speed > 1.0 (speed up) = more source frames consumed
+        speed = clip[:clip_definition][:speed]&.to_f
+        if speed && speed != 1.0 && speed > 0
+          source_duration_frames = (timeline_duration_frames * speed).round
+        else
+          source_duration_frames = frames_for_fraction(clip[:source_duration], timeline_frame_duration)
+          speed = nil
+        end
         source_out_frames = source_in_frames + source_duration_frames
 
         # File-level duration and timecode stay in the file's native timebase
@@ -147,7 +157,8 @@ class ButterCut
           asset_ntsc: asset_ntsc,
           asset_display: asset_display,
           asset_duration_frames: asset_duration_frames,
-          asset_timecode_start: asset_timecode_start
+          asset_timecode_start: asset_timecode_start,
+          speed: speed
         }
       end
     end
@@ -205,8 +216,44 @@ class ButterCut
           xml.mediatype 'video'
           xml.trackindex 1
         end
+        build_time_remap_filter(xml, payload) if payload[:speed]
         build_motion_filter(xml, payload) if needs_motion_filter?(payload)
         build_link_entries(xml, payload)
+      end
+    end
+
+    def build_time_remap_filter(xml, payload)
+      speed = payload[:speed]
+      timeline_frames = payload[:timeline_duration]
+      source_frames = payload[:source_duration_frames]
+
+      xml.filter do
+        xml.effect do
+          xml.name 'Time Remap'
+          xml.effectid 'timeremap'
+          xml.effectcategory 'motion'
+          xml.effecttype 'motion'
+          xml.mediatype 'video'
+          xml.parameter do
+            xml.parameterid 'speed'
+            xml.name 'speed'
+            xml.valuemin(-100_000)
+            xml.valuemax 100_000
+            xml.value (speed * 100).round(2)
+          end
+          xml.parameter do
+            xml.parameterid 'graphdict'
+            xml.name 'graphdict'
+            xml.keyframe do
+              xml.when 0
+              xml.value 0
+            end
+            xml.keyframe do
+              xml.when timeline_frames
+              xml.value source_frames
+            end
+          end
+        end
       end
     end
 

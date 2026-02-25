@@ -421,6 +421,9 @@ class ButterCut
         filename = get_filename(video_file_path)
         file_url = path_to_file_url(video_file_path)
 
+        # Allow clip-level rotation override for files with missing/wrong metadata (e.g., C1616)
+        rotation = clip_def.key?(:rotation) ? clip_def[:rotation].to_i : video_rotation(video_file_path)
+
         file_to_asset[abs_path] = {
           asset_id: asset_id,
           asset_uid: asset_uid,
@@ -436,7 +439,7 @@ class ButterCut
           width: video_width(video_file_path),
           height: video_height(video_file_path),
           color_space: color_space(video_file_path),
-          rotation: video_rotation(video_file_path)
+          rotation: rotation
         }
       end
       file_to_asset

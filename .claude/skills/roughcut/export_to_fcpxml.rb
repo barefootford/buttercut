@@ -98,11 +98,14 @@ def main
     out_point = timecode_to_seconds(clip['out_point'])
     duration = out_point - start_at
 
-    buttercut_clips << {
+    clip_hash = {
       path: full_path,
       start_at: start_at.to_f,
       duration: duration.to_f
     }
+    clip_hash[:speed] = clip['speed'].to_f if clip['speed']
+    clip_hash[:rotation] = clip['rotation'].to_i if clip['rotation']
+    buttercut_clips << clip_hash
   end
 
   # Validate and normalize editor choice
