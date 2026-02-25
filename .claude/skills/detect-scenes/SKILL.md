@@ -26,8 +26,14 @@ Splits dance videos into individual couple clips using a visual tree search — 
 
 ### Phase 1 — Coarse Scan (parallel, fast)
 
-1. Gather inputs: video paths, editor (default: premiere), handles (default: 0)
-2. Get durations via `ffprobe`. Use direct Bash calls (not Task agents) for speed.
+1. Gather inputs: video paths (or library reference), editor (default: premiere), handles (default: 0)
+   - **Library mode**: read `library.yaml` to get video paths
+2. Probe each video with `ffprobe` (direct Bash calls, not Task agents) and record per-file:
+   - **Duration**
+   - **Frame rate** (r_frame_rate, e.g., 25/1, 30/1, 50/1)
+   - **Orientation** — check width, height, and rotation side_data to determine portrait vs landscape
+   - If frame rates differ across the batch, **warn the user** and ask which sequence frame rate to use (or default to the most common rate). Pass `--sequence-fps` to `export_scenes.rb`.
+   - If orientations are mixed, **warn the user** — exports will need per-file rotation handling.
 3. Generate contact sheets in parallel (background Bash, 4 at a time):
    ```bash
    ruby .claude/skills/detect-scenes/contact_sheet.rb <video> --output /tmp/cs/cs_<basename>.jpg
@@ -90,8 +96,9 @@ All output goes into a `buttercut/` subfolder inside the source video directory.
 11. Present results table to user showing each couple with timestamps
 12. Export one XML per couple:
     ```bash
-    ruby .claude/skills/detect-scenes/export_scenes.rb <source_dir>/buttercut/scenes_<basename>.yaml premiere --windows-file-paths
+    ruby .claude/skills/detect-scenes/export_scenes.rb <scenes.yaml> premiere --windows-file-paths [--sequence-fps N]
     ```
+    Pass `--sequence-fps` if the batch has mixed frame rates (determined in Phase 1 step 2).
 13. Clean up `/tmp/cs_*` contact sheet files
 
 ## Output Structure
