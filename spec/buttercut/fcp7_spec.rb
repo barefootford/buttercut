@@ -335,6 +335,36 @@ RSpec.describe ButterCut::FCP7 do
       # rotation=90 override → fcp_rotation=-90 (CW), same as portrait clips with rotation=90 metadata
       expect(xml).to match(/<parameterid>rotation<\/parameterid>.*?<value>-90<\/value>/m)
     end
+
+    it 'applies rotation override even when only a later clip specifies it' do
+      # Two clips from the same file: first has no override, second does.
+      # The override should apply to the shared asset (and thus all clips from that file).
+      no_rotation_path = '/tmp/no_rotation.mov'
+      no_rotation_metadata = {
+        no_rotation_path => build_metadata(
+          duration_seconds: 10.0,
+          frame_rate: '30/1',
+          width: 1920,
+          height: 1080
+        )
+      }
+      allow_any_instance_of(described_class).to receive(:extract_metadata_from_ffprobe) do |_instance, path|
+        no_rotation_metadata.fetch(path)
+      end
+
+      generator = described_class.new(
+        [
+          { path: no_rotation_path, start_at: 0.0, duration: 2.0 },
+          { path: no_rotation_path, start_at: 4.0, duration: 2.0, rotation: 90 }
+        ],
+        sequence_width: 1080,
+        sequence_height: 1920
+      )
+      xml = generator.to_xml
+      # Both clips should get the rotation from the override on clip 2
+      expect(xml).to include("<parameterid>rotation</parameterid>")
+      expect(xml).to match(/<parameterid>rotation<\/parameterid>.*?<value>-90<\/value>/m)
+    end
   end
 
   describe 'speed (time remap) option' do
