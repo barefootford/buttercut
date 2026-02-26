@@ -178,6 +178,7 @@ Each library has a `library.yaml` file that serves as your persistent memory and
 - `lib/buttercut/editor_base.rb` - Shared validation, metadata extraction, and timeline math
 - `lib/buttercut/fcpx.rb` - Final Cut Pro X implementation (FCPXML 1.8)
 - `lib/buttercut/fcp7.rb` - Final Cut Pro 7 / Premiere / DaVinci Resolve implementation (xmeml v5)
+- `lib/buttercut/lumetri.rb` - Premiere Pro Lumetri Color plugin (parse, manipulate, generate xmeml Lumetri effects including HSL Secondary and stacked multi-zone corrections via GradeStack)
 - `.claude/skills/` - Claude Code skills for AI-powered workflow
 - `spec/` - RSpec test suite
 - `templates/` - Library and project templates

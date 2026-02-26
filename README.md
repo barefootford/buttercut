@@ -1,5 +1,9 @@
 # ButterCut
 
+> **Fork of [barefootford/buttercut](https://github.com/barefootford/buttercut)**
+> This fork adds Windows/WSL support, Premiere Pro portrait sequence rotation,
+> and scene detection for social dance videos. For the main project, see upstream.
+
 **Make Claude your Video Editor**
 
 [buttercut.io](https://buttercut.io)

@@ -83,6 +83,12 @@ class ButterCut
                     build_audio_clipitem(xml, payload)
                   end
                 end
+                # Add music track if audio_track option is provided
+                if audio_track
+                  xml.track do
+                    build_music_track(xml, sequence_duration_frames, timebase, ntsc_flag, sequence_audio_rate)
+                  end
+                end
               end
             end
           end
@@ -114,10 +120,23 @@ class ButterCut
         timeline_start_frames = frames_for_fraction(clip[:timeline_offset], timeline_frame_duration)
         timeline_end_frames = timeline_start_frames + timeline_duration_frames
 
-        source_in_frames = frames_for_fraction(clip[:source_in], asset[:frame_duration])
-        source_duration_frames = frames_for_fraction(clip[:source_duration], asset[:frame_duration])
+        # FCP7/Premiere: clipitem <in>/<out> are in the SEQUENCE timebase,
+        # not the file's native timebase (Apple FCP7 XML spec).
+        source_in_frames = frames_for_fraction(clip[:source_in], timeline_frame_duration)
+
+        # Speed adjustment: at non-1.0 speed, source frames consumed differs from timeline frames.
+        # speed < 1.0 (slow down) = fewer source frames consumed
+        # speed > 1.0 (speed up) = more source frames consumed
+        speed = clip[:clip_definition][:speed]&.to_f
+        if speed && speed != 1.0 && speed > 0
+          source_duration_frames = (timeline_duration_frames * speed).round
+        else
+          source_duration_frames = frames_for_fraction(clip[:source_duration], timeline_frame_duration)
+          speed = nil
+        end
         source_out_frames = source_in_frames + source_duration_frames
 
+        # File-level duration and timecode stay in the file's native timebase
         asset_duration_frames = frames_for_fraction(asset[:asset_duration], asset[:frame_duration])
         asset_timecode_start = frames_for_fraction(asset[:timecode], asset[:frame_duration])
 
@@ -138,7 +157,8 @@ class ButterCut
           asset_ntsc: asset_ntsc,
           asset_display: asset_display,
           asset_duration_frames: asset_duration_frames,
-          asset_timecode_start: asset_timecode_start
+          asset_timecode_start: asset_timecode_start,
+          speed: speed
         }
       end
     end
@@ -196,7 +216,150 @@ class ButterCut
           xml.mediatype 'video'
           xml.trackindex 1
         end
+        build_time_remap_filter(xml, payload) if payload[:speed]
+        build_motion_filter(xml, payload) if needs_motion_filter?(payload)
         build_link_entries(xml, payload)
+      end
+    end
+
+    def build_time_remap_filter(xml, payload)
+      speed = payload[:speed]
+      timeline_frames = payload[:timeline_duration]
+      source_frames = payload[:source_duration_frames]
+
+      xml.filter do
+        xml.effect do
+          xml.name 'Time Remap'
+          xml.effectid 'timeremap'
+          xml.effectcategory 'motion'
+          xml.effecttype 'motion'
+          xml.mediatype 'video'
+          xml.parameter do
+            xml.parameterid 'speed'
+            xml.name 'speed'
+            xml.valuemin(-100_000)
+            xml.valuemax 100_000
+            xml.value (speed * 100).round(2)
+          end
+          xml.parameter do
+            xml.parameterid 'graphdict'
+            xml.name 'graphdict'
+            xml.keyframe do
+              xml.when 0
+              xml.value 0
+            end
+            xml.keyframe do
+              xml.when timeline_frames
+              xml.value source_frames
+            end
+          end
+        end
+      end
+    end
+
+    def needs_motion_filter?(payload)
+      asset = payload[:asset]
+      rotation = asset[:rotation] || 0
+
+      # Need motion filter if:
+      # 1. Clip has rotation metadata (portrait video)
+      # 2. Clip dimensions don't match sequence dimensions
+      return true if rotation != 0
+
+      seq_width = format_width
+      seq_height = format_height
+      clip_width = asset[:width]
+      clip_height = asset[:height]
+
+      # If sequence is portrait (height > width) and clip is landscape, need to scale
+      seq_is_portrait = seq_height > seq_width
+      clip_is_landscape = clip_width > clip_height
+
+      seq_is_portrait && clip_is_landscape
+    end
+
+    def build_motion_filter(xml, payload)
+      asset = payload[:asset]
+      rotation = asset[:rotation] || 0
+      clip_width = asset[:width].to_f
+      clip_height = asset[:height].to_f
+      seq_width = format_width.to_f
+      seq_height = format_height.to_f
+
+      # Calculate effective dimensions after rotation and determine FCP rotation value.
+      # Premiere does NOT auto-apply rotation from side_data when importing FCP7 XML,
+      # so we must apply it explicitly via the Basic Motion filter.
+      # FCP7 uses: positive = counter-clockwise, negative = clockwise.
+      # Metadata rotation=90 means "rotate 90° CW to display upright" → FCP7 -90.
+      # Metadata rotation=-90 means "rotate 90° CCW to display upright" → FCP7 90.
+      if rotation == 90
+        effective_width = clip_height
+        effective_height = clip_width
+        fcp_rotation = -90  # Apply 90° clockwise in FCP7
+      elsif rotation == 270 || rotation == -90
+        effective_width = clip_height
+        effective_height = clip_width
+        fcp_rotation = 90   # Apply 90° counter-clockwise in FCP7
+      else
+        effective_width = clip_width
+        effective_height = clip_height
+        fcp_rotation = 0
+      end
+
+      # Determine scaling mode based on aspect ratios
+      seq_is_portrait = seq_height > seq_width
+      clip_is_landscape = effective_width > effective_height
+
+      scale_x = seq_width / effective_width
+      scale_y = seq_height / effective_height
+
+      if seq_is_portrait && clip_is_landscape
+        # Landscape clip in portrait sequence: fill height, crop sides (center crop)
+        scale = scale_y * 100
+      else
+        # Default: fit mode (letterbox)
+        scale = [scale_x, scale_y].min * 100
+      end
+
+      xml.filter do
+        xml.effect do
+          xml.name 'Basic Motion'
+          xml.effectid 'basic'
+          xml.effectcategory 'motion'
+          xml.effecttype 'motion'
+          xml.mediatype 'video'
+          xml.pproBypass 'false'
+
+          # Scale parameter
+          xml.parameter do
+            xml.parameterid 'scale'
+            xml.name 'Scale'
+            xml.valuemin 0
+            xml.valuemax 1000
+            xml.value scale.round(2)
+          end
+
+          # Rotation parameter (only if needed)
+          if fcp_rotation != 0
+            xml.parameter do
+              xml.parameterid 'rotation'
+              xml.name 'Rotation'
+              xml.valuemin(-8640)
+              xml.valuemax 8640
+              xml.value fcp_rotation
+            end
+          end
+
+          # Center parameter (keep centered)
+          xml.parameter do
+            xml.parameterid 'center'
+            xml.name 'Center'
+            xml.value do
+              xml.horiz 0
+              xml.vert 0
+            end
+          end
+        end
       end
     end
 
@@ -255,6 +418,58 @@ class ButterCut
 
     def asset_audio_rate(asset)
       asset[:audio_rate] || format_audio_rate || '48000'
+    end
+
+    def build_music_track(xml, sequence_duration_frames, timebase, ntsc_flag, sequence_audio_rate)
+      music_path = audio_track
+      music_filename = get_filename(music_path)
+      music_basename = get_basename(music_filename)
+      music_file_url = path_to_file_url(music_path)
+      music_sample_rate = audio_sample_rate(music_path)
+
+      # Calculate music duration in frames
+      timeline_frame_duration = format_frame_duration
+      music_duration_fraction = audio_duration_to_fraction(music_path, timeline_frame_duration)
+      music_duration_frames = frames_for_fraction(music_duration_fraction, timeline_frame_duration)
+
+      # Calculate audio start offset in frames
+      audio_start_frames = audio_start ? (audio_start.to_f * timebase).round : 0
+
+      # Trim music to sequence length if longer
+      effective_duration = [music_duration_frames - audio_start_frames, sequence_duration_frames].min
+      music_file_id = "file-music-#{deterministic_asset_id(get_absolute_path(music_path))}"
+
+      xml.clipitem(id: 'clipitem-music-1') do
+        xml.name music_basename
+        xml.enabled 'TRUE'
+        xml.duration effective_duration
+        xml.start 0
+        xml.end_ effective_duration
+        xml.in_ audio_start_frames
+        xml.out audio_start_frames + effective_duration
+        xml.file(id: music_file_id) do
+          xml.name music_filename
+          xml.pathurl music_file_url
+          xml.rate do
+            xml.timebase timebase
+            xml.ntsc ntsc_flag
+          end
+          xml.duration music_duration_frames
+          xml.media do
+            xml.audio do
+              xml.samplecharacteristics do
+                xml.samplerate music_sample_rate
+                xml.sampledepth 16
+              end
+            end
+          end
+        end
+        xml.sourcetrack do
+          xml.mediatype 'audio'
+          xml.trackindex 1
+        end
+        xml.channelcount 2
+      end
     end
   end
 end
