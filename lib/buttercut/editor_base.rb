@@ -384,6 +384,15 @@ class ButterCut
     end
 
     def build_asset_map
+      # Pre-scan for rotation overrides: any clip with an explicit :rotation wins for that file
+      rotation_overrides = {}
+      @clips.each do |clip_def|
+        abs_path = get_absolute_path(clip_def[:path])
+        if clip_def.key?(:rotation) && !rotation_overrides.key?(abs_path)
+          rotation_overrides[abs_path] = clip_def[:rotation].to_i
+        end
+      end
+
       file_to_asset = {}
       @clips.each do |clip_def|
         video_file_path = clip_def[:path]
@@ -394,6 +403,9 @@ class ButterCut
         asset_uid = deterministic_asset_uid(abs_path)
         filename = get_filename(video_file_path)
         file_url = path_to_file_url(video_file_path)
+
+        # Use rotation override from any clip for this file, or fall back to ffprobe metadata
+        rotation = rotation_overrides.fetch(abs_path) { video_rotation(video_file_path) }
 
         file_to_asset[abs_path] = {
           asset_id: asset_id,
@@ -410,7 +422,7 @@ class ButterCut
           width: video_width(video_file_path),
           height: video_height(video_file_path),
           color_space: color_space(video_file_path),
-          rotation: video_rotation(video_file_path)
+          rotation: rotation
         }
       end
       file_to_asset
