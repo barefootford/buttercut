@@ -10,12 +10,10 @@ class DependencyChecker
     results = []
 
     # Core dependencies (required)
-    results << check("Xcode CLI Tools", "xcode-select -p", "xcode-select --install")
-    results << check("Homebrew", "which brew", "See https://brew.sh")
     results << check_ruby_version
     results << check("Bundler", "which bundle", "gem install bundler")
     results << check_python_version
-    results << check("FFmpeg", "which ffmpeg", "brew install ffmpeg")
+    results << check("FFmpeg", "which ffmpeg", "sudo apt-get install -y ffmpeg")
     results << check_whisperx
     results << check_bundle_install
 
