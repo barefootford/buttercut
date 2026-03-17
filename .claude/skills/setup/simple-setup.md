@@ -1,8 +1,8 @@
 # Simple Setup (Non-Technical Users)
 
-Fully automatic installation. Run each step in order, waiting for each to complete. Don't move forward until each step is successful. This may be a non-technical user so adjust your explanations accordingly.
+Fully automatic installation for Ubuntu 24.04. Run each step in order, waiting for each to complete.
 
-**Note:** ButterCut encourages the use of the CPU version of WhisperX only. This simplifies installation and works reliably on all modern Macs with Apple Silicon.
+**Note:** ButterCut uses the CPU version of WhisperX. This simplifies installation and works reliably without GPU setup.
 
 ## Step 0: Check Install Location
 
@@ -11,7 +11,6 @@ Check the current working directory. Warn if ButterCut is in a problematic locat
 **Problematic locations:**
 - `~/Desktop/` - Desktop gets cluttered, easy to accidentally delete
 - `~/Downloads/` - Often cleaned up automatically
-- `~/Library/Mobile Documents/` (iCloud) - Sync causes issues with git and large files
 - Any path containing spaces - Some CLI tools have issues
 
 **Recommended locations:**
@@ -25,89 +24,53 @@ If in a problematic location, ask if they'd like to move it. If yes:
 3. Tell the user:
    ```
    I've copied ButterCut to ~/code/buttercut. To finish:
-   1. Delete [current-path] (drag to Trash)
+   1. Delete [current-path]
    2. Run this in Terminal: cd ~/code/buttercut && claude
    ```
 
 If they prefer to stay in the current location, continue with setup.
 
-## Step 1: Xcode Command Line Tools
+## Step 1: System Build Dependencies
 
-```bash
-xcode-select -p 2>/dev/null || xcode-select --install
-```
-
-If `xcode-select --install` runs, a GUI dialog appears. **Tell user to click "Install" and wait** (5-10 minutes). Then verify:
-
-```bash
-xcode-select -p
-```
-
-Should return `/Library/Developer/CommandLineTools` or similar.
-
-## Step 2: Homebrew (Manual Installation Required)
-
-Check if Homebrew is installed:
-
-```bash
-which brew
-```
-
-If not installed, **tell the user to run the install command themselves**. Homebrew requires interactive terminal access (password prompts, confirmations) and cannot be installed by the agent directly.
+Install required libraries for building Ruby and running ButterCut. **User must run this** (requires sudo):
 
 Tell the user to run:
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+sudo apt-get install -y libyaml-dev libssl-dev libreadline-dev zlib1g-dev libxml2-utils
 ```
 
-Wait for the user to confirm installation is complete before continuing.
+Wait for the user to confirm before continuing.
 
-After install, add to PATH (Apple Silicon):
-
-```bash
-eval "$(/opt/homebrew/bin/brew shellenv)"
-```
-
-Verify with `brew --version`. Don't proceed until brew works.
-
-Install libyaml (required for Ruby's psych extension):
+## Step 2: Mise (Version Manager)
 
 ```bash
-brew install libyaml
-```
-
-## Step 3: Mise (Version Manager)
-
-```bash
-which mise || brew install mise
+curl https://mise.run | sh
 ```
 
 Activate mise in shell profile:
 
 ```bash
-# Detect shell and add mise activation
 if [[ "$SHELL" == *"zsh"* ]]; then
-  grep -q 'mise activate' ~/.zshrc 2>/dev/null || echo 'eval "$(mise activate zsh)"' >> ~/.zshrc
-  eval "$(mise activate zsh)"
+  grep -q 'mise activate' ~/.zshrc 2>/dev/null || echo 'eval "$($HOME/.local/bin/mise activate zsh)"' >> ~/.zshrc
+  eval "$($HOME/.local/bin/mise activate zsh)"
 elif [[ "$SHELL" == *"bash"* ]]; then
-  grep -q 'mise activate' ~/.bash_profile 2>/dev/null || echo 'eval "$(mise activate bash)"' >> ~/.bash_profile
-  eval "$(mise activate bash)"
+  grep -q 'mise activate' ~/.bashrc 2>/dev/null || echo 'eval "$($HOME/.local/bin/mise activate bash)"' >> ~/.bashrc
+  eval "$($HOME/.local/bin/mise activate bash)"
 fi
 ```
 
-Verify: `mise --version`
+Verify: `~/.local/bin/mise --version`
 
-## Step 4: Ruby and Python via Mise
+## Step 3: Ruby and Python via Mise
 
 From the buttercut directory:
 
 ```bash
-mise trust
-mise install
+~/.local/bin/mise trust
+~/.local/bin/mise settings ruby.compile=false
+~/.local/bin/mise install
 ```
-
-**Note:** Ruby is compiled from source and can take 5-10 minutes. This is normal.
 
 Verify versions:
 
@@ -116,19 +79,27 @@ ruby --version    # Should show 3.3.6
 python3 --version # Should show 3.12.8
 ```
 
-## Step 5: Bundler
+## Step 4: Bundler
 
 ```bash
 which bundle || gem install bundler
 ```
 
-## Step 6: FFmpeg
+## Step 5: FFmpeg
+
+Check if already installed:
 
 ```bash
-which ffmpeg || brew install ffmpeg
+which ffmpeg
 ```
 
-## Step 7: WhisperX Virtual Environment
+If not installed, tell the user to run:
+
+```bash
+sudo apt-get install -y ffmpeg
+```
+
+## Step 6: WhisperX Virtual Environment
 
 ```bash
 mkdir -p ~/.buttercut
@@ -143,7 +114,7 @@ pip install whisperx
 deactivate
 ```
 
-## Step 8: WhisperX Wrapper Script
+## Step 7: WhisperX Wrapper Script
 
 ```bash
 cat > ~/.buttercut/whisperx << 'EOF'
@@ -155,17 +126,17 @@ EOF
 chmod +x ~/.buttercut/whisperx
 ```
 
-## Step 9: Add to PATH
+## Step 8: Add to PATH
 
 ```bash
 if [[ "$SHELL" == *"zsh"* ]]; then
   grep -q 'buttercut' ~/.zshrc 2>/dev/null || echo 'export PATH="$HOME/.buttercut:$PATH"' >> ~/.zshrc
 elif [[ "$SHELL" == *"bash"* ]]; then
-  grep -q 'buttercut' ~/.bash_profile 2>/dev/null || echo 'export PATH="$HOME/.buttercut:$PATH"' >> ~/.bash_profile
+  grep -q 'buttercut' ~/.bashrc 2>/dev/null || echo 'export PATH="$HOME/.buttercut:$PATH"' >> ~/.bashrc
 fi
 ```
 
-## Step 10: Install ButterCut Dependencies
+## Step 9: Install ButterCut Dependencies
 
 ```bash
 bundle install
@@ -177,9 +148,9 @@ Tell user to open a new terminal window for all changes to take effect.
 
 ## Troubleshooting
 
-- **Xcode stuck**: `sudo rm -rf /Library/Developer/CommandLineTools` then retry
-- **Homebrew not in PATH**: Run `eval "$(/opt/homebrew/bin/brew shellenv)"`
-- **Mise not activating**: Open new terminal, run `mise doctor`
-- **Wrong Ruby/Python**: Run `mise trust && mise install` from buttercut directory
+- **libyaml not found during Ruby build**: Ensure `sudo apt-get install -y libyaml-dev` completed successfully
+- **Mise not activating**: Open new terminal, run `~/.local/bin/mise doctor`
+- **Wrong Ruby/Python**: Run `~/.local/bin/mise trust && ~/.local/bin/mise install` from buttercut directory
 - **WhisperX not found**: Ensure `~/.buttercut` is in PATH, open new terminal
 - **WhisperX import errors**: The wrapper script handles venv activation automatically; ensure you're using `~/.buttercut/whisperx` not calling whisperx directly
+- **FFmpeg not found**: Run `sudo apt-get install -y ffmpeg`
