@@ -124,4 +124,8 @@ MIT
 
 ## Contributing
 
-Bug reports and pull requests welcome.
+Bug reports and pull requests welcome, with that said...
+
+**Guidelines:**
+- Write the body of your pull request or GitHub issue yourself. Don't use an agent (Claude Code, etc) to generate it.
+- Keep pull requests small and limited to a single feature or bugfix at a time. It's a lot easier to write code, I feel like it's just as hard as before to review code.
