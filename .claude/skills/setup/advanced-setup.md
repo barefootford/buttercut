@@ -1,6 +1,6 @@
 # Advanced Setup (Developers)
 
-For developers who manage their own Ruby/Python environments. This guide tells you what's needed; you decide how to install it.
+For developers who manage their own Ruby/Python environments on Ubuntu 24.04. This guide tells you what's needed; you decide how to install it.
 
 ## Required Versions
 
@@ -15,35 +15,27 @@ These files are compatible with rbenv, pyenv, asdf, mise, and most version manag
 
 Work through each item. Skip any you already have.
 
-### 1. Xcode Command Line Tools
+### 1. System Build Dependencies
+
+Required before building Ruby:
 
 ```bash
-xcode-select -p 2>/dev/null || xcode-select --install
+sudo apt-get install -y libyaml-dev libssl-dev libreadline-dev zlib1g-dev libxml2-utils
 ```
 
-### 2. Homebrew
-
-Required for FFmpeg and libyaml. If you prefer another package manager, adapt accordingly.
-
-**Note:** Homebrew installation requires interactive terminal access (password prompts, confirmations). If running via an agent, the user must run the install command manually.
-
-```bash
-which brew || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-
-### 3. Libyaml (Ruby Dependency)
-
-Required for Ruby's psych extension. Install before compiling Ruby:
-
-```bash
-brew install libyaml
-```
-
-### 4. Ruby 3.3.6
+### 2. Ruby 3.3.6
 
 Install using your preferred version manager (rbenv, asdf, mise, rvm, etc.).
 
 The project includes `.ruby-version` which most managers auto-detect.
+
+With mise (precompiled, fastest):
+
+```bash
+curl https://mise.run | sh
+~/.local/bin/mise settings ruby.compile=false
+~/.local/bin/mise trust && ~/.local/bin/mise install
+```
 
 Verify:
 
@@ -51,33 +43,31 @@ Verify:
 ruby --version  # Should show 3.3.6
 ```
 
-### 5. Bundler
+### 3. Bundler
 
 ```bash
 gem install bundler
 ```
 
-### 6. Python 3.12.8
+### 4. Python 3.12.8
 
-Install using your preferred version manager (pyenv, asdf, mise, etc.).
-
-The project includes `.python-version` which most managers auto-detect.
-
-Verify:
+Ubuntu 24.04 ships with Python 3.12.x. Verify:
 
 ```bash
-python3 --version  # Should show 3.12.8
+python3 --version
 ```
 
-### 7. FFmpeg
+If you need exactly 3.12.8, use pyenv or mise.
+
+### 5. FFmpeg
 
 ```bash
-brew install ffmpeg
+sudo apt-get install -y ffmpeg
 ```
 
 Or install via your preferred method.
 
-### 8. WhisperX
+### 6. WhisperX
 
 Two options depending on how you manage Python:
 
@@ -103,7 +93,7 @@ EOF
 chmod +x ~/.buttercut/whisperx
 
 # Add to PATH (adjust for your shell)
-echo 'export PATH="$HOME/.buttercut:$PATH"' >> ~/.zshrc
+echo 'export PATH="$HOME/.buttercut:$PATH"' >> ~/.bashrc
 ```
 
 **Option B: Direct pip install**
@@ -116,7 +106,7 @@ pip install whisperx
 
 Ensure `whisperx` is in your PATH.
 
-### 9. ButterCut Ruby Dependencies
+### 7. ButterCut Ruby Dependencies
 
 From the buttercut directory:
 
