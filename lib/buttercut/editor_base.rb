@@ -11,9 +11,10 @@ class ButterCut
     DEFAULT_INITIAL_OFFSET = "0s"
     DEFAULT_VOLUME_ADJUSTMENT = "-13.100000000000001db"
 
-    attr_reader :clips, :initial_offset, :volume_adjustment
+    attr_reader :clips, :initial_offset, :volume_adjustment, :sequence_frame_rate,
+                :sequence_width, :sequence_height, :windows_file_paths
 
-    def initialize(clips)
+    def initialize(clips, options = {})
       raise ArgumentError, "No clips provided" if clips.nil? || clips.empty?
 
       clips.each_with_index do |clip, index|
@@ -34,6 +35,10 @@ class ButterCut
       @clips = clips
       @initial_offset = DEFAULT_INITIAL_OFFSET
       @volume_adjustment = DEFAULT_VOLUME_ADJUSTMENT
+      @sequence_frame_rate = options[:sequence_frame_rate]
+      @sequence_width = options[:sequence_width]
+      @sequence_height = options[:sequence_height]
+      @windows_file_paths = options.fetch(:windows_file_paths, false)  # Default false, Linux-first
 
       @metadata_cache = {}
       @clips.each do |clip|
@@ -201,22 +206,42 @@ class ButterCut
     end
 
     def format_width
-      video_width(@clips.first[:path])
+      @sequence_width || video_width(@clips.first[:path])
     end
 
     def format_height
-      video_height(@clips.first[:path])
+      @sequence_height || video_height(@clips.first[:path])
+    end
+
+    def video_rotation(video_path)
+      metadata = extract_metadata(video_path)
+      video_stream = metadata['streams'].find { |s| s['codec_type'] == 'video' }
+
+      # Check side_data_list for rotation (common in mobile video)
+      if video_stream['side_data_list']
+        rotation_data = video_stream['side_data_list'].find { |sd| sd['rotation'] }
+        return rotation_data['rotation'].to_i if rotation_data
+      end
+
+      # Check tags for rotation
+      tags = video_stream['tags'] || {}
+      return tags['rotate'].to_i if tags['rotate']
+
+      0
     end
 
     def format_frame_duration
+      return "1/#{@sequence_frame_rate}s" if @sequence_frame_rate
       frame_duration(@clips.first[:path])
     end
 
     def format_frame_rate
+      return "#{@sequence_frame_rate}/1" if @sequence_frame_rate
       frame_rate(@clips.first[:path])
     end
 
     def format_nominal_frame_rate
+      return @sequence_frame_rate if @sequence_frame_rate
       nominal_frame_rate(@clips.first[:path])
     end
 
@@ -340,7 +365,17 @@ class ButterCut
 
     def path_to_file_url(path)
       abs_path = get_absolute_path(path)
-      "file://#{abs_path.gsub(' ', '%20')}"
+
+      if @windows_file_paths && abs_path.start_with?('/mnt/')
+        # Convert WSL/Linux path to Windows path for Premiere compatibility
+        # /mnt/d/... -> D:/...
+        drive_letter = abs_path[5].upcase
+        windows_path = "#{drive_letter}:#{abs_path[6..]}"
+        abs_path = windows_path
+        "file://localhost/#{abs_path.gsub(' ', '%20')}"
+      else
+        "file://#{abs_path.gsub(' ', '%20')}"
+      end
     end
 
     def escape_xml(str)
@@ -349,6 +384,15 @@ class ButterCut
     end
 
     def build_asset_map
+      # Pre-scan for rotation overrides: any clip with an explicit :rotation wins for that file
+      rotation_overrides = {}
+      @clips.each do |clip_def|
+        abs_path = get_absolute_path(clip_def[:path])
+        if clip_def.key?(:rotation) && !rotation_overrides.key?(abs_path)
+          rotation_overrides[abs_path] = clip_def[:rotation].to_i
+        end
+      end
+
       file_to_asset = {}
       @clips.each do |clip_def|
         video_file_path = clip_def[:path]
@@ -359,6 +403,9 @@ class ButterCut
         asset_uid = deterministic_asset_uid(abs_path)
         filename = get_filename(video_file_path)
         file_url = path_to_file_url(video_file_path)
+
+        # Use rotation override from any clip for this file, or fall back to ffprobe metadata
+        rotation = rotation_overrides.fetch(abs_path) { video_rotation(video_file_path) }
 
         file_to_asset[abs_path] = {
           asset_id: asset_id,
@@ -374,7 +421,8 @@ class ButterCut
           frame_rate: frame_rate(video_file_path),
           width: video_width(video_file_path),
           height: video_height(video_file_path),
-          color_space: color_space(video_file_path)
+          color_space: color_space(video_file_path),
+          rotation: rotation
         }
       end
       file_to_asset
