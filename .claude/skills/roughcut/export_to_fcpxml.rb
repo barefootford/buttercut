@@ -15,15 +15,25 @@ def timecode_to_seconds(timecode)
 end
 
 def main
-  if ARGV.length < 2 || ARGV.length > 3
-    puts "Usage: #{$0} <roughcut.yaml> <output.xml> [editor]"
+  if ARGV.length < 2 || ARGV.length > 7
+    puts "Usage: #{$0} <roughcut.yaml> <output.xml> [editor] [sequence_fps] [width] [height] [--windows-file-paths]"
     puts "  editor: fcpx (default), premiere, or resolve"
+    puts "  sequence_fps: override sequence frame rate (e.g., 50 for 50fps)"
+    puts "  width/height: sequence dimensions (e.g., 1080 1920 for portrait)"
+    puts "  --windows-file-paths: convert Linux/WSL paths to Windows format (e.g., /mnt/d/ -> D:/)"
     exit 1
   end
 
-  roughcut_path = ARGV[0]
-  output_path = ARGV[1]
-  editor_choice = ARGV[2] || 'fcpx'
+  # Check for --windows-file-paths flag anywhere in args
+  windows_file_paths = ARGV.include?('--windows-file-paths')
+  args = ARGV.reject { |a| a == '--windows-file-paths' }
+
+  roughcut_path = args[0]
+  output_path = args[1]
+  editor_choice = args[2] || 'fcpx'
+  sequence_fps = args[3] ? args[3].to_i : nil
+  sequence_width = args[4] ? args[4].to_i : nil
+  sequence_height = args[5] ? args[5].to_i : nil
 
   unless File.exist?(roughcut_path)
     puts "Error: Rough cut file not found: #{roughcut_path}"
@@ -96,9 +106,18 @@ def main
 
   editor_name = editor_symbol == :fcpx ? "Final Cut Pro X" : "#{editor_choice.capitalize}"
 
-  puts "Converting #{buttercut_clips.length} clips to #{editor_name} XML..."
+  fps_msg = sequence_fps ? " (#{sequence_fps}fps" : ""
+  dim_msg = sequence_width && sequence_height ? " #{sequence_width}x#{sequence_height}" : ""
+  fps_msg += "#{dim_msg})" if fps_msg != "" || dim_msg != ""
+  puts "Converting #{buttercut_clips.length} clips to #{editor_name} XML#{fps_msg}..."
 
-  generator = ButterCut.new(buttercut_clips, editor: editor_symbol)
+  options = { editor: editor_symbol }
+  options[:sequence_frame_rate] = sequence_fps if sequence_fps
+  options[:sequence_width] = sequence_width if sequence_width
+  options[:sequence_height] = sequence_height if sequence_height
+  options[:windows_file_paths] = windows_file_paths
+
+  generator = ButterCut.new(buttercut_clips, **options)
   generator.save(output_path)
 
   puts "\n✓ Rough cut exported to: #{output_path}"
