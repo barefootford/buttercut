@@ -59,7 +59,17 @@ class ButterCut
 end
 ```
 
-### 5. Gather Changelog Notes
+### 5. Update Gemfile.lock
+
+Run `bundle install` so `Gemfile.lock` reflects the new version:
+
+```bash
+bundle install
+```
+
+Verify the version updated in `Gemfile.lock` before proceeding.
+
+### 6. Gather Changelog Notes
 
 Ask user for release notes. Prompt with:
 - What changed in this release?
@@ -67,7 +77,7 @@ Ask user for release notes. Prompt with:
 - Any bug fixes?
 - Any breaking changes?
 
-### 6. Update or Create CHANGELOG.md
+### 7. Update or Create CHANGELOG.md
 
 If `CHANGELOG.md` exists, prepend new entry. Otherwise create it:
 
@@ -89,14 +99,14 @@ All notable changes to ButterCut will be documented in this file.
 - Improved W
 ```
 
-### 7. Commit Version Bump
+### 8. Commit Version Bump
 
 ```bash
-git add lib/buttercut/version.rb CHANGELOG.md
+git add lib/buttercut/version.rb Gemfile.lock CHANGELOG.md
 git commit -m "Bump version to 0.2.0"
 ```
 
-### 8. Create and Push Git Tag
+### 9. Create and Push Git Tag
 
 ```bash
 git tag v0.2.0
@@ -104,7 +114,7 @@ git push origin main
 git push origin v0.2.0
 ```
 
-### 9. Build Gem
+### 10. Build Gem
 
 ```bash
 gem build buttercut.gemspec
@@ -112,7 +122,7 @@ gem build buttercut.gemspec
 
 This creates `buttercut-0.2.0.gem` file.
 
-### 10. Publish to RubyGems
+### 11. Publish to RubyGems
 
 **First time setup check:**
 
@@ -133,7 +143,7 @@ gem push buttercut-0.2.0.gem
 
 This makes the gem available for `gem install buttercut` worldwide.
 
-### 11. Create GitHub Release
+### 12. Create GitHub Release
 
 **Using GitHub CLI:**
 ```bash
@@ -155,21 +165,21 @@ Guide user through manual release creation:
 
 Then wait for user confirmation that release is created before proceeding to cleanup.
 
-### 12. Cleanup
+### 13. Cleanup
 
 ```bash
 # Remove local gem file (it's on RubyGems and GitHub now)
 rm buttercut-0.2.0.gem
 ```
 
-### 13. Verify Release
+### 14. Verify Release
 
 Check that everything worked:
 - RubyGems page: https://rubygems.org/gems/buttercut
 - GitHub releases: https://github.com/andrewford/buttercut/releases
 - Git tags: `git tag -l`
 
-### 14. Return Success Response
+### 15. Return Success Response
 
 Provide summary:
 ```
