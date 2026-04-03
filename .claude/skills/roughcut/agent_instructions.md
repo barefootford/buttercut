@@ -73,8 +73,45 @@ cp templates/roughcut_template.yaml "libraries/[library-name]/roughcuts/[roughcu
 
 **CRITICAL - Required Fields:**
 Each clip needs:
+- `role`: `a_roll` (default, primary timeline clip) or `b_roll` (overlay on top of A-roll)
 - `dialogue`: Spoken words from transcript (or `""` if silent B-roll)
 - `visual_description`: Shot description from visual transcript
+
+**A-roll / B-roll workflow:**
+
+Check `library.yaml` — if videos have `role: a_roll` or `role: b_roll` set:
+- **A-roll videos** are the primary talking head footage. Place them sequentially on the timeline.
+- **B-roll videos** are overlaid on top of A-roll. They do not advance the timeline.
+
+For B-roll clips, set:
+- `role: b_roll`
+- `timeline_offset`: the absolute timeline position (HH:MM:SS.ss) where the B-roll starts over the A-roll
+
+**B-roll placement strategy (aim for ~40% coverage):**
+1. Build the full A-roll timeline first — select all A-roll clips in order
+2. Calculate the total A-roll duration
+3. Select B-roll clips that visually complement what's being said at each moment
+4. Distribute B-roll so it covers roughly 40% of the total timeline duration
+5. Avoid placing B-roll over the very first or last few seconds of A-roll
+6. Set `timeline_offset` to where in the A-roll timeline the B-roll should appear
+
+Example — A-roll clip starts at 0s, B-roll should appear 5 seconds in:
+```yaml
+- source_file: "aroll.mov"
+  role: a_roll
+  in_point: "00:00:02.92"
+  out_point: "00:00:30.00"
+  dialogue: "Today we're visiting..."
+  visual_description: "[Speaker facing camera outdoors]"
+
+- source_file: "broll_trail.mov"
+  role: b_roll
+  timeline_offset: "00:00:05.00"
+  in_point: "00:00:00.00"
+  out_point: "00:00:08.00"
+  dialogue: ""
+  visual_description: "[Wide shot of forest trail]"
+```
 
 **Metadata:**
 - `created_date`: `YYYY-MM-DD HH:MM:SS`

@@ -380,9 +380,35 @@ class ButterCut
       file_to_asset
     end
 
+    def build_connected_clip_data(clip_def, asset_map, timeline_frame_duration)
+      abs_path = get_absolute_path(clip_def[:path])
+      asset_info = asset_map.fetch(abs_path)
+      asset_frame_duration = asset_info[:frame_duration] || timeline_frame_duration
+
+      start_at_raw = clip_def[:start_at] || DEFAULT_START_TIME
+      start_at = round_to_frame_boundary(start_at_raw, asset_frame_duration)
+
+      base_timecode = asset_info[:timecode] || "0s"
+      clip_start = add_fractions(base_timecode, start_at)
+
+      duration_info = compute_clip_duration(clip_def, asset_info, start_at, asset_frame_duration, timeline_frame_duration)
+
+      timeline_offset_raw = clip_def[:timeline_offset] || 0.0
+      timeline_offset = round_to_frame_boundary(timeline_offset_raw, timeline_frame_duration)
+
+      {
+        asset_id: asset_info[:asset_id],
+        filename: asset_info[:filename],
+        start: clip_start,
+        duration: duration_info[:timeline],
+        timeline_offset: timeline_offset,
+        lane: clip_def[:lane] || 1
+      }
+    end
+
     def build_timeline_clips(asset_map, timeline_frame_duration)
       current_offset = initial_offset
-      clips = @clips.map do |clip_def|
+      clips = @clips.reject { |c| c[:lane].to_i > 0 }.map do |clip_def|
         abs_path = get_absolute_path(clip_def[:path])
         asset_info = asset_map.fetch(abs_path)
         asset_frame_duration = asset_info[:frame_duration] || timeline_frame_duration

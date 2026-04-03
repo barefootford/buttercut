@@ -22,15 +22,21 @@ footage_coverage: |
   Include notes about strongest segments, potential issues, and creative opportunities.
 
 # The actual rough cut - ordered list of clips to use
+# role: "a_roll" (default) = primary talking head clip placed on timeline
+# role: "b_roll" = overlay clip placed on top of A-roll; requires timeline_offset
 clips:
-  # Example clip structure (replace with actual selections)
+  # Example A-roll clip (talking head)
   - source_file: "DJI_20250423171212_0210_D.mov"  # filename only, path comes from library.yaml
+    role: a_roll                # optional, a_roll is the default
     in_point: "00:00:02.92"     # Start time in HH:MM:SS.ss format (hundredths precision)
     out_point: "00:00:28.35"    # End time in HH:MM:SS.ss format
     dialogue: "In order to tell this one, I've got to zoom back about 10, 12, 13 years ago to when I barely just moved to San Francisco"
     visual_description: "[Man with mustache speaking directly to camera in medium-close shot. Outdoor urban SF street setting with residential buildings in background. Tan corduroy jacket. Handheld camera.]"
 
+  # Example B-roll clip (overlaid on top of A-roll)
   - source_file: "DJI_20250423174726_0238_D.mov"
+    role: b_roll                # marks this as a connected clip (lane 1) overlaid on A-roll
+    timeline_offset: "00:00:05.00"  # where on the A-roll timeline this B-roll starts
     in_point: "00:00:00.00"
     out_point: "00:00:05.24"
     dialogue: ""

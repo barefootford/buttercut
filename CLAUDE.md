@@ -123,7 +123,8 @@ Duplicate `templates/library_template.yaml` to create `libraries/[library-name]/
 For each video file:
 1. Use `ffprobe` to get duration
 2. Add entry to library.yaml with empty `transcript` and `visual_transcript`
-3. Empty fields mean "todo", valid filenames mean "done"
+3. Set `role: a_roll` or `role: b_roll` based on the source folder or user input
+4. Empty fields mean "todo", valid filenames mean "done"
 
 The `language` field stores the language code for all videos in this library.
 
@@ -135,12 +136,19 @@ After library setup completes, **automatically start analyzing all footage**:
 
 1. Inform user: "Library setup complete. Found [N] videos ([total size]). Starting footage analysis..."
 2. Read library.yaml to get language code and find videos needing transcription
-3. Launch `transcribe-audio` agents (can run in parallel for multiple videos)
-4. As each agent completes, update library.yaml with `transcript` (filename only, not full path)
-5. After all audio transcripts complete, launch `analyze-video` agents (can run in parallel)
-6. As each agent completes, update library.yaml with `visual_transcript` (filename only, not full path)
-7. Analyze ALL videos before offering to create rough cuts
-8. **After all analysis completes, automatically create a backup** using the `backup-library` skill
+3. **Role-aware analysis** — only run what's needed per video role:
+   - `a_roll` videos: run `transcribe-audio` only (skip `analyze-video` — visual frames aren't needed for talking head)
+   - `b_roll` videos: run `analyze-video` only (skip `transcribe-audio` — audio isn't needed for scenery)
+   - Videos with no role set: run both (default behavior)
+4. Launch agents in parallel (up to 4 at a time)
+5. As each agent completes, update library.yaml with `transcript` and/or `visual_transcript` filename
+6. Analyze ALL videos before offering to create rough cuts
+7. **After all analysis completes, automatically create a backup** using the `backup-library` skill
+
+**Prerequisite check for rough cuts — role-aware:**
+- `a_roll` videos must have `transcript` populated
+- `b_roll` videos must have `visual_transcript` populated
+- Do NOT require both for every video — missing fields are expected based on role
 
 **Terminology:**
 - User-facing: Call it "footage analysis" or "analyzing footage"

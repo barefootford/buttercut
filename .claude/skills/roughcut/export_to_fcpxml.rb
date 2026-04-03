@@ -74,11 +74,18 @@ def main
     out_point = timecode_to_seconds(clip['out_point'])
     duration = out_point - start_at
 
-    buttercut_clips << {
+    clip_data = {
       path: full_path,
       start_at: start_at.to_f,
       duration: duration.to_f
     }
+
+    if clip['role'] == 'b_roll'
+      clip_data[:lane] = 1
+      clip_data[:timeline_offset] = timecode_to_seconds(clip['timeline_offset']) if clip['timeline_offset']
+    end
+
+    buttercut_clips << clip_data
   end
 
   # Validate and normalize editor choice

@@ -16,6 +16,7 @@ footage_summary: "No footage analyzed yet."
 # Video files and transcription status
 videos:
   - path: /full/path/to/video_file.mp4
+    role: a_roll        # a_roll or b_roll — drives which analysis is run and how clips are placed
     duration: "00:05:32"
     transcript: # filename only (stored in libraries/[library-name]/transcripts/)
     visual_transcript: # filename only (visual_*.json with frame descriptions)

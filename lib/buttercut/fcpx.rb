@@ -13,10 +13,15 @@ class ButterCut
       timeline_frame_duration = format_frame_duration
       timeline_clips, sequence_duration = build_timeline_clips(asset_map, timeline_frame_duration)
 
+      connected_clips = @clips.select { |c| c[:lane].to_i > 0 }.map do |clip_def|
+        build_connected_clip_data(clip_def, asset_map, timeline_frame_duration)
+      end
+
       event_uid = generate_uuid
       project_uid = generate_uuid
 
-      first_path = clips.first[:path]
+      primary_clips = @clips.reject { |c| c[:lane].to_i > 0 }
+      first_path = primary_clips.first[:path]
       first_filename = get_filename(first_path)
       project_basename = get_basename(first_filename)
       event_name = project_basename
@@ -55,6 +60,14 @@ class ButterCut
                 xml.sequence(duration: sequence_duration, format: FORMAT_ID, tcStart: '0s', audioRate: '48k') do
                   xml.spine do
                     timeline_clips.each do |clip|
+                      clip_start_r = fraction_to_rational(clip[:timeline_offset])
+                      clip_end_r = clip_start_r + fraction_to_rational(clip[:duration])
+
+                      overlapping = connected_clips.select do |cc|
+                        fraction_to_rational(cc[:timeline_offset]) >= clip_start_r &&
+                          fraction_to_rational(cc[:timeline_offset]) < clip_end_r
+                      end
+
                       xml.send('asset-clip',
                         name: clip[:filename],
                         ref: clip[:asset_id],
@@ -64,6 +77,19 @@ class ButterCut
                         audioRole: 'dialogue'
                       ) do
                         xml.send('adjust-volume', amount: volume_adjustment)
+                        overlapping.each do |cc|
+                          xml.send('asset-clip',
+                            lane: cc[:lane],
+                            name: cc[:filename],
+                            ref: cc[:asset_id],
+                            start: cc[:start],
+                            offset: cc[:timeline_offset],
+                            duration: cc[:duration],
+                            audioRole: 'dialogue'
+                          ) do
+                            xml.send('adjust-volume', amount: volume_adjustment)
+                          end
+                        end
                       end
                     end
                   end

@@ -526,6 +526,90 @@ RSpec.describe ButterCut::FCPX do
     end
   end
 
+  describe 'connected clips (B-roll overlay)' do
+    let(:broll_path) { '/tmp/broll.mov' }
+    let(:aroll_path) { '/tmp/aroll.mov' }
+    let(:shared_metadata) do
+      build_metadata(frame_rate: '24000/1001', duration_seconds: 30.0, timecode: '00:00:00:00')
+    end
+
+    before do
+      allow_any_instance_of(ButterCut::FCPX).to receive(:extract_metadata_from_ffprobe).and_return(shared_metadata)
+    end
+
+    it 'does not include B-roll in the primary spine count' do
+      generator = ButterCut::FCPX.new([
+        { path: aroll_path },
+        { path: broll_path, lane: 1, timeline_offset: 5.0, duration: 4.0 }
+      ])
+      xml = generator.to_xml
+
+      doc = Nokogiri::XML(xml)
+      spine_children = doc.xpath('//spine/asset-clip')
+      expect(spine_children.length).to eq(1)
+    end
+
+    it 'nests B-roll as a connected clip with lane="1" inside the A-roll clip' do
+      generator = ButterCut::FCPX.new([
+        { path: aroll_path },
+        { path: broll_path, lane: 1, timeline_offset: 5.0, duration: 4.0 }
+      ])
+      xml = generator.to_xml
+
+      doc = Nokogiri::XML(xml)
+      connected = doc.xpath('//spine/asset-clip/asset-clip')
+      expect(connected.length).to eq(1)
+      expect(connected.first['lane']).to eq('1')
+    end
+
+    it 'sets the connected clip offset to the absolute timeline position (frame-rounded)' do
+      generator = ButterCut::FCPX.new([
+        { path: aroll_path },
+        { path: broll_path, lane: 1, timeline_offset: 5.0, duration: 4.0 }
+      ])
+      xml = generator.to_xml
+
+      doc = Nokogiri::XML(xml)
+      connected = doc.xpath('//spine/asset-clip/asset-clip').first
+      expected_offset = generator.round_to_frame_boundary(5.0, generator.format_frame_duration)
+      expect(connected['offset']).to eq(expected_offset)
+    end
+
+    it 'does not advance the sequence duration for B-roll clips' do
+      a_only = ButterCut::FCPX.new([{ path: aroll_path }])
+      with_broll = ButterCut::FCPX.new([
+        { path: aroll_path },
+        { path: broll_path, lane: 1, timeline_offset: 5.0, duration: 4.0 }
+      ])
+
+      a_duration = Nokogiri::XML(a_only.to_xml).at('sequence')['duration']
+      b_duration = Nokogiri::XML(with_broll.to_xml).at('sequence')['duration']
+      expect(a_duration).to eq(b_duration)
+    end
+
+    it 'places B-roll inside the correct A-roll clip when multiple A-roll clips exist' do
+      second_aroll = '/tmp/aroll2.mov'
+      allow_any_instance_of(ButterCut::FCPX).to receive(:extract_metadata_from_ffprobe).and_return(shared_metadata)
+
+      # A-roll clip 1: timeline 0s-30s, A-roll clip 2: timeline 30s-60s
+      # B-roll at offset 32s should nest inside clip 2
+      generator = ButterCut::FCPX.new([
+        { path: aroll_path },
+        { path: second_aroll },
+        { path: broll_path, lane: 1, timeline_offset: 32.0, duration: 4.0 }
+      ])
+      xml = generator.to_xml
+
+      doc = Nokogiri::XML(xml)
+      spine_clips = doc.xpath('//spine/asset-clip')
+      expect(spine_clips.length).to eq(2)
+
+      # B-roll should be nested in the second A-roll clip, not the first
+      expect(spine_clips[0].xpath('asset-clip').length).to eq(0)
+      expect(spine_clips[1].xpath('asset-clip').length).to eq(1)
+    end
+  end
+
   describe '#save' do
     let(:filename) { 'test_output.fcpxml' }
 
