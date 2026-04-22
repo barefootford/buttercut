@@ -5,6 +5,26 @@ All notable changes to ButterCut will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- AI transcript refinement inside transcribe-audio (on by default). Controlled per-library via `transcript_refinement` in each library's `library.yaml`. New `.claude/skills/transcribe-audio/refine_instructions.md` holds the refinement rubric, which uses library context (user_context, footage_summary) to correct misheard words in place while preserving word-count and timing alignment.
+
+### Changed
+- Default WhisperX model changed from `medium` to `small`. Paired with the new refinement pass, this is faster AND more accurate than the old default. Users can opt into a larger model via `libraries/settings.yaml`.
+- Renamed `footage_description` → `footage_summary` in remaining old-schema library.yaml files. The canonical field name lives in `templates/library_template.yaml`.
+
+### Migration
+Libraries created before this release have no `transcript_refinement` field. Their existing transcripts were never refined, so the key defaults to `false` on migration — new libraries still default to `true` via the template. If you want refinement on an existing library, flip the field to `true` in its `library.yaml` after running the migration.
+
+```bash
+# Back up your libraries first (creates ZIP in /backups/)
+ruby .claude/skills/backup-library/backup_libraries.rb
+
+# Add transcript_refinement: false to any library.yaml that's missing the key
+ruby scripts/002_migrate_add_transcript_refinement.rb --all
+```
+
 ## [0.4.0] - 2026-02-24
 
 ### Changed

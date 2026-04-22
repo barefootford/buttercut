@@ -16,24 +16,30 @@ Use WhisperX, NOT standard Whisper. WhisperX preserves the original video timeli
 
 ## Workflow
 
-### 1. Read Settings
+### 1. Inputs from the parent
 
-Read `libraries/settings.yaml` to get the `whisper_model` value (defaults to `medium` if settings file is missing).
+This skill runs as a sub-agent. Do NOT read `library.yaml` or `settings.yaml` — the parent has that context and passes everything inline in your prompt. Expect these inputs:
 
-Read the library's `library.yaml` to get the `language` value and map it to a language code:
-- "English" → `en`, "Spanish" → `es`, "French" → `fr`, "German" → `de`, "Japanese" → `ja`
-- For other languages, map to the appropriate ISO 639-1 code
+- `video_path` — absolute path to the video file
+- `transcript_output_dir` — where to write the transcript JSON (e.g. `libraries/<library>/transcripts`)
+- `language_code` — ISO 639-1 code already mapped by the parent (e.g. `en`, `es`)
+- `whisper_model` — model size from the parent (e.g. `small`, `medium`, `turbo`)
+- `transcript_refinement` — boolean; if `true`, the parent will also pass `user_context` and `footage_summary` strings for Step 4
+- `user_context` (only when refinement is on) — may be empty string
+- `footage_summary` (only when refinement is on) — may be empty string
+
+If any required input is missing from your prompt, stop and ask the parent rather than inferring it from the filesystem.
 
 ### 2. Run WhisperX
 
 ```bash
-whisperx "/full/path/to/video.mov" \
-  --language [mapped language code] \
-  --model [whisper_model from settings] \
+whisperx "<video_path>" \
+  --language <language_code> \
+  --model <whisper_model> \
   --compute_type float32 \
   --device cpu \
   --output_format json \
-  --output_dir libraries/[library-name]/transcripts
+  --output_dir <transcript_output_dir>
 ```
 
 ### 3. Prepare Audio Transcript
@@ -42,8 +48,8 @@ After WhisperX completes, format the JSON using our prepare_audio_script:
 
 ```bash
 ruby .claude/skills/transcribe-audio/prepare_audio_script.rb \
-  libraries/[library-name]/transcripts/video_name.json \
-  /full/path/to/original/video_name.mov
+  <transcript_output_dir>/<video_basename>.json \
+  <video_path>
 ```
 
 This script:
@@ -51,14 +57,18 @@ This script:
 - Removes unnecessary fields to reduce file size
 - Prettifies JSON
 
-### 4. Return Success Response
+### 4. (Optional) Refine the transcript
+
+If the parent passed `transcript_refinement: true`, follow `.claude/skills/transcribe-audio/refine_instructions.md` using the `user_context` and `footage_summary` strings the parent supplied inline. Do NOT open `library.yaml`. If `transcript_refinement` is not set or is `false`, skip this step.
+
+### 5. Return Success Response
 
 After audio preparation completes, return this structured response to the parent agent:
 
 ```
-✓ [video_filename.mov] transcribed successfully
-  Audio transcript: libraries/[library-name]/transcripts/video_name.json
-  Video path: /full/path/to/video_filename.mov
+✓ <video_basename.mov> transcribed successfully
+  Audio transcript: <transcript_output_dir>/<video_basename>.json
+  Video path: <video_path>
 ```
 
 **DO NOT update library.yaml** - the parent agent will handle this to avoid race conditions when running multiple transcriptions in parallel.

@@ -49,17 +49,20 @@ cp templates/settings_template.yaml libraries/settings.yaml
 ```
 
 If no previous settings.yaml was present, use the ask user question tool to ask the user to confirm or change their defaults (editor and whisper_model).
+
 Editor Options:
-- Final Cut Pro X 
+- Final Cut Pro X
 - Adobe Premiere Pro
 - DaVinci Resolve
 
 Model Options:
-- Small
+- Small (recommended — pairs well with per-library transcript_refinement)
 - Medium
 - Turbo (Large)
 
-Save these options into libraries/settings.yaml
+Save these options into libraries/settings.yaml.
+
+Note: `transcript_refinement` is a **per-library** setting (not global). Ask about it during library setup (see "Gather Project Information" below), not during initial settings setup.
 
 
 When creating a new library, read `libraries/settings.yaml` and use the `editor` value to pre-populate the library's `editor` field.
@@ -106,6 +109,12 @@ Ask the user these questions for new libraries one at a time (never all at once)
    - Save the language name (e.g., "English") to library.yaml
    - Map to language code (e.g., `en`, `es`, `fr`) behind the scenes when needed for transcription
 
+4. **Can I proofread the transcripts after they're generated?**
+   - Ask using AskUserQuestion with this exact question: "Can I proofread the transcripts after they're generated? I'll use the video's context to fix mistakes."
+   - Options: "Yes - Recommended (Use Claude to refine video understanding)" and "No"
+   - Save the boolean to `transcript_refinement` in library.yaml (true for Yes, false for No)
+   - Default to `true` if the user skips
+
 ### Create Directory Structure
 
 ```bash
@@ -134,13 +143,19 @@ Progressively update the `footage_summary` field after each video is transcribed
 After library setup completes, **automatically start analyzing all footage**:
 
 1. Inform user: "Library setup complete. Found [N] videos ([total size]). Starting footage analysis..."
-2. Read library.yaml to get language code and find videos needing transcription
-3. Launch `transcribe-audio` agents (can run in parallel for multiple videos)
-4. As each agent completes, update library.yaml with `transcript` (filename only, not full path)
-5. After all audio transcripts complete, launch `analyze-video` agents (can run in parallel)
-6. As each agent completes, update library.yaml with `visual_transcript` (filename only, not full path)
-7. Analyze ALL videos before offering to create rough cuts
-8. **After all analysis completes, automatically create a backup** using the `backup-library` skill
+2. Read `libraries/settings.yaml` (for `whisper_model`) and the library's `library.yaml` (for `language`, `transcript_refinement`, `user_context`, `footage_summary`) ONCE in the parent thread. If any expected field is missing, run the appropriate migration first (see Critical Principles below).
+3. Launch `transcribe-audio` agents (can run in parallel for multiple videos). Pass these values inline in each agent's prompt — the sub-agent never reads `library.yaml` or `settings.yaml`:
+   - `video_path`, `transcript_output_dir`, `language_code`, `whisper_model`
+   - `transcript_refinement` (boolean). If `true`, also pass the current `user_context` and `footage_summary` strings (empty strings are fine — refinement still catches nonsense-token and self-witness fixes).
+4. As each agent completes, update library.yaml with `transcript` (filename only, not full path).
+5. After all audio transcripts complete, launch `analyze-video` agents (can run in parallel) following the same "parent passes context inline" contract. Pass inline: `video_path`, `audio_transcript_path`, `visual_transcript_path`.
+6. As each agent completes, update library.yaml with `visual_transcript` (filename only, not full path).
+7. Analyze ALL videos before offering to create rough cuts.
+8. **After all analysis completes, automatically create a backup** using the `backup-library` skill.
+
+**Contract: sub-agents don't read `library.yaml`.** The parent owns `library.yaml` (and `settings.yaml`) — it reads once, passes values inline, and writes results once per agent completion. Sub-agents should not even know those files exist. This keeps the context boundary clean and avoids race conditions when many agents run in parallel.
+
+**Note on refinement:** When `transcript_refinement: true`, each `transcribe-audio` agent reviews and corrects its transcript in place before returning, using the `user_context` and `footage_summary` the parent passed in. Empty context strings are fine — the agent still runs and catches nonsense-token and self-witness fixes. The parent still only writes `transcript: <filename>.json` to `library.yaml` after the agent completes.
 
 **Terminology:**
 - User-facing: Call it "footage analysis" or "analyzing footage"
@@ -156,18 +171,17 @@ After library setup completes, **automatically start analyzing all footage**:
 When processing multiple videos, use parallel agents for maximum throughput:
 
 1. **Parent agent responsibilities:**
-   - Read library.yaml for language code
-   - Read library.yaml to find videos needing work
-   - Launch Task agents with transcribe-audio or analyze-video skills
-   - Update library.yaml sequentially as agents complete
-   - Handle errors and retries
+   - Read `library.yaml` and `settings.yaml` once to gather: videos needing work, `language_code`, `whisper_model`, `transcript_refinement`, `user_context`, `footage_summary`.
+   - Launch Task agents with transcribe-audio or analyze-video skills, passing all needed values **inline in the prompt**.
+   - Update library.yaml sequentially as agents complete.
+   - Handle errors and retries.
 
 2. **Child agent (transcribe-audio/analyze-video) responsibilities:**
-   - Process ONE video file
-   - Run WhisperX or frame extraction
-   - Prepare and clean transcript JSON
-   - Return structured response with file paths
-   - DO NOT update library.yaml (parent handles this)
+   - Process ONE video file using only the inputs passed inline by the parent.
+   - Run WhisperX or frame extraction.
+   - Prepare and clean transcript JSON.
+   - Return structured response with file paths.
+   - DO NOT read `library.yaml` or `settings.yaml`, and DO NOT update `library.yaml` (parent handles all yaml I/O).
 
 3. **Benefits:**
    - Multiple videos process simultaneously
@@ -179,7 +193,17 @@ When processing multiple videos, use parallel agents for maximum throughput:
 
 Each library has a `library.yaml` file that serves as your persistent memory and the SOURCE OF TRUTH. This file contains all library metadata, footage descriptions, transcription status, and key learnings. Always read this file when working on a library and you need guidance for how/where to save files.
 
-**If library structure seems wrong, check CHANGELOG.md.** The library.yaml format has evolved over versions. If you encounter unexpected field names (like `transcript_path` instead of `transcript`, or `footage_description` instead of `footage_summary`), read CHANGELOG.md to understand breaking changes and available migration scripts. The canonical field names are those in `templates/library_template.yaml` — always use those names; rename any old-schema fields you encounter to match.
+**Migrate legacy library.yaml files before doing anything else.** Every time you read a library.yaml, check it against the canonical field list in `templates/library_template.yaml`. If any expected field is missing, or any field appears under an old name, the library predates a feature and MUST be migrated before you do any further work on it — no rough cuts, sequences, transcription, exports, or anything else until the schema is current. The migrations are fast, idempotent, and safe; don't ask the user for permission and don't describe them as optional "tidying." Just run them.
+
+Known migration triggers (match each to a `scripts/NNN_migrate_*.rb` script via CHANGELOG.md):
+
+- `editor` missing (added in 0.4.0)
+- `transcript_refinement` missing (added in [Unreleased]; missing means "predates the feature, default to `false`" — NOT the template default of `true`)
+- `footage_summary` missing OR old name `footage_description` present (renamed in [Unreleased])
+- video entries with `transcript_path` / `visual_transcript_path` (renamed to `transcript` / `visual_transcript` in 0.3.0)
+- video entries with `file_size_mb` (removed in 0.3.0)
+
+A missing field is not the same as a field set to the template default — the template default only applies to freshly created libraries. If you see a schema issue not on this list, still check CHANGELOG.md; the list may be behind. After running migrations, re-read the library.yaml and continue with whatever the user asked for.
 
 **Keep main-thread context minimal.** The main thread orchestrates; sub-agents do the heavy work and return concise summaries. Don't read full transcript JSON, visual transcript JSON, or extracted frames into the main thread as part of routine workflow — across a large library this bloats context fast. Trust sub-agent return messages when updating library.yaml. Direct user requests ("show me transcript X") are fine; the rule is about automatic workflow behavior.
 
@@ -196,6 +220,17 @@ Each library has a `library.yaml` file that serves as your persistent memory and
 - When you have lots of videos to process (dozens or hundreds isn't out of the ordinary), create a reasonable task list with 5 tasks and then a final task that says to check the yaml processing file to see if you need to then generate more tasks. This way users can see progress and the agent doesn't get overwhelmed.
 - Generally avoid writing one-off scripts, but if you do need to write one, write it in Ruby unless you have a very strong reason to write in another language.
 - Only run 4 parallel tasks at a time.
+- Whenever you export XML files, include a datetime timestamp in the filename so it's clear when they were generated.
+
+## Programming Style
+
+When you add a Ruby script under `.claude/scripts/` or similar, follow these conventions:
+
+- **One class per script; file name matches the class name.** `ScriptExtractor` lives in `script_extractor.rb`.
+- **Single high-level entry point.** Expose a class method (`Klass.extract`, `Klass.run`, etc.) that calls `new(...).extract` internally — callers shouldn't need to know about instantiation.
+- **Break the work into small private methods with clear names** (`load_transcript`, `format_script`, `write_output`, `report`). The public entry point should read like a short outline of the workflow.
+- **Required arguments are required.** Don't silently default `nil`/missing args — raise `ArgumentError` in `initialize` if a required value is missing or empty. No hidden fallback paths.
+- **Keep CLI arg parsing out of the class.** Use a bottom-of-file `if __FILE__ == $PROGRAM_NAME` block to parse `ARGV`, validate file paths, print a usage line, and delegate to the class.
 
 ## Project Structure
 
@@ -212,17 +247,18 @@ Each library has a `library.yaml` file that serves as your persistent memory and
 
 ## Design Philosophy
 
-ButterCut is designed to be simple and automatic:
-- **Input**: Array of full file paths to video files
-- **Output**: Working FCPXML ready to import into Final Cut Pro
-- **Automatic Metadata Extraction**: Uses FFmpeg internally to extract video properties (duration, resolution, frame rate, audio rate, etc.)
-- **No Manual Configuration Required**: Library handles all the complexity of FCPXML generation
+ButterCut is designed to be simple, automatic and geared toward working with non technical people using ButterCut via a client, Claude Cowork or Claude Code.
 
-The user should not need to understand video codecs, frame rates, or FCPXML structure - just provide file paths and get working XML.
+- **Input**: Array of full file paths to video files
+- **Output**: Working XML file ready to import into the non-technical user's video editor (Final Cut, Premiere, Resolve)
+- **Automatic Metadata Extraction**: Uses FFmpeg internally to extract video properties (duration, resolution, frame rate, audio rate, etc.)
+
+The user should not need to understand video codecs, frame rates, or FCPXML structure - just provide file paths and get working XML. We should talk to the user from a video editing perspective, not a technical software engineer perspective.
 
 ## Development Commands
 
 ### Testing
+RSpec tests for the XML generation library. This doesn't include agent or end to end testing.
 ```bash
 # Install dependencies
 bundle install
@@ -236,17 +272,6 @@ bundle exec rspec spec/buttercut_spec.rb
 # Run specific test
 bundle exec rspec spec/buttercut_spec.rb:10
 ```
-
-### DTD Validation
-
-macOS has a built-in XML lint tool - allowing you to validate a FCPXML document against its DTD file.
-
-```bash
-xmllint --dtdvalid "dtd/FCPXMLv1_8.dtd" "/path/to/your/file.fcpxml"
-```
-
-This will check if the generated FCPXML conforms to the FCPXML 1.8 specification.
-- Whenever you export xml files, always include a datetime timestamp so it's clear when they were generated
 
 ## Claude Skills
 

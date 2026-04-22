@@ -6,4 +6,5 @@ editor: fcpx
 
 # WhisperX model size: tiny, base, small, medium, or turbo
 # turbo is nearly as accurate as large-v3 but significantly faster
-whisper_model: medium
+# Recommended: `small` paired with transcript_refinement (set per-library in library.yaml)
+whisper_model: small

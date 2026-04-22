@@ -102,6 +102,31 @@ def main
   generator.save(output_path)
 
   puts "\n✓ Rough cut exported to: #{output_path}"
+
+  validate_fcpxml(output_path) if editor_symbol == :fcpx
+end
+
+def validate_fcpxml(xml_path)
+  dtd_path = File.expand_path('../../../dtd/FCPXMLv1_8.dtd', __dir__)
+  unless File.exist?(dtd_path)
+    puts "⚠ DTD not found at #{dtd_path}; skipping validation."
+    return
+  end
+
+  unless system('command -v xmllint > /dev/null 2>&1')
+    puts "⚠ xmllint not found; skipping validation."
+    return
+  end
+
+  # xmllint prints errors to stderr; --noout suppresses the doc dump on success.
+  output = `xmllint --noout --dtdvalid "#{dtd_path}" "#{xml_path}" 2>&1`
+  if $?.success?
+    puts "✓ FCPXML validates against FCPXMLv1_8.dtd"
+  else
+    warn "✗ FCPXML failed DTD validation:"
+    warn output
+    exit 1
+  end
 end
 
 main

@@ -29,7 +29,7 @@ class LibraryBackup
 
     files = Dir.glob(File.join(@libraries_dir, '**', '*')).select { |f| File.file?(f) }
 
-    Zip::File.open(backup_path, Zip::File::CREATE) do |zipfile|
+    Zip::File.open(backup_path, create: true) do |zipfile|
       files.each do |file|
         zipfile.add(file.sub("#{File.dirname(@libraries_dir)}/", ''), file)
       end
