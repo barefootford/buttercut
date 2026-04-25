@@ -23,15 +23,15 @@ You are an AI video editor assistant working with a software engineer. You gener
    - If new: gather project information (library name, video file locations, language)
    - Create directory structure and library.yaml from template
    - Automatically start footage analysis after setup
-2. **Transcribe** → Use `transcribe-audio` and `analyze-video` skills to process videos
+2. **Transcribe** → Use `transcribe-audio`, `analyze-video`, and `summarize-video` skills to process videos
    - First: `transcribe-audio` creates audio transcripts with WhisperX (word-level timing)
    - Then: `analyze-video` adds visual descriptions by extracting and analyzing frames
-   - All videos must have BOTH audio transcripts AND visual transcripts before proceeding to rough cut or sequence creation
-   - Visual transcripts are essential for B-roll selection, shot composition, and editorial decisions
+   - Then: `summarize-video` generates a short markdown summary from each visual transcript
+   - All videos must have audio transcripts, visual transcripts, AND summaries before proceeding to rough cut or sequence creation
 3. **Edit** → Use `roughcut` skill to create timeline scripts from transcripts
    - **Rough cuts**: Multi-minute edits for full videos (typically 3-15+ minutes)
    - **Sequences**: 30-60 second clips that user will build to be imported into a larger video (created using the same roughcut skill with shorter target duration)
-   - **PREREQUISITE:** Check library.yaml to verify all videos have visual_transcript populated
+   - **PREREQUISITE:** Check library.yaml to verify all videos have `visual_transcript` and `summary` populated
 4. **Backup** → Use `backup-library` skill to create compressed archives of all libraries
    - Creates timestamped ZIP backup of entire libraries directory
    - Backups are stored in `/backups/` and excluded from git
@@ -121,6 +121,7 @@ Ask the user these questions for new libraries one at a time (never all at once)
 mkdir -p libraries/[library-name]
 mkdir -p libraries/[library-name]/transcripts
 mkdir -p libraries/[library-name]/roughcuts
+mkdir -p libraries/[library-name]/summaries
 ```
 
 Note: A single `/tmp/` directory at the root is used for all temporary files. Create subdirectories as needed and delete after use.
@@ -131,7 +132,7 @@ Duplicate `templates/library_template.yaml` to create `libraries/[library-name]/
 
 For each video file:
 1. Use `ffprobe` to get duration
-2. Add entry to library.yaml with empty `transcript` and `visual_transcript`
+2. Add entry to library.yaml with empty `transcript`, `visual_transcript`, and `summary`
 3. Empty fields mean "todo", valid filenames mean "done"
 
 The `language` field stores the language code for all videos in this library.
@@ -144,16 +145,23 @@ After library setup completes, **automatically start analyzing all footage**:
 
 1. Inform user: "Library setup complete. Found [N] videos ([total size]). Starting footage analysis..."
 2. Read `libraries/settings.yaml` (for `whisper_model`) and the library's `library.yaml` (for `language`, `transcript_refinement`, `user_context`, `footage_summary`) ONCE in the parent thread. If any expected field is missing, run the appropriate migration first (see Critical Principles below).
-3. Launch `transcribe-audio` agents (can run in parallel for multiple videos). Pass these values inline in each agent's prompt — the sub-agent never reads `library.yaml` or `settings.yaml`:
+3. Launch `transcribe-audio` agents. Pass these values inline in each agent's prompt — the sub-agent never reads `library.yaml` or `settings.yaml`:
    - `video_path`, `transcript_output_dir`, `language_code`, `whisper_model`
    - `transcript_refinement` (boolean). If `true`, also pass the current `user_context` and `footage_summary` strings (empty strings are fine — refinement still catches nonsense-token and self-witness fixes).
 4. As each agent completes, update library.yaml with `transcript` (filename only, not full path).
-5. After all audio transcripts complete, launch `analyze-video` agents (can run in parallel) following the same "parent passes context inline" contract. Pass inline: `video_path`, `audio_transcript_path`, `visual_transcript_path`.
+5. After all audio transcripts complete, launch `analyze-video` agents following the same "parent passes context inline" contract. Pass inline: `video_path`, `audio_transcript_path`, `visual_transcript_path`.
 6. As each agent completes, update library.yaml with `visual_transcript` (filename only, not full path).
-7. Analyze ALL videos before offering to create rough cuts.
-8. **After all analysis completes, automatically create a backup** using the `backup-library` skill.
+7. After all visual transcripts complete, summarize each video using the `summarize-video` skill on the **Haiku model**:
+   - For each video, first pre-create a skeleton file in the parent: `ruby .claude/skills/summarize-video/summary_skeleton.rb <visual_transcript_path> <summary_output_path>`
+   - Then launch the agent passing inline: `visual_transcript_path`, `summary_output_path` (e.g., `libraries/[library-name]/summaries/summary_[videoname].md`)
+   - The agent fills the four placeholders via Edit. The skeleton + Edit pattern is required: without it, Haiku frequently refuses Write and dumps markdown into its reply instead.
+8. As each agent completes, update library.yaml with `summary` (filename only, not full path).
+9. Analyze ALL videos before offering to create rough cuts.
+10. **After all analysis completes, automatically create a backup** using the `backup-library` skill.
 
 **Contract: sub-agents don't read `library.yaml`.** The parent owns `library.yaml` (and `settings.yaml`) — it reads once, passes values inline, and writes results once per agent completion. Sub-agents should not even know those files exist. This keeps the context boundary clean and avoids race conditions when many agents run in parallel.
+
+**Contract: sub-agents receive `agent_prompt.md`, not `SKILL.md`.** For parallelizable skills (`transcribe-audio`, `analyze-video`, `summarize-video`), the parent reads `SKILL.md` for dispatch info (parallelism cap, required inputs) and inlines `agent_prompt.md` into the sub-agent's prompt. `SKILL.md` is parent-only.
 
 **Note on refinement:** When `transcript_refinement: true`, each `transcribe-audio` agent reviews and corrects its transcript in place before returning, using the `user_context` and `footage_summary` the parent passed in. Empty context strings are fine — the agent still runs and catches nonsense-token and self-witness fixes. The parent still only writes `transcript: <filename>.json` to `library.yaml` after the agent completes.
 
@@ -200,6 +208,7 @@ Known migration triggers (match each to a `scripts/NNN_migrate_*.rb` script via 
 - `editor` missing (added in 0.4.0)
 - `transcript_refinement` missing (added in [Unreleased]; missing means "predates the feature, default to `false`" — NOT the template default of `true`)
 - `footage_summary` missing OR old name `footage_description` present (renamed in [Unreleased])
+- video entries with `summary` missing (added in [Unreleased]; missing means "todo", default to empty string)
 - video entries with `transcript_path` / `visual_transcript_path` (renamed to `transcript` / `visual_transcript` in 0.3.0)
 - video entries with `file_size_mb` (removed in 0.3.0)
 
@@ -209,7 +218,7 @@ A missing field is not the same as a field set to the template default — the t
 
 **Use actual filenames.** Never use generic labels like "Video 1" or "Clip A" - always reference actual filenames like "DJI_20250423171212_0210_D.mov" for clear traceability.
 
-**Visual transcripts are mandatory.** Before creating any rough cut or sequence, verify ALL videos have both audio and visual transcripts. Check `library.yaml` - every video entry must have a `visual_transcript` with a filename (not empty or null or ""). Transcripts are stored in `libraries/[library-name]/transcripts/`. Visual descriptions are essential for shot selection, pacing decisions, and B-roll placement.
+**Visual transcripts and summaries are mandatory.** Before creating any rough cut or sequence, verify ALL videos have audio transcripts, visual transcripts, AND summaries. Check `library.yaml` — every video entry must have `visual_transcript` and `summary` with filenames (not empty, null, or ""). Transcripts are stored in `libraries/[library-name]/transcripts/`; summaries in `libraries/[library-name]/summaries/`. Visual descriptions and summaries are essential for shot selection, pacing decisions, and B-roll placement.
 
 **Be curious and ask questions.** Occasionally ask users questions about their libraries and footage to better understand context, creative intent, and preferences. When you receive answers, add this information to the `user_context` key in the library.yaml file. This builds institutional knowledge that improves future rough cut and sequence decisions and helps maintain continuity across editing sessions.
 
@@ -219,7 +228,7 @@ A missing field is not the same as a field set to the template default — the t
 - Flag areas needing human judgment rather than making assumptions
 - When you have lots of videos to process (dozens or hundreds isn't out of the ordinary), create a reasonable task list with 5 tasks and then a final task that says to check the yaml processing file to see if you need to then generate more tasks. This way users can see progress and the agent doesn't get overwhelmed.
 - Generally avoid writing one-off scripts, but if you do need to write one, write it in Ruby unless you have a very strong reason to write in another language.
-- Only run 4 parallel tasks at a time.
+- Parallelism caps live in each skill's `SKILL.md` (parent brief). Read it before dispatching.
 - Whenever you export XML files, include a datetime timestamp in the filename so it's clear when they were generated.
 
 ## Programming Style

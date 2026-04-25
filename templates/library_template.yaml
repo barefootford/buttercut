@@ -20,3 +20,4 @@ videos:
     duration: "00:05:32"
     transcript: # filename only (stored in libraries/[library-name]/transcripts/)
     visual_transcript: # filename only (visual_*.json with frame descriptions)
+    summary: # filename only (summary_*.md overview stored in libraries/[library-name]/summaries/)

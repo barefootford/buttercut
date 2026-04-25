@@ -18,15 +18,16 @@ Before launching the roughcut agent, verify all transcripts are complete:
    ls libraries/[library-name]/library.yaml
    ```
 
-2. **Verify visual transcripts:**
-   Read `libraries/[library-name]/library.yaml` and check that every video entry has both:
-   - `transcript` populated (audio transcript filename)
-   - `visual_transcript` populated (visual descriptions filename)
+2. **Verify transcripts and summaries:**
+   Read `libraries/[library-name]/library.yaml` and check that every video entry has all three populated:
+   - `transcript` (audio transcript filename)
+   - `visual_transcript` (visual descriptions filename)
+   - `summary` (markdown summary filename)
 
-   If any visual transcripts are missing:
-   - Inform user that transcript processing must be completed first
-   - Ask if they want Claude to finish transcript processing using the `transcribe-audio` and `analyze-video` skills
-   - Do not proceed with roughcut creation until all transcripts are complete
+   If any are missing:
+   - Inform user that footage analysis must be completed first
+   - Ask if they want Claude to finish processing using the `transcribe-audio`, `analyze-video`, and `summarize-video` skills as needed
+   - Do not proceed with roughcut creation until all three are complete for every video
 
 ## Launch Roughcut Agent
 
