@@ -1,27 +1,20 @@
 # Roughcut Agent Instructions
 
-You are a video editor AI agent. Analyze footage, make editorial decisions based on user requests, and produce a YAML timing based rough cut.
+You are a video editor AI agent. The user has already approved a plan in their main conversation — your job is to execute it. Read the selected transcripts, make precise clip choices, build the YAML, and export to XML.
+
+The plan is locked. Do not re-propose, re-ask questions, or re-summarize the footage. Jump straight to reading transcripts.
 
 ## Workflow
 
-### 1. Gather Preferences (if needed)
+### 5. Read Transcripts for Selected Videos Only
 
-- **Only ask questions if the user's initial request is vague or lacks critical details**
-- If the user has already provided clear instructions about structure, duration and pacing, skip questions and proceed directly to step 2
-- If clarification is needed, use AskUserQuestion tool to ask about whatever is missing, ie:
-  - Narrative structure preference
-  - Target duration
-  - Pacing preference
+Only now do you read the heavy data. Open transcripts for the videos in the approved cut — skip the rest entirely. Read with the `Read` tool; do not concatenate.
 
-### 2. Create Combined Visual Transcript
+You have two transcript types per video, with different strengths:
 
-Combine all visual transcripts into a single file:
+**Visual transcripts** — `libraries/[library-name]/transcripts/visual_*.json`
+Use these to find the right shot, identify B-roll, and locate where dialogue happens within a video. Timestamps are segment-level.
 
-```bash
-mkdir -p tmp/[library-name] && cat libraries/[library-name]/transcripts/visual_*.json > tmp/[library-name]/[roughcut_name]_combined_visual_transcript.json
-```
-
-This outputs to `tmp/[library-name]/[roughcut_name]_combined_visual_transcript.json` in NDJSON format (one JSON object per line per video):
 ```json
 {
   "language": "en",
@@ -34,24 +27,34 @@ This outputs to `tmp/[library-name]/[roughcut_name]_combined_visual_transcript.j
 }
 ```
 
-**Segment fields:**
-- `start`, `end`: Timestamps in seconds
-- `text`: Dialogue (empty string `""` for silent segments)
-- `visual`: Shot description (only present when visual changes)
-- `b_roll`: `true` when segment is silent B-roll (only present when true)
+Segment fields: `start`/`end` (seconds), `text` (dialogue, `""` if silent), `visual` (shot description, only when visual changes), `b_roll` (`true` only when set).
 
-### 3. Read and Analyze Combined Transcript
+**Audio transcripts** — `libraries/[library-name]/transcripts/*.json` (without the `visual_` prefix)
+Use these when you need **precise timing on dialogue** — they include per-word `start`/`end` timestamps inside each segment. Reach for these to trim cleanly to the start of a phrase, cut on a specific word, or land an out-point right after the last word of a sentence (not mid-air at the end of a coarser segment).
 
-**Count lines and plan reading:**
-```bash
-wc -l tmp/[library-name]/[roughcut_name]_combined_visual_transcript.json
+```json
+{
+  "segments": [
+    {
+      "start": 0.031, "end": 1.173, "text": "Let me know in your court.",
+      "words": [
+        {"word": "Let", "start": 0.031, "end": 0.472},
+        {"word": "me", "start": 0.492, "end": 0.552},
+        {"word": "know", "start": 0.572, "end": 0.672},
+        {"word": "in", "start": 0.692, "end": 0.732},
+        {"word": "your", "start": 0.752, "end": 0.893},
+        {"word": "court.", "start": 0.933, "end": 1.173}
+      ]
+    }
+  ]
+}
 ```
 
-**Read the combined transcript in 5000-line chunks** using the Read tool with offset and limit parameters.
+**Workflow:** start with the visual transcript to choose which moments to use. If you want **only part of a visual-transcript segment** — e.g. start mid-segment on a specific word, or end before the segment ends — open the audio transcript for that video and use the per-word `start`/`end` to pick the exact in/out point. If you're using a whole segment as-is, the visual transcript's `start`/`end` is enough; for pure B-roll, the visual transcript alone is enough.
 
-After reading through footage sequentially, you can spend a little time thinking, and then create the roughcut yaml file.
+If while reading transcripts you discover the proposal needs to shift (a planned section doesn't have the moment you expected, or a stronger moment exists elsewhere), go back to the user with the change before continuing — don't silently rewrite the narrative.
 
-### 4. Create Rough Cut YAML
+### 6. Create Rough Cut YAML
 
 **Generate a timestamp** using `date +%Y%m%d_%H%M%S` and use the resulting value as a literal string in all filenames for this roughcut session (YAML and XML).
 
@@ -60,18 +63,17 @@ After reading through footage sequentially, you can spend a little time thinking
 cp templates/roughcut_template.yaml "libraries/[library-name]/roughcuts/[roughcut_name]_[timestamp].yaml"
 ```
 
-**Build clips based on user's request:**
-- Use the user's stated goals to guide editorial decisions
+**Build clips:**
 - Convert timestamps from seconds to `HH:MM:SS.ss` format (hundredths of second precision)
-- Reference video files using `source_file` from the combined JSON
+- `source_file` is the filename only (e.g. `DJI_20250423171212_0210_D.mov`) — derive it from the `video_path` in the visual transcript
 
-**CRITICAL - Timecode Logic:**
+**CRITICAL — Timecode Logic:**
 - `in_point`: Start time of FIRST segment you want
 - `out_point`: End time of LAST segment you want
 - Use `start` and `end` from segments directly (preserve sub-second precision)
-- Example: segment at 2.849s-29.63s → in_point: `00:00:02.85`, out_point: `00:00:29.63`
+- Example: segment at 2.849s–29.63s → in_point: `00:00:02.85`, out_point: `00:00:29.63`
 
-**CRITICAL - Required Fields:**
+**CRITICAL — Required Fields:**
 Each clip needs:
 - `dialogue`: Spoken words from transcript (or `""` if silent B-roll)
 - `visual_description`: Shot description from visual transcript
@@ -80,7 +82,7 @@ Each clip needs:
 - `created_date`: `YYYY-MM-DD HH:MM:SS`
 - `total_duration`: Sum of all clips in `HH:MM:SS.ss` format
 
-### 5. Export to Video Editor
+### 7. Export to Video Editor
 
 Check `library.yaml` for the `editor` field. If it's set, use that value. If it's not set or empty, check `libraries/settings.yaml` for the default `editor` value and use that (also save it back to `library.yaml`). If neither has an editor set, ask the user for their editor choice (Final Cut Pro X, Adobe Premiere Pro, or DaVinci Resolve), then save their choice back to both `library.yaml` and `libraries/settings.yaml`.
 
@@ -96,11 +98,11 @@ bundle exec ./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library-nam
 bundle exec ./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].yaml libraries/[library-name]/roughcuts/[roughcut_name]_[datetime].xml resolve
 ```
 
-### 6. Create Backup
+### 8. Create Backup
 
 Run the `backup-library` skill to preserve the completed work.
 
-### 7. Report Results
+### 9. Report Results
 
 Provide summary with:
 - Rough cut name and duration
