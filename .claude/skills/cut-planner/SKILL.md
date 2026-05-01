@@ -1,44 +1,45 @@
 ---
 name: cut-planner
-description: Plans a cut (roughcut, sequence, or scene) from a library's clip summaries. First it reads all clip summaries, then it has a dialogue with the user and iteratively creates a plan markdown file until agent and user are happy and understand plan.
+description: Plans a cut (roughcut, sequence, or scene) from a library's clip summaries. Reads all clip summaries, then talks with the user and iteratively creates a plan markdown file until both agent and user are happy and understand the plan.
 ---
 
 # Skill: Cut Planner
 
 ## Overview
 
-The cut-planner is a skill where the main thread reads all clip summaries from a library to understand footage coverage, then asks the user about the footage to confirm it's understanding about the footage. It should confirm who character's and locations are, and then update update the library.yaml's footage_summary and user_context as it goes and learns more about the footage. If it determines summaries are wrong or missing details, it should also also update summary markdowns.
+In the cut-planner skill, the main thread reads all clip summaries from a library to understand footage coverage, then asks the user about the footage to confirm its understanding. It confirms who the characters and locations are, then updates the library.yaml's footage_summary and user_context as it learns more about the footage. If it determines summaries are wrong or missing details, it also updates the summary markdowns.
 
-After it confirms it's understanding of the footage, it works with the user to to create a narrative plan markdown file.
+After confirming its understanding of the footage, it works with the user to create a narrative plan markdown file.
 
 This skill runs in the main thread and does not use a sub-agent.
 
 ## Cut Planner Process
 
-1. Verify visual transcripts and summaries are present for all clips
+1. Verify all clips have visual transcripts and summaries
 
-Read `libraries/[library-name]/library.yaml`. Every clip must have `visual_transcript` and `summary` populated. If either are missing, the agent must stop. This means the library hasn't finished processing. The agent should stop the cut-planner skill and instead finish processing the library, using the appropriate skill to finish library processing. When the library is completely processed, the agent can resume using the cut-planner skill.
+Read `libraries/[library-name]/library.yaml`. Every clip must have `visual_transcript` and `summary` populated. If either is missing, stop the cut-planner skill — the library hasn't finished processing. Finish processing the library using the appropriate skill, then resume the cut-planner skill once the library is fully processed.
 
-2. Read All Summaries
+2. Read all summaries
 
 Read every `libraries/[library-name]/summaries/summary_*.md` file.
 
-3. Confirm the footage knowledge and update incorrect summaries.
+3. Confirm the footage knowledge and update incorrect summaries
 
-Tell the user what you've learned about the footage, then confirm with the user you understand the Five W's of all of the footage. Who, What, When, Where, Why.
+Tell the user what you've learned about the footage, then confirm you understand the Five W's of all the footage: Who, What, When, Where, Why.
 
-The agent talks with the user until the agent confirms they understand the footage. The agent updates library.yaml based on the user's responses as it works through questions.
+Talk with the user until you confirm you understand the footage. Update library.yaml based on the user's responses as you work through questions.
 
-Update footage_summary (locations, characters, narrative, dialogue, clips) and user_context (preferences, goals, etc) as you iteratively learn more about the footage.
+Update footage_summary (locations, characters, narrative, dialogue, clips) and user_context (preferences, goals, etc.) as you iteratively learn more about the footage.
 
 Updating user_context and footage_summary helps future agents understand the footage and the user.
 
-For example, if the summary mentiones a generic man, woman, etc, but learns that the person is actually the person using ButterCut, they can replace "man" with "Andrew" or woman with "Kailey" after asking the user for their name (unless they already know, then they don't need to ask again). 
+For example, if a summary mentions a generic man or woman but you learn the person is actually the user, replace man/woman with the user's name. Ask the user's name if you don't know it already.
 
-3. Ask Target Length
-If available to the agent, use the `AskUserQuestion` tool or similiar tool to ask the user about what type of length video they're hoping to create. Use your judgement based on the footage, but options like short sequence (30–60s), medium cut (5-8 min), or full roughcut (3–15+ min) are good starting options. If the footage is a podcast it will likely require a longer option.
+4. Ask target length
 
-## 4. Propose 2–3 Narrative Options
+If available, use the `AskUserQuestion` tool or similar to ask the user what length of video they want to create. Use your judgement based on the footage — options like short sequence (30–60s), medium cut (5–8 min), or full roughcut (3–15+ min) make good starting points. Podcast footage will likely require a longer option.
+
+## 5. Propose 2–3 narrative options
 Give the user a few narrative options, using your best judgement from the conversation and footage.
 - **Concept** — 1 sentence
 - **Beats** — 3–6 beats, each with editorial intent and a rough share of the runtime ("open with ~3 min of X", "montage of Y", "close on Z")
@@ -48,10 +49,10 @@ Give the user a few narrative options, using your best judgement from the conver
 
 Make the options genuinely distinct — different angles, tones, or arcs. End with: "Which feels right, or want me to explore something different?"
 
-## 5. Iterate Until Approved
+## 6. Iterate until approved
 Refine the chosen option until the user explicitly signals go.
 
-## 6. Save the Plan
+## 7. Save the plan
 Write `libraries/[library-name]/plans/[short-name]_[YYYYMMDD_HHMMSS].md` containing:
 - Concept
 - Format
@@ -62,4 +63,4 @@ Write `libraries/[library-name]/plans/[short-name]_[YYYYMMDD_HHMMSS].md` contain
 
 The plan is direction. The build agent confirms specific clips inside each beat.
 
-Tell the user you've created the plan and it's now ready for the the roughcut agent to create the actual cut. Confirm that they want to move forward and then invoke the roughcut skill and hand off the plan.
+Tell the user you've created the plan and it's now ready for the roughcut agent to create the actual cut. Confirm they want to move forward, then invoke the roughcut skill and hand off the plan.
