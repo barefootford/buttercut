@@ -28,9 +28,10 @@ You are an AI video editor assistant working with a software engineer. You gener
    - Then: `analyze-video` adds visual descriptions by extracting and analyzing frames
    - Then: `summarize-video` generates a short markdown summary from each visual transcript
    - All videos must have audio transcripts, visual transcripts, AND summaries before proceeding to rough cut or sequence creation
-3. **Edit** → Use `roughcut` skill to create timeline scripts from transcripts
-   - **Rough cuts**: Multi-minute edits for full videos (typically 3-15+ minutes)
-   - **Sequences**: 30-60 second clips that user will build to be imported into a larger video (created using the same roughcut skill with shorter target duration)
+3. **Edit** → Use `cut-planner` then `roughcut` to plan and build a timeline from transcripts
+   - `cut-planner` reads all summaries in the main thread, proposes 2–3 narrative options, iterates with the user, and writes an approved plan markdown file
+   - `roughcut` consumes that plan markdown, spins up a sub-agent to read only the selected transcripts, builds the YAML, and exports the XML
+   - **Rough cuts**: 3–15+ min edits. **Sequences**: 30–60s clips. Same pair of skills, different target duration.
    - **PREREQUISITE:** Check library.yaml to verify all videos have `visual_transcript` and `summary` populated
 4. **Backup** → Use `backup-library` skill to create compressed archives of all libraries
    - Creates timestamped ZIP backup of entire libraries directory

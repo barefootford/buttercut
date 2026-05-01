@@ -1,72 +1,52 @@
 ---
 name: roughcut
-description: Creates video rough cut yaml file for use with Buttercut gem. Concatenates visual transcripts with file markers, creates a roughcut yaml with clip selections, then exports to XML format. Use this skill when users want a "roughcut", "sequence" or "scene" generated. These are all the same thing, just with different lengths.
+description: Builds a roughcut YAML and exported XML (Final Cut, Premiere, or Resolve) from an approved plan markdown file produced by `cut-planner`. Spins up a sub-agent that reads only the selected transcripts, assembles the cut, and exports. If the user asks for a "roughcut", "sequence", or "scene" and no plan exists yet, run `cut-planner` first.
 ---
 
-# Skill: Create Rough Cut
+# Skill: Roughcut Build
 
-This skill handles the editorial process of creating rough cut timeline scripts from transcribed video footage. It launches a specialized agent that analyzes transcripts, makes editorial decisions, outputs a structured YAML rough cut, and exports it to Final Cut Pro XML format.
+Turns an approved plan into a working roughcut YAML and exported XML.
 
-**Note:** This skill is used for both full-length rough cuts (multiple minutes) and short sequences (30-60 seconds).
+## 1. Locate the Plan
+Find the plan markdown at `libraries/[library-name]/roughcuts/plan_*.md`. If multiple exist, ask the user which to use. If none exists, run `video-planner` first.
 
-## Prerequisites Check
+## 2. Gather Inline Context (Parent Only)
+Read once in the parent:
+- The plan markdown
+- `library.yaml` for the `editor` field and the full video path, audio transcript path, and visual transcript path of each selected video
 
-Before launching the roughcut agent, verify all transcripts are complete:
+Sub-agents do not read `library.yaml` or summaries.
 
-1. **Check library exists:**
-   ```bash
-   ls libraries/[library-name]/library.yaml
-   ```
-
-2. **Verify transcripts and summaries:**
-   Read `libraries/[library-name]/library.yaml` and check that every video entry has all three populated:
-   - `transcript` (audio transcript filename)
-   - `visual_transcript` (visual descriptions filename)
-   - `summary` (markdown summary filename)
-
-   If any are missing:
-   - Inform user that footage analysis must be completed first
-   - Ask if they want Claude to finish processing using the `transcribe-audio`, `analyze-video`, and `summarize-video` skills as needed
-   - Do not proceed with roughcut creation until all three are complete for every video
-
-## Launch Roughcut Agent
-
-Once prerequisites are verified, launch the roughcut creation agent using the Task tool:
+## 3. Launch Build Agent
 
 ```
-Task tool with:
+Agent tool with:
 - subagent_type: "general-purpose"
-- description: "Create rough cut from visual transcripts"
-- prompt: [See agent prompt template below]
+- description: "Build roughcut YAML and XML from approved plan"
+- prompt: [see template below]
 ```
 
 ### Agent Prompt Template
 
-When launching the agent, provide a detailed prompt with all necessary context:
-
 ```
-You are a video editor AI agent creating a rough cut or sequence for the "{library_name}" library.
+You are a video editor AI agent for the "{library_name}" library. The plan is approved — execute it.
 
-USER REQUEST: {what_user_asked_for}
+APPROVED PLAN:
+{paste full plan markdown}
 
-LIBRARY CONTEXT:
-{paste relevant content from library.yaml - footage_summary, user_context, etc.}
+SELECTED VIDEOS:
+{for each: filename, full video path, audio transcript path, visual transcript path}
 
-YOUR TASK:
-1. Read the roughcut creation instructions from .claude/skills/roughcut/agent_instructions.md
-2. Follow those instructions to create the rough cut
-3. Return the paths to the created YAML and XML files when complete
+LIBRARY SETTINGS:
+- editor: {editor}
+- roughcuts directory: libraries/{library_name}/roughcuts/
+- transcripts directory: libraries/{library_name}/transcripts/
 
-DELIVERABLES:
-- Rough cut YAML file at: libraries/{library_name}/roughcuts/{roughcut_name}_{datetime}.yaml
-- Exported XML file for user's chosen video editor
-- Backup created via backup-library skill
-
-Begin by reading the agent instructions file.
+TASK:
+1. Read `.claude/skills/roughcut/agent_instructions.md`
+2. Follow steps 5–9 (the plan is already approved)
+3. Return paths to the created YAML and XML files
 ```
 
-## After Agent Completes
-
-When the agent returns:
-1. Inform the user of the created roughcut file (the xml file, not the yaml file) and its location
-2. Confirm the rough cut is ready to import into their video editor
+## 4. Report Results
+Show the user the XML path and confirm it's ready to import into their editor.
