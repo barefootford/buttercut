@@ -30,7 +30,7 @@ You are an AI video editor assistant working with a software engineer. You gener
    - All videos must have audio transcripts, visual transcripts, AND summaries before proceeding to rough cut or sequence creation
 3. **Edit** → Use `cut-planner` then `roughcut` to plan and build a timeline from transcripts
    - `cut-planner` reads all summaries in the main thread, proposes 2–3 narrative options, iterates with the user, and writes an approved plan markdown file
-   - `roughcut` consumes that plan markdown, spins up a sub-agent to read only the selected transcripts, builds the YAML, and exports the XML
+   - `roughcut` consumes that plan, spins up a sub-agent that reads the library directly, builds the YAML iteratively, reviews against format conventions, exports the XML, and returns conversational editorial notes the parent uses to dialogue with the user
    - **Rough cuts**: 3–15+ min edits. **Sequences**: 30–60s clips. Same pair of skills, different target duration.
    - **PREREQUISITE:** Check library.yaml to verify all videos have `visual_transcript` and `summary` populated
 4. **Backup** → Use `backup-library` skill to create compressed archives of all libraries
@@ -146,11 +146,11 @@ After library setup completes, **automatically start analyzing all footage**:
 
 1. Inform user: "Library setup complete. Found [N] videos ([total size]). Starting footage analysis..."
 2. Read `libraries/settings.yaml` (for `whisper_model`) and the library's `library.yaml` (for `language`, `transcript_refinement`, `user_context`, `footage_summary`) ONCE in the parent thread. If any expected field is missing, run the appropriate migration first (see Critical Principles below).
-3. Launch `transcribe-audio` agents. Pass these values inline in each agent's prompt — the sub-agent never reads `library.yaml` or `settings.yaml`:
+3. Launch `transcribe-audio` agents. Pass these values inline in each agent's prompt:
    - `video_path`, `transcript_output_dir`, `language_code`, `whisper_model`
    - `transcript_refinement` (boolean). If `true`, also pass the current `user_context` and `footage_summary` strings (empty strings are fine — refinement still catches nonsense-token and self-witness fixes).
 4. As each agent completes, update library.yaml with `transcript` (filename only, not full path).
-5. After all audio transcripts complete, launch `analyze-video` agents following the same "parent passes context inline" contract. Pass inline: `video_path`, `audio_transcript_path`, `visual_transcript_path`.
+5. After all audio transcripts complete, launch `analyze-video` agents. Pass inline: `video_path`, `audio_transcript_path`, `visual_transcript_path`.
 6. As each agent completes, update library.yaml with `visual_transcript` (filename only, not full path).
 7. After all visual transcripts complete, summarize each video using the `summarize-video` skill on the **Haiku model**:
    - For each video, first pre-create a skeleton file in the parent: `ruby .claude/skills/summarize-video/summary_skeleton.rb <visual_transcript_path> <summary_output_path>`
@@ -159,8 +159,6 @@ After library setup completes, **automatically start analyzing all footage**:
 8. As each agent completes, update library.yaml with `summary` (filename only, not full path).
 9. Analyze ALL videos before offering to create rough cuts.
 10. **After all analysis completes, automatically create a backup** using the `backup-library` skill.
-
-**Contract: sub-agents don't read `library.yaml`.** The parent owns `library.yaml` (and `settings.yaml`) — it reads once, passes values inline, and writes results once per agent completion. Sub-agents should not even know those files exist. This keeps the context boundary clean and avoids race conditions when many agents run in parallel.
 
 **Contract: sub-agents receive `agent_prompt.md`, not `SKILL.md`.** For parallelizable skills (`transcribe-audio`, `analyze-video`, `summarize-video`), the parent reads `SKILL.md` for dispatch info (parallelism cap, required inputs) and inlines `agent_prompt.md` into the sub-agent's prompt. `SKILL.md` is parent-only.
 
@@ -190,7 +188,8 @@ When processing multiple videos, use parallel agents for maximum throughput:
    - Run WhisperX or frame extraction.
    - Prepare and clean transcript JSON.
    - Return structured response with file paths.
-   - DO NOT read `library.yaml` or `settings.yaml`, and DO NOT update `library.yaml` (parent handles all yaml I/O).
+
+   Each skill's `agent_prompt.md` documents its own IO contract — including whether the sub-agent reads or writes `library.yaml`.
 
 3. **Benefits:**
    - Multiple videos process simultaneously
@@ -285,4 +284,4 @@ bundle exec rspec spec/buttercut_spec.rb:10
 
 ## Claude Skills
 
-When creating new Claude skills, aim to keep them to 50 lines. Only very complicated skills (ie transcription and roughcuts) should be larger than that. If the skill is complicated and seems like it can't be explained in 50 lines, consider if they should be broken up across multiple skills or if the complexity can be contained inside a ruby script saved adjacent to the skill.
+When creating new Claude skills, aim to keep them as brief as possible. Use active voice to help condense instructions. Use simple, plain language.
