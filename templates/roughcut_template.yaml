@@ -1,25 +1,8 @@
 # Rough Cut Template
 # This template defines the structure for video rough cuts
 
-# User-facing description of what this rough cut contains
-description: "Brief description of the rough cut - what story it tells, target duration, and editorial approach"
-
-# Working notes for the agent during rough cut creation
-notes: |
-  Working notes area for editorial decisions, narrative structure planning,
-  pacing considerations, and any issues or concerns identified during editing.
-
-  Consider:
-  - Story arc and key narrative beats
-  - Pacing and rhythm
-  - Transitions between segments
-  - B-roll placement opportunities
-  - Audio/dialogue clarity
-
-# Coverage summary of available footage
-footage_coverage: |
-  Overview of what footage is available and how it could be used.
-  Include notes about strongest segments, potential issues, and creative opportunities.
+# One-line summary of what this cut is — useful when scanning a folder of cuts
+description: "Brief one-line summary of this cut — what it is and roughly how long"
 
 # The actual rough cut - ordered list of clips to use
 clips:
