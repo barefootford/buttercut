@@ -218,7 +218,9 @@ A missing field is not the same as a field set to the template default — the t
 
 **Use actual filenames.** Never use generic labels like "Video 1" or "Clip A" - always reference actual filenames like "DJI_20250423171212_0210_D.mov" for clear traceability.
 
-**Visual transcripts and summaries are mandatory.** Before creating any rough cut or sequence, verify ALL videos have audio transcripts, visual transcripts, AND summaries. Check `library.yaml` — every video entry must have `visual_transcript` and `summary` with filenames (not empty, null, or ""). Transcripts are stored in `libraries/[library-name]/transcripts/`; summaries in `libraries/[library-name]/summaries/`. Visual descriptions and summaries are essential for shot selection, pacing decisions, and B-roll placement.
+**Visual transcripts and summaries are mandatory.** Before creating any rough cut or sequence, verify ALL videos have audio transcripts, visual transcripts, AND summaries. Check `library.yaml` — every video entry must have `visual_transcript` and `summary` with filenames (not empty, null, or ""). Transcripts are stored in `libraries/[library-name]/transcripts/`; summaries in `libraries/[library-name]/summaries/`. Visual descriptions and summaries are essential for shot selection and pacing decisions.
+
+**Single-track timelines only.** ButterCut produces one sequential video track. Each clip's own audio plays during that clip — there is no second video track for cutaways layered over a continuing voiceover, and no separate audio track. When planning or pitching cuts, never propose "B-roll over VO," "story under meetup footage," picture-in-picture, or any structure that assumes a clip's audio continues while different visuals play on top. Cutaways are fine, but they're hard cuts: when you cut to the wide shot, you cut to that shot's audio too. Plan every cut as a strictly linear sequence of clips.
 
 **Be curious and ask questions.** Occasionally ask users questions about their libraries and footage to better understand context, creative intent, and preferences. When you receive answers, add this information to the `user_context` key in the library.yaml file. This builds institutional knowledge that improves future rough cut and sequence decisions and helps maintain continuity across editing sessions.
 
@@ -263,6 +265,24 @@ ButterCut is designed to be simple, automatic and geared toward working with non
 - **Automatic Metadata Extraction**: Uses FFmpeg internally to extract video properties (duration, resolution, frame rate, audio rate, etc.)
 
 The user should not need to understand video codecs, frame rates, or FCPXML structure - just provide file paths and get working XML. We should talk to the user from a video editing perspective, not a technical software engineer perspective.
+
+### Vocabulary — talk like an editor, not a developer
+
+The user is a video editor, not a programmer (generally). They don't need to know what file the cut lives in, what tool transcribed their audio, or which skill or sub-agent is doing the work behind the scenes. Implementation details are for the codebase; user-facing chat stays in the language of video editing. When in doubt, drop the technical noun entirely and just say what's happening. Skills, code, etc, should obviously stay technical, but keep that out when chatting with the user. 
+
+Editor vocabulary that's always fine: rough cut, sequence, scene, beat, timeline, B-roll, cutaway, shot, take, transcript, footage, library, clip, splice, Final Cut, Premiere, Resolve.
+
+Don't say → say (one per category — generalize the pattern, don't treat as a lookup table):
+
+- *File/format nouns:* "I'll update the YAML" / "regenerate the FCPXML" → "I'll update the cut" / "I'll re-export it for Final Cut"
+- *Architecture nouns:* "I'll spin up a sub-agent" / "running the roughcut skill" / "the parent thread" → just speak in first person ("I'll build the cut")
+- *Tools and models:* "WhisperX will transcribe" / "running ffmpeg" / "I used Haiku for the summary" → "I'll transcribe the audio" / "I'll analyze the visuals" (don't name models)
+- *Internal field names:* "I'll update footage_summary" / "transcript_refinement is true" → "I'll note that about your footage" / "I'll proofread the transcripts"
+- *Paths in casual chat:* `.fcpxml`, `.json`, `libraries/foo/transcripts/…` → name the artifact ("the Final Cut export", "the transcript") and only show the path at final delivery or when the user needs to grab the file
+
+Two exceptions where technical detail IS appropriate:
+1. The user explicitly asks ("where is it saved?", "what format?") — answer plainly.
+2. Final delivery summary — naming the export file path is genuinely useful so they can find it.
 
 ## Development Commands
 
