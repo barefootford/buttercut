@@ -30,8 +30,7 @@ Agent tool with:
 ```
 You are a video editor AI agent for the "{library_name}" library. The plan below is approved direction — beats, intent, rough length, format. The specific clips are yours to find inside the library. Work iteratively, then review and refine before returning.
 
-LIBRARY NAME: {library_name}
-LIBRARY PATH: libraries/{library_name}/
+LIBRARY YAML: libraries/{library_name}/library.yaml
 
 APPROVED PLAN:
 {paste full plan markdown}
@@ -47,8 +46,11 @@ TASK:
 ## 4. Context Contract
 This sub-agent reads `library.yaml` directly — it needs the full inventory plus `footage_summary` and `user_context`. This is a deliberate carve-out from the parallel-skill contract: `roughcut` runs as a single agent (no race risk), and editorial work needs broader library context than inline-passing comfortably supports.
 
-## 5. Copy XML to Desktop
-After the agent returns with the library XML path, copy it to `~/Desktop/` so it's easy to grab and import into the editor:
+## 5. Copy XML to Desktop (if enabled)
+Check `libraries/settings.yaml` for `save_to_desktop_after_export`:
+1. If the key is `true`, copy the exported XML to `~/Desktop/` so it's easy to grab and import into the editor.
+2. If the key is `false`, skip this step.
+3. If the key is missing, ask the user whether to drop a copy of every export on the Desktop, save their answer (`true`/`false`) to `libraries/settings.yaml`, then act on it.
 
 ```bash
 cp [library xml path] ~/Desktop/
@@ -60,4 +62,4 @@ The library copy stays as the canonical artifact; the desktop copy is a convenie
 Run the `backup-library` skill. This snapshots the library (yaml, transcripts, summaries, plans, roughcuts) so progress can be restored if needed.
 
 ## 7. Report Results
-Surface the agent's return message to the user — the YAML path, the library XML path, the desktop XML path, plus the editorial notes. The notes are the conversational hook for what comes next; small fixes you can do directly in the YAML, larger restructures relaunch this skill with a revised plan.
+Surface the agent's return message to the user — the YAML path, the library XML path, the desktop XML path (only if step 5 actually copied one), plus the editorial notes. The notes are the conversational hook for what comes next; small fixes you can do directly in the YAML, larger restructures relaunch this skill with a revised plan.
