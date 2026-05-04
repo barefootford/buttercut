@@ -77,4 +77,4 @@ Write `libraries/[library-name]/plans/plan_[short-name]_[YYYYMMDD_HHMMSS].md` co
 
 The plan is direction. The build agent confirms specific clips inside each beat.
 
-Tell the user you've created the plan and it's now ready for the roughcut agent to create the actual cut. Confirm they want to move forward, then invoke the `roughcut` skill, passing the full plan path (`libraries/[library-name]/plans/plan_[short-name]_[YYYYMMDD_HHMMSS].md`) as a skill argument — `roughcut` hard-stops if it isn't given one.
+Tell the user the plan is ready and confirm they want to move forward, then invoke the `roughcut` skill, passing the full plan path (`libraries/[library-name]/plans/plan_[short-name]_[YYYYMMDD_HHMMSS].md`) as a skill argument — `roughcut` hard-stops if it isn't given one.

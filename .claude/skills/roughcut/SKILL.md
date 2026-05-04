@@ -39,7 +39,7 @@ APPROVED PLAN:
 EDITOR: {editor}
 
 TASK:
-1. Read `.claude/skills/roughcut/agent_instructions.md`
+1. Read `.claude/skills/roughcut/agent_prompt.md`
 2. Follow the steps there in order (the plan is already approved — don't re-propose)
 3. Return paths to the YAML and XML, plus your editorial notes (alternatives, judgment calls, plan deviations) in conversational prose
 ```
