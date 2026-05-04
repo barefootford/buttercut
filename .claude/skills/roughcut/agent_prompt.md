@@ -59,7 +59,7 @@ For each beat in the plan:
 - If the segment's dialogue should be cut down, grep to find the word-by-word timing in the audio transcript. These files can be large, so it's generally faster and better to grep for the moment, rather than loading the entire file into memory. See the worked example below.
 - After you've completed a scene or beat, consider going back to improve earlier beats if you can make them stronger, more cohesive, or can remove redundancy.
 
-**Worked example — trimming inside a segment.** A wordy segment from `transcripts/visual_P1055008.json`:
+**Worked example — trimming inside a segment.** A wordy segment from `transcripts/visual_DJI_123.json`:
 
 ```json
 {
@@ -69,10 +69,10 @@ For each beat in the plan:
 }
 ```
 
-The line restates itself — "to try to find issues as well as try to find more test issues." End the clip after the first "issues" instead. The audio transcript lives at the same path without the `visual_` prefix (`transcripts/P1055008.json`). Grep for the word to get its `end` time:
+The line restates itself — "to try to find issues as well as try to find more test issues." End the clip after the first "issues" instead. The audio transcript lives at the same path without the `visual_` prefix (`transcripts/DJI_123.json`). Grep for the word to get its `end` time:
 
 ```bash
-grep -B 1 -A 2 '"word": "issues' libraries/programmer-story-vlog/transcripts/P1055008.json
+grep -B 1 -A 2 '"word": "issues' libraries/[library-name]/transcripts/DJI_123.json
 ```
 
 Returns both occurrences — pick the one matching context (the first "issues" ends at 16.272s, the final "issues." at 17.195s):

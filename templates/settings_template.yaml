@@ -8,3 +8,6 @@ editor: fcpx
 # turbo is nearly as accurate as large-v3 but significantly faster
 # Recommended: `small` paired with transcript_refinement (set per-library in library.yaml)
 whisper_model: small
+
+# After exporting a roughcut, also drop a copy of the XML on the Desktop for easy import
+save_to_desktop_after_export: true

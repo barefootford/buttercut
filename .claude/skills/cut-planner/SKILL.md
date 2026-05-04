@@ -16,7 +16,7 @@ This skill runs in the main thread and does not use a sub-agent.
 ## Cut Planner Process
 
 ### 1. Verify all clips have visual transcripts and summaries
-Read `libraries/[library-name]/library.yaml`. Every clip must have `visual_transcript` and `summary` populated. If either is missing, stop the cut-planner skill — the library hasn't finished processing. Finish processing the library using the appropriate skill, then resume the cut-planner skill once the library is fully processed.
+Read `libraries/[library-name]/library.yaml`. Every clip must have `visual_transcript` and `summary` populated. If either is missing for any clip, stop and tell the user which clips still need processing — don't try to plan from incomplete footage. Then ask if they want to resume processing the library.
 
 ### 2. Read summaries
 
@@ -67,13 +67,7 @@ Iterate on the fleshed-out plan until the user explicitly signals go.
 If the user wants a short sequence, be brief, just a few sentences, including dialogue if that makes sense.
 
 ### 7. Save the plan
-Write `libraries/[library-name]/plans/plan_[short-name]_[YYYYMMDD_HHMMSS].md` containing:
-- Concept
-- Format
-- Beats with editorial intent and footage/clip suggestions
-- Target duration
-- Specific clips to include and why to include them
-- Dialogue the user definitely wants to include, either exactly through quotes "Here's how I learned to juggle" or lossily "Include the dialogue about how Kailey's uncle was a magician and taught her to juggle before he died."
+Copy `templates/plan_template.md` to `libraries/[library-name]/plans/plan_[short-name]_[YYYYMMDD_HHMMSS].md` and fill in every section. The template is the canonical structure — Concept, Format, Target Duration, Beats (with intent / approx. share / footage suggestions), Required Dialogue, Notes for the Build.
 
 The plan is direction. The build agent confirms specific clips inside each beat.
 
