@@ -5,6 +5,24 @@ All notable changes to ButterCut will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-05-03
+
+Honestly, this is the biggest single release for ButterCut so far. 0.6 has dramatically better rough cuts driven by the user, sharper editing thanks to new word-by-word timing, and process improvements that help ButterCut make sense of all your footage without getting overwhelmed. It's So. Much. Better.
+
+**Tighter cuts.** ButterCut can now trim at the word level. Before, edits could basically only land on sentence boundaries, so a clip carried whatever filler or restarts came with it. Now it uses the transcript's per-word timing and trims inside a sentence down to hundredths of a second.
+
+**Rough cuts you actually want.** Rough cut creation used to be one step where Claude inferred what you wanted and built it. This was often the wrong story or the wrong footage. Now planning happens first. ButterCut reads summaries of your footage, proposes 2–3 narrative directions, and iterates with you until you approve a plan.
+
+### Added
+- **Planning step.** Before building anything, ButterCut now reads a short summary of every clip, proposes 2–3 narrative directions, and iterates with you on the structure and beats until you approve a plan. Only then does it build the cut.
+- **Optional "save to Desktop" after export.** ButterCut asks once whether to copy the exported edit to your Desktop, and remembers your answer.
+
+### Changed
+- **Rough cut creation split into planning and building.** Planning is conversational and happens with you. Building is mechanical and happens out of the way once you've approved the plan. The split keeps the conversation focused on creative decisions instead of file-shuffling.
+- **Less technical user-facing language.** A lot of ButterCut users aren't developers, so Claude now talks like an editor — rough cut, transcript, "I'll re-export it for Final Cut" — instead of leaking file formats, internal field names, or the names of the tools doing the work behind the scenes.
+- **Single-track timelines reinforced.** ButterCut produces one sequential video track — no B-roll over voiceover, no cutaways layered over continuing voiceover. For now. ;-)
+- **Tidier temporary files.** All scratch files now go in one place inside the project, instead of scattering across the system.
+
 ## [0.5.0] - 2026-04-24
 
 ### Added
