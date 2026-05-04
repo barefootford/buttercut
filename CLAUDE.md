@@ -123,9 +123,10 @@ mkdir -p libraries/[library-name]
 mkdir -p libraries/[library-name]/transcripts
 mkdir -p libraries/[library-name]/roughcuts
 mkdir -p libraries/[library-name]/summaries
+mkdir -p libraries/[library-name]/plans
 ```
 
-Note: A single `/tmp/` directory at the root is used for all temporary files. Create subdirectories as needed and delete after use.
+Note: A single `tmp/` directory inside the buttercut project root is used for all temporary files. Create subdirectories as needed and delete after use.
 
 ### Create Library File
 
