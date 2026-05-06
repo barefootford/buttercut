@@ -243,6 +243,7 @@ When you add a Ruby script under `.claude/scripts/` or similar, follow these con
 - **Break the work into small private methods with clear names** (`load_transcript`, `format_script`, `write_output`, `report`). The public entry point should read like a short outline of the workflow.
 - **Required arguments are required.** Don't silently default `nil`/missing args — raise `ArgumentError` in `initialize` if a required value is missing or empty. No hidden fallback paths.
 - **Keep CLI arg parsing out of the class.** Use a bottom-of-file `if __FILE__ == $PROGRAM_NAME` block to parse `ARGV`, validate file paths, print a usage line, and delegate to the class.
+- **Never name a method `main`.** It's a C-ism that adds no information in Ruby. Generally name the class what the class does, and then define self.perform.
 
 ## Project Structure
 
