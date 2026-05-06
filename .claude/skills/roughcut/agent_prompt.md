@@ -124,13 +124,13 @@ Use the `editor` value passed inline in the prompt — the parent already resolv
 
 ```bash
 # Final Cut Pro X
-bundle exec ./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].fcpxml fcpx
+bundle exec ./.claude/skills/roughcut/export.rb --editor fcpx libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].fcpxml
 
 # Premiere Pro
-bundle exec ./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].xml premiere
+bundle exec ./.claude/skills/roughcut/export.rb --editor premiere libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].xml
 
 # DaVinci Resolve
-bundle exec ./.claude/skills/roughcut/export_to_fcpxml.rb libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].xml resolve
+bundle exec ./.claude/skills/roughcut/export.rb --editor resolve libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].xml
 ```
 
 ### 7. Return — with notes
