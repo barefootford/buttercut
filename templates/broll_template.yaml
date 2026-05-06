@@ -1,0 +1,47 @@
+# B-Roll Manifest Template
+#
+# Emitted by the b-roll director (issue #68) and consumed by the Hyperframes
+# render skill (#66) and the roughcut integration (#71). This file is the
+# contract between the editorial layer (which decides *what* graphics to
+# generate) and the rendering / placement layers (which produce MP4s and put
+# them on the timeline).
+#
+# Stored alongside the rough cut at:
+#   libraries/[library-name]/roughcuts/[roughcut-id].broll.yaml
+
+# Schema version — bumped on breaking changes; validator rejects unknown.
+version: 1
+
+# Library this manifest belongs to. Must match the library directory name.
+library: example-library
+
+# Rough cut this manifest is paired with (filename stem, no extension).
+# May be empty during hand-authored testing before a rough cut exists.
+roughcut: highlight-reel_20260506_120000
+
+# Ordered list of b-roll entries. Each becomes one rendered MP4 and one
+# placement on the timeline.
+entries:
+  - id: br-0001                       # unique within the manifest; convention: br-NNNN
+    source_video: tutorial_01.mov     # the footage clip this graphic relates to (filename only)
+    start: 42.10                      # seconds into the rough cut where the graphic appears
+    end:   47.80                      # seconds into the rough cut where the graphic ends
+    template: code-callout            # template name (see hyperframes/templates/, issue #67)
+    placement: overlay                # overlay | cutaway | pip
+    score: 0.84                       # 0.0..1.0 — director's confidence/priority; optional
+    content:                          # template-specific payload; shape defined per-template
+      command: "git rebase -i HEAD~3"
+      caption: "Interactive rebase, last 3 commits"
+    rendered: null                    # path to MP4, populated by the render step (#66)
+    notes: ""                         # free-form; e.g. discrepancy logs from #70
+
+  - id: br-0002
+    source_video: tutorial_01.mov
+    start: 75.00
+    end:   80.00
+    template: term-card
+    placement: cutaway
+    content:
+      term: "rebase"
+      definition: "Replay commits onto a new base"
+    rendered: null

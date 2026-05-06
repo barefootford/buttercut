@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **B-roll manifest schema (Hyperframes foundation).** New `*.broll.yaml` artifact format and validator (`lib/buttercut/broll_manifest.rb`) that the b-roll director will emit and the Hyperframes render skill / roughcut integration will consume. Each entry pairs a footage timestamp with a template, placement (`overlay` / `cutaway` / `pip`), and template-specific content payload. Canonical example in `templates/broll_template.yaml`. First slice of the Hyperframes integration epic (#63, schema task #64).
 - M2: New Project flow + streaming analysis progress UI in the desktop app. Drop a folder of videos, name a project, pick a language, and watch the three-stage pipeline (transcribe → analyze → summarize) run with per-file per-stage progress streamed over JSON-RPC notifications. Removes the last terminal dependency from onboarding.
 - Sidecar gains: `inspect_video_paths`, `create_library`, `has_api_key`, `set_api_key`, `start_analysis`, `cancel_job`. Validates Anthropic keys with a Haiku ping; persists to `libraries/settings.yaml` (gitignored). Extracts analyze + summarize prompt content into shared `ui/sidecar/prompts/` files referenced by both the CLI agent and the new sidecar parent.
 
