@@ -1,0 +1,16 @@
+# Ignore everything by default — user-created skills stay local.
+*
+
+# Track this file itself.
+!.gitignore
+
+# Allowlist of shipped skills. Add a new line when shipping a new skill.
+!analyze-video/
+!backup-library/
+!cut-planner/
+!release/
+!roughcut/
+!setup/
+!summarize-video/
+!transcribe-audio/
+!update-buttercut/
