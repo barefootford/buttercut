@@ -2,7 +2,7 @@ require 'spec_helper'
 require 'tmpdir'
 require 'yaml'
 require 'zip'
-require_relative '../.claude/skills/backup-library/backup_libraries'
+require_relative '../skills/backup-library/backup_libraries'
 
 RSpec.describe LibraryBackup do
   let(:temp_dir) { Dir.mktmpdir('buttercut-backup-test') }

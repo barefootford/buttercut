@@ -154,7 +154,7 @@ After library setup completes, **automatically start analyzing all footage**:
 5. After all audio transcripts complete, launch `analyze-video` agents. Pass inline: `video_path`, `audio_transcript_path`, `visual_transcript_path`.
 6. As each agent completes, update library.yaml with `visual_transcript` (filename only, not full path).
 7. After all visual transcripts complete, summarize each video using the `summarize-video` skill on the **Haiku model**:
-   - For each video, first pre-create a skeleton file in the parent: `ruby .claude/skills/summarize-video/summary_skeleton.rb <visual_transcript_path> <summary_output_path>`
+   - For each video, first pre-create a skeleton file in the parent: `ruby skills/summarize-video/summary_skeleton.rb <visual_transcript_path> <summary_output_path>`
    - Then launch the agent passing inline: `visual_transcript_path`, `summary_output_path` (e.g., `libraries/[library-name]/summaries/summary_[videoname].md`)
    - The agent fills the four placeholders via Edit. The skeleton + Edit pattern is required: without it, Haiku frequently refuses Write and dumps markdown into its reply instead.
 8. As each agent completes, update library.yaml with `summary` (filename only, not full path).
@@ -251,7 +251,7 @@ When you add a Ruby script under `.claude/scripts/` or similar, follow these con
 - `lib/buttercut/editor_base.rb` - Shared validation, metadata extraction, and timeline math
 - `lib/buttercut/fcpx.rb` - Final Cut Pro X implementation (FCPXML 1.8)
 - `lib/buttercut/fcp7.rb` - Final Cut Pro 7 / Premiere / DaVinci Resolve implementation (xmeml v5)
-- `.claude/skills/` - Claude Code skills for AI-powered workflow
+- `skills/` - Skills for AI-powered workflow (symlinked from `.claude/skills/` so Claude Code, Codex, and other agents that read top-level `skills/` natively all find them)
 - `spec/` - RSpec test suite
 - `templates/` - Library and project templates
 - `libraries/` - Working directory for user's video projects (gitignored)
@@ -308,12 +308,18 @@ bundle exec rspec spec/buttercut_spec.rb:10
 
 When creating new Claude skills, aim to keep them as brief as possible. Use active voice to help condense instructions. Use simple, plain language.
 
-### What's tracked vs. ignored in `.claude/skills/`
+### Where skills live
 
-`.claude/skills/.gitignore` ignores everything by default and allowlists each shipped skill by name. This way:
+Shipped skills live in top-level `skills/`. `.claude/skills` is a git-tracked symlink pointing to `../skills` so Claude Code (which looks under `.claude/skills/`) and other agentic CLIs that natively read `skills/` both find the same files. Drop new skills into `skills/` directly — no need to touch `.claude/skills/`.
+
+**If skills aren't showing up in Claude Code:** check that `.claude/skills` is a symlink to `../skills` (`ls -la .claude/skills` should show `.claude/skills -> ../skills`). If it's a regular directory or missing entirely (common after the rsync path of `update-buttercut`, talk to the user and ask them if they want you to repair it.
+
+### What's tracked vs. ignored
+
+`skills/.gitignore` ignores everything by default and allowlists each shipped skill by name. This way:
 
 - **Shipped skills** (the ones listed in the allowlist) ship with the project and reach every user on `git pull`.
-- **User-created skills** that anyone drops into `.claude/skills/<their-skill>/` stay local and are invisible to git automatically — no per-user setup needed.
+- **User-created skills** that anyone drops into `skills/<their-skill>/` stay local and are invisible to git automatically — no per-user setup needed.
 
 User-created skills must be prefixed with `user-` so they can never collide with a future shipped skill. Without the prefix, `update-buttercut` could fail or silently overwrite a user's work if upstream later ships a skill with the same name. Examples:
 
@@ -321,4 +327,4 @@ User-created skills must be prefixed with `user-` so they can never collide with
 - `user-create-instagram-reel`
 - `user-process-aroll`
 
-When shipping a new skill, add a `!<skill-name>/` line to `.claude/skills/.gitignore` along with the skill directory itself. If you forget the gitignore line, `git status` won't show the new skill.
+When shipping a new skill, add a `!<skill-name>/` line to `skills/.gitignore` along with the skill directory itself. If you forget the gitignore line, `git status` won't show the new skill.
