@@ -13,6 +13,10 @@ After confirming its understanding of the footage, it works with the user to cre
 
 This skill runs in the main thread and does not use a sub-agent.
 
+## Asking the user
+
+Whenever you need the user to pick from a discrete set of options — which library, whether to resume processing, target length, which concept, go/no-go on the plan — use the `AskUserQuestion` tool (or similar option-chip tool the host agent provides) instead of writing a bullet list in chat. Free-form conversation about the footage stays as plain chat; only the moments where you're offering a choice should use the tool.
+
 ## Cut Planner Process
 
 ### 1. Verify all clips have visual transcripts and summaries
