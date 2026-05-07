@@ -158,8 +158,14 @@ After library setup completes, **automatically start analyzing all footage**:
    - Then launch the agent passing inline: `visual_transcript_path`, `summary_output_path` (e.g., `libraries/[library-name]/summaries/summary_[videoname].md`)
    - The agent fills the four placeholders via Edit. The skeleton + Edit pattern is required: without it, Haiku frequently refuses Write and dumps markdown into its reply instead.
 8. As each agent completes, update library.yaml with `summary` (filename only, not full path).
-9. Analyze ALL videos before offering to create rough cuts.
-10. **After all analysis completes, automatically create a backup** using the `backup-library` skill.
+9. **Confirm footage understanding with the user.** Once every summary is written, talk through what the footage actually shows — confirm character names, locations, the narrative through-line, any stray or off-thesis clips, and the user's creative intent for this library. Use plain conversation; only reach for `AskUserQuestion` when offering a discrete choice. As you learn things, update:
+   - `footage_summary` (locations, characters, narrative arc)
+   - `user_context` (preferences, goals, the user's name, tone preferences)
+   - individual `summary_*.md` files when a summary mislabels someone or misses a key detail (e.g., "a man in a tan jacket" → the user's name)
+
+   This is the one place to do this thorough pass. Every later cut-planner run inherits the resulting context rather than re-interrogating the library.
+10. Analyze ALL videos before offering to create rough cuts.
+11. **After all analysis completes, automatically create a backup** using the `backup-library` skill.
 
 **Contract: sub-agents receive `agent_prompt.md`, not `SKILL.md`.** For parallelizable skills (`transcribe-audio`, `analyze-video`, `summarize-video`), the parent reads `SKILL.md` for dispatch info (parallelism cap, required inputs) and inlines `agent_prompt.md` into the sub-agent's prompt. `SKILL.md` is parent-only.
 

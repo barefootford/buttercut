@@ -7,9 +7,9 @@ description: Plans a cut (roughcut, sequence, or scene) from a library's clip su
 
 ## Overview
 
-In the cut-planner skill, the main thread reads clip summaries from a library to understand footage coverage, then asks the user about the footage to confirm its understanding. It confirms who the characters and locations are, then updates the library.yaml's footage_summary and user_context as it learns more about the footage. If it determines summaries are wrong or missing details, it also updates the summary markdowns.
+In the cut-planner skill, the main thread reads clip summaries from a library to understand footage coverage, then works with the user to design a narrative plan markdown file for *this specific cut*.
 
-After confirming its understanding of the footage, it works with the user to create a narrative plan markdown file.
+The library's `footage_summary`, `user_context`, and individual summaries already capture the broad creative context — that was locked in during footage analysis (see "Start Footage Analysis" in AGENTS.md). If anything is confusing you can ask the user, but generally you can just use the summary files and library.yaml for context.
 
 This skill runs in the main thread and does not use a sub-agent.
 
@@ -30,22 +30,12 @@ Read `libraries/[library-name]/library.yaml`. Every clip must have `visual_trans
 If the user explicitly says they want something short like a short sequence (60 seconds or less), consider asking them about what they want and then grepping through summaries to find the handful of files they might need.
 
 #### Rough Cuts
-If the user wants a full roughcut, read every `libraries/[library-name]/summaries/summary_*.md` file. This will give you full knowledge of the library.
+If the user wants a full roughcut, read every `libraries/[library-name]/summaries/summary_*.md` file. This will give you full knowledge of the library. Consider doing a batch read to improve performance if there are lots of summaries to read.
 
-### 3. Confirm the footage knowledge and update incorrect summaries
-Tell the user what you've learned about the footage, then confirm you understand the Five W's of all the footage: Who, What, When, Where, Why.
+### 3. Use the existing footage context
+`library.yaml` (`footage_summary`, `user_context`) and the per-clip summaries are the source of context.
 
-Don't tell them "Five W's" or label out Who, What, When, Where, Why, just talk with them conversationally like an assistant editor getting a grip on the footage.
-
-If they want a full roughcut, spend more time. If they just want a sequence, be brief.
-
-Talk with the user until you confirm you understand the footage. Update library.yaml based on the user's responses as you work through questions.
-
-Update footage_summary (locations, characters, narrative, dialogue, clips) and user_context (preferences, goals, etc.) as you iteratively learn more about the footage.
-
-Updating user_context and footage_summary helps future agents understand the footage and the user.
-
-For example, if a summary mentions a generic man or woman but you learn the person is actually the user, replace man/woman with the user's name. Ask the user's name if you don't know it already.
+Only ask the user a question if something is genuinely ambiguous *for this cut* — e.g., "the footage covers two arcs, which one is the focus?" or "are the in-vehicle clips meant to be part of this story or unrelated b-roll?".
 
 ### 4. Ask target length
 If available, use the `AskUserQuestion` tool or similar to ask the user what length of video they want to create. Use your judgement based on the footage — options like short sequence (30–60s), medium cut (5–8 min), or longer roughcut (9+ min) make good starting points. Podcast footage will likely require a longer option.
