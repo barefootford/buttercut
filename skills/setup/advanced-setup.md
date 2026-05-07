@@ -53,6 +53,8 @@ ruby --version  # Should show 3.3.6
 
 ### 5. Bundler
 
+Skip this step if you installed Ruby via mise — the precompiled Ruby tarball ships with Bundler. Otherwise:
+
 ```bash
 gem install bundler
 ```
@@ -136,6 +138,6 @@ All items should show OK.
 
 ## Notes
 
-- The `.mise.toml` file is provided for mise users but is not required
+- The `.mise.toml` file is provided for mise users but is not required. It pins `ruby.compile = false` and `python.compile = false` so `mise install` pulls precompiled binaries (Ruby from jdx/ruby, Python from python-build-standalone) instead of building from source. Requires mise >= 2025.12.4. Override in your user config if you'd rather compile.
 - WhisperX uses CPU-only mode for simplicity (no CUDA/GPU setup needed)
 - If you use pyenv-virtualenv or similar, you can install whisperx in a dedicated virtualenv instead of `~/.buttercut/venv`
