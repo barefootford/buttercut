@@ -100,4 +100,14 @@ RSpec.describe ButterCut::FCP7 do
       expect(xml).to include('<frame>90000</frame>')
     end
   end
+
+  describe 'multi-track input' do
+    it 'raises NotImplementedError when given b_roll clips' do
+      generator = ButterCut::FCP7.new([
+        { path: clip_a_path },
+        { path: clip_b_path, track: :b_roll, timeline_offset: '1s' }
+      ])
+      expect { generator.to_xml }.to raise_error(NotImplementedError, /Multi-track output/)
+    end
+  end
 end

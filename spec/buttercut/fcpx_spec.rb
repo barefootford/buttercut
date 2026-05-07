@@ -526,6 +526,181 @@ RSpec.describe ButterCut::FCPX do
     end
   end
 
+  describe 'multi-track timelines' do
+    let(:a_roll_path) { '/tmp/a_roll.mov' }
+    let(:b_roll_path) { '/tmp/b_roll.mov' }
+    let(:music_path) { '/tmp/score.mp3' }
+
+    let(:a_roll_metadata) { build_metadata(frame_rate: '24000/1001', duration_seconds: 10.0) }
+    let(:b_roll_metadata) { build_metadata(frame_rate: '24000/1001', duration_seconds: 6.0) }
+    let(:music_metadata) do
+      {
+        'streams' => [{ 'codec_type' => 'audio', 'sample_rate' => '48000' }],
+        'format' => { 'duration' => '120.0', 'tags' => {} }
+      }
+    end
+
+    let(:metadata_by_path) do
+      {
+        a_roll_path => a_roll_metadata,
+        b_roll_path => b_roll_metadata,
+        music_path => music_metadata
+      }
+    end
+
+    before do
+      allow_any_instance_of(ButterCut::FCPX).to receive(:extract_metadata_from_ffprobe) do |_instance, path|
+        metadata_by_path.fetch(path)
+      end
+    end
+
+    describe 'validation' do
+      it 'defaults missing track to a_roll' do
+        generator = ButterCut::FCPX.new([{ path: a_roll_path }])
+        expect(generator.track_for(generator.clips.first)).to eq(:a_roll)
+      end
+
+      it 'rejects invalid track values' do
+        expect {
+          ButterCut::FCPX.new([{ path: a_roll_path, track: :sfx }])
+        }.to raise_error(ArgumentError, /invalid track :sfx/)
+      end
+
+      it 'requires timeline_offset for b_roll clips' do
+        expect {
+          ButterCut::FCPX.new([
+            { path: a_roll_path },
+            { path: b_roll_path, track: :b_roll }
+          ])
+        }.to raise_error(ArgumentError, /track :b_roll requires a :timeline_offset/)
+      end
+
+      it 'requires timeline_offset for music clips' do
+        expect {
+          ButterCut::FCPX.new([
+            { path: a_roll_path },
+            { path: music_path, track: :music }
+          ])
+        }.to raise_error(ArgumentError, /track :music requires a :timeline_offset/)
+      end
+
+      it 'requires at least one a_roll clip' do
+        expect {
+          ButterCut::FCPX.new([{ path: music_path, track: :music, timeline_offset: '0s' }])
+        }.to raise_error(ArgumentError, /At least one A-roll clip/)
+      end
+    end
+
+    describe 'a_roll-only output is unchanged' do
+      it 'emits no anchored children when only a_roll clips are provided' do
+        generator = ButterCut::FCPX.new([{ path: a_roll_path }, { path: a_roll_path }])
+        xml = generator.to_xml
+
+        expect(xml).not_to include('lane=')
+        expect(xml.scan(/<asset-clip/).length).to eq(2)
+      end
+    end
+
+    describe 'b_roll anchoring' do
+      it 'anchors b_roll as a child asset-clip with lane="1"' do
+        generator = ButterCut::FCPX.new([
+          { path: a_roll_path },
+          { path: b_roll_path, track: :b_roll, timeline_offset: '2s', duration: '3s' }
+        ])
+        xml = generator.to_xml
+
+        expect(xml).to match(/<asset-clip[^>]*ref="[^"]+"[^>]*>\s*<adjust-volume[^\/]+\/>\s*<asset-clip[^>]*lane="1"/m)
+      end
+
+      it 'mutes b_roll audio via srcEnable="video"' do
+        generator = ButterCut::FCPX.new([
+          { path: a_roll_path },
+          { path: b_roll_path, track: :b_roll, timeline_offset: '2s', duration: '3s' }
+        ])
+        xml = generator.to_xml
+
+        expect(xml).to match(/<asset-clip[^>]*lane="1"[^>]*srcEnable="video"/)
+      end
+
+      it 'computes anchored offset relative to parent local timeline' do
+        generator = ButterCut::FCPX.new([
+          { path: a_roll_path, duration: '5s' },
+          { path: a_roll_path, duration: '5s' },
+          { path: b_roll_path, track: :b_roll, timeline_offset: '7s', duration: '2s' }
+        ])
+        xml = generator.to_xml
+        doc = Nokogiri::XML(xml)
+
+        spine_clips = doc.css('spine > asset-clip')
+        expect(spine_clips.length).to eq(2)
+
+        anchored = doc.css('spine > asset-clip > asset-clip[lane="1"]')
+        expect(anchored.length).to eq(1)
+        expect(anchored.first.parent).to eq(spine_clips[1])
+
+        # B-roll timeline_offset 7s falls inside the second A-roll clip (which
+        # spans 5s..10s), so anchored offset = parent.start (0s) + 2s offset
+        # within parent. Frame-aligned to 24000/1001fps = 1001/500s.
+        expect(anchored.first['offset']).to eq('1001/500s')
+      end
+    end
+
+    describe 'music anchoring' do
+      it 'anchors music as a child asset-clip with lane="-1" and audioRole="music"' do
+        generator = ButterCut::FCPX.new([
+          { path: a_roll_path },
+          { path: music_path, track: :music, timeline_offset: '0s', duration: '10s' }
+        ])
+        xml = generator.to_xml
+
+        expect(xml).to match(/<asset-clip[^>]*lane="-1"[^>]*audioRole="music"/)
+      end
+
+      it 'applies the music volume adjustment' do
+        generator = ButterCut::FCPX.new([
+          { path: a_roll_path },
+          { path: music_path, track: :music, timeline_offset: '0s', duration: '10s' }
+        ])
+        xml = generator.to_xml
+        doc = Nokogiri::XML(xml)
+
+        music_clip = doc.css('asset-clip[lane="-1"]').first
+        expect(music_clip).not_to be_nil
+        expect(music_clip.css('adjust-volume').first['amount']).to eq('-18db')
+      end
+
+      it 'emits audio-only music asset with hasVideo="0" and no format attribute' do
+        generator = ButterCut::FCPX.new([
+          { path: a_roll_path },
+          { path: music_path, track: :music, timeline_offset: '0s', duration: '10s' }
+        ])
+        xml = generator.to_xml
+        doc = Nokogiri::XML(xml)
+
+        music_asset = doc.css('asset').find { |a| a['name'] == 'score.mp3' }
+        expect(music_asset).not_to be_nil
+        expect(music_asset['hasVideo']).to eq('0')
+        expect(music_asset['hasAudio']).to eq('1')
+        expect(music_asset['format']).to be_nil
+      end
+    end
+
+    describe 'sequence duration' do
+      it 'is determined by a_roll only and ignores anchored clips' do
+        generator = ButterCut::FCPX.new([
+          { path: a_roll_path, duration: '5s' },
+          { path: b_roll_path, track: :b_roll, timeline_offset: '1s', duration: '2s' },
+          { path: music_path, track: :music, timeline_offset: '0s', duration: '120s' }
+        ])
+        xml = generator.to_xml
+        doc = Nokogiri::XML(xml)
+
+        # 5s frame-aligned to 24000/1001fps = 1001/200s (120 frames)
+        expect(doc.css('sequence').first['duration']).to eq('1001/200s')
+      end
+    end
+  end
+
   describe '#save' do
     let(:filename) { 'test_output.fcpxml' }
 

@@ -8,6 +8,10 @@ class ButterCut
     def to_xml
       raise ArgumentError, "No clips provided" if clips.empty?
 
+      if has_anchored_clips?
+        raise NotImplementedError, "Multi-track output (B-roll, music) is not yet supported for FCP7/Premiere/Resolve. Use editor: :fcpx for now."
+      end
+
       asset_map = build_asset_map
       timeline_frame_duration = format_frame_duration
       timeline_clips, sequence_duration_fraction = build_timeline_clips(asset_map, timeline_frame_duration)

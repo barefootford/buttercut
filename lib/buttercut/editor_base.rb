@@ -10,6 +10,11 @@ class ButterCut
     DEFAULT_START_TIME = "0s"
     DEFAULT_INITIAL_OFFSET = "0s"
     DEFAULT_VOLUME_ADJUSTMENT = "-13.100000000000001db"
+    MUSIC_VOLUME_ADJUSTMENT = "-18db"
+
+    TRACK_TYPES = [:a_roll, :b_roll, :music].freeze
+    DEFAULT_TRACK = :a_roll
+    ANCHORED_TRACKS = [:b_roll, :music].freeze
 
     attr_reader :clips, :initial_offset, :volume_adjustment
 
@@ -22,6 +27,13 @@ class ButterCut
         end
         unless clip.key?(:path)
           raise ArgumentError, "Clip at index #{index} must have a 'path' key"
+        end
+        if clip.key?(:track) && !TRACK_TYPES.include?(clip[:track])
+          raise ArgumentError, "Clip at index #{index} has invalid track #{clip[:track].inspect}. Must be one of #{TRACK_TYPES.inspect}"
+        end
+        track = clip[:track] || DEFAULT_TRACK
+        if ANCHORED_TRACKS.include?(track) && !clip.key?(:timeline_offset)
+          raise ArgumentError, "Clip at index #{index} on track #{track.inspect} requires a :timeline_offset"
         end
       end
 
@@ -40,6 +52,26 @@ class ButterCut
         path = clip[:path]
         @metadata_cache[path] = extract_metadata_from_ffprobe(path)
       end
+
+      if a_roll_clip_defs.empty?
+        raise ArgumentError, "At least one A-roll clip is required to derive timeline format"
+      end
+    end
+
+    def track_for(clip_def)
+      clip_def[:track] || DEFAULT_TRACK
+    end
+
+    def a_roll_clip_defs
+      @clips.select { |c| track_for(c) == :a_roll }
+    end
+
+    def anchored_clip_defs
+      @clips.reject { |c| track_for(c) == :a_roll }
+    end
+
+    def has_anchored_clips?
+      anchored_clip_defs.any?
     end
 
     def save(filename)
@@ -200,32 +232,46 @@ class ButterCut
       "#{duration_num / divisor}/#{duration_denom / divisor}s"
     end
 
+    def primary_format_path
+      @primary_format_path ||= a_roll_clip_defs.first[:path]
+    end
+
     def format_width
-      video_width(@clips.first[:path])
+      video_width(primary_format_path)
     end
 
     def format_height
-      video_height(@clips.first[:path])
+      video_height(primary_format_path)
     end
 
     def format_frame_duration
-      frame_duration(@clips.first[:path])
+      frame_duration(primary_format_path)
     end
 
     def format_frame_rate
-      frame_rate(@clips.first[:path])
+      frame_rate(primary_format_path)
     end
 
     def format_nominal_frame_rate
-      nominal_frame_rate(@clips.first[:path])
+      nominal_frame_rate(primary_format_path)
     end
 
     def format_color_space
-      color_space(@clips.first[:path])
+      color_space(primary_format_path)
     end
 
     def format_audio_rate
-      audio_sample_rate(@clips.first[:path])
+      audio_sample_rate(primary_format_path)
+    end
+
+    def video_stream_present?(video_path)
+      metadata = extract_metadata(video_path)
+      (metadata['streams'] || []).any? { |s| s['codec_type'] == 'video' }
+    end
+
+    def audio_stream_present?(video_path)
+      metadata = extract_metadata(video_path)
+      (metadata['streams'] || []).any? { |s| s['codec_type'] == 'audio' }
     end
 
     def gcd(a, b)
@@ -273,6 +319,7 @@ class ButterCut
     def round_to_frame_boundary(time_value, frame_duration)
       return "0s" if time_value == "0s" || time_value == 0
       time_value = seconds_to_fraction(time_value) if time_value.is_a?(Numeric)
+      return time_value if frame_duration.nil?
 
       if time_value.match(/^(\d+)s$/)
         time_num = Regexp.last_match(1).to_i
@@ -360,29 +407,51 @@ class ButterCut
         filename = get_filename(video_file_path)
         file_url = path_to_file_url(video_file_path)
 
-        file_to_asset[abs_path] = {
+        has_video = video_stream_present?(video_file_path)
+        has_audio = audio_stream_present?(video_file_path)
+
+        asset_data = {
           asset_id: asset_id,
           asset_uid: asset_uid,
           abs_path: abs_path,
           filename: filename,
           basename: get_basename(filename),
           file_url: file_url,
-          asset_duration: duration_to_fraction(video_file_path),
-          audio_rate: audio_sample_rate(video_file_path),
-          timecode: clip_timecode_fraction(video_file_path),
-          frame_duration: frame_duration(video_file_path),
-          frame_rate: frame_rate(video_file_path),
-          width: video_width(video_file_path),
-          height: video_height(video_file_path),
-          color_space: color_space(video_file_path)
+          has_video: has_video,
+          has_audio: has_audio,
+          audio_rate: has_audio ? audio_sample_rate(video_file_path) : nil
         }
+
+        if has_video
+          asset_data.merge!(
+            asset_duration: duration_to_fraction(video_file_path),
+            timecode: clip_timecode_fraction(video_file_path),
+            frame_duration: frame_duration(video_file_path),
+            frame_rate: frame_rate(video_file_path),
+            width: video_width(video_file_path),
+            height: video_height(video_file_path),
+            color_space: color_space(video_file_path)
+          )
+        else
+          asset_data.merge!(
+            asset_duration: seconds_to_fraction(video_duration(video_file_path)),
+            timecode: "0s",
+            frame_duration: nil,
+            frame_rate: nil,
+            width: nil,
+            height: nil,
+            color_space: nil
+          )
+        end
+
+        file_to_asset[abs_path] = asset_data
       end
       file_to_asset
     end
 
     def build_timeline_clips(asset_map, timeline_frame_duration)
       current_offset = initial_offset
-      clips = @clips.map do |clip_def|
+      clips = a_roll_clip_defs.each_with_index.map do |clip_def, index|
         abs_path = get_absolute_path(clip_def[:path])
         asset_info = asset_map.fetch(abs_path)
         asset_frame_duration = asset_info[:frame_duration] || timeline_frame_duration
@@ -396,6 +465,8 @@ class ButterCut
         duration_info = compute_clip_duration(clip_def, asset_info, start_at, asset_frame_duration, timeline_frame_duration)
 
         clip_data = {
+          track: :a_roll,
+          spine_index: index,
           asset: asset_info,
           asset_id: asset_info[:asset_id],
           filename: asset_info[:filename],
@@ -412,6 +483,54 @@ class ButterCut
       end
 
       [clips, current_offset]
+    end
+
+    def build_anchored_clips(asset_map, timeline_frame_duration, a_roll_clips)
+      anchored_clip_defs.map do |clip_def|
+        abs_path = get_absolute_path(clip_def[:path])
+        asset_info = asset_map.fetch(abs_path)
+        track = track_for(clip_def)
+        asset_frame_duration = asset_info[:frame_duration] || timeline_frame_duration
+
+        start_at_raw = clip_def[:start_at] || DEFAULT_START_TIME
+        start_at = round_to_frame_boundary(start_at_raw, asset_frame_duration)
+
+        base_timecode = asset_info[:timecode] || "0s"
+        clip_start = add_fractions(base_timecode, start_at)
+
+        duration_info = compute_clip_duration(clip_def, asset_info, start_at, asset_frame_duration, timeline_frame_duration)
+
+        timeline_offset = round_to_frame_boundary(clip_def[:timeline_offset], timeline_frame_duration)
+
+        parent = find_parent_a_roll(timeline_offset, a_roll_clips)
+        relative_offset = subtract_fractions(timeline_offset, parent[:timeline_offset])
+        parent_local_offset = add_fractions(parent[:start], relative_offset)
+
+        {
+          track: track,
+          asset: asset_info,
+          asset_id: asset_info[:asset_id],
+          filename: asset_info[:filename],
+          start: clip_start,
+          duration: duration_info[:timeline],
+          source_duration: duration_info[:asset],
+          timeline_offset: timeline_offset,
+          parent_local_offset: parent_local_offset,
+          parent_spine_index: parent[:spine_index],
+          source_in: start_at,
+          clip_definition: clip_def
+        }
+      end
+    end
+
+    def find_parent_a_roll(timeline_offset, a_roll_clips)
+      target = fraction_to_rational(timeline_offset)
+      containing = a_roll_clips.find do |clip|
+        clip_start = fraction_to_rational(clip[:timeline_offset])
+        clip_end = clip_start + fraction_to_rational(clip[:duration])
+        target >= clip_start && target < clip_end
+      end
+      containing || a_roll_clips.last
     end
 
     def fraction_to_rational(value)
