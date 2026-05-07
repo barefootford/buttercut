@@ -91,6 +91,9 @@ Trimmed clip: `in_point: 00:00:15.13`, `out_point: 00:00:16.27`. Drops nearly a 
 - `dialogue`: spoken words for the span — concatenate across segments if the clip covers more than one
 - `visual_description`: shot description from the visual transcript
 
+**Optional per-clip:**
+- `audio_level_db`: a number in dB. Omit for the standard mix level. Use `-96` (or lower) to mute a clip — useful for B-roll where the source audio is hum, wind, or chatter that shouldn't sit under the cut. Use a moderate negative number (e.g. `-20`) to duck a clip that's louder than the rest. Don't set this on every clip; only when a clip's audio actively needs to be different.
+
 Use `start`/`end` from segments directly — preserve sub-second precision (e.g. 2.849s → `00:00:02.85`).
 
 **Transcripts can be wrong — fix them in the `dialogue` field in the roughcut YAML.** Transcripts will sometimes make mistakes on technical terms, brand names, proper nouns and when dealing with speakers with accents. They're not perfect. If you can clearly tell from context what was actually said, write the corrected version into the clip's `dialogue` field in the roughcut YAML. Do NOT edit the transcript JSON files themselves.

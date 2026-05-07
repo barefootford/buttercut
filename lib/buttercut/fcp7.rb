@@ -228,12 +228,33 @@ class ButterCut
             end
           end
         end
+        build_audio_levels_filter(xml, payload[:clip])
         xml.sourcetrack do
           xml.mediatype 'audio'
           xml.trackindex 1
         end
         xml.channelcount 2
         build_link_entries(xml, payload)
+      end
+    end
+
+    def build_audio_levels_filter(xml, clip)
+      level = xmeml_audio_level(clip)
+      xml.filter do
+        xml.effect do
+          xml.name 'Audio Levels'
+          xml.effectid 'audiolevels'
+          xml.effectcategory 'audiolevels'
+          xml.effecttype 'audiofilter'
+          xml.mediatype 'audio'
+          xml.parameter(authoringApp: 'PremierePro') do
+            xml.parameterid 'level'
+            xml.name 'Level'
+            xml.valuemin '0'
+            xml.valuemax '3.98109'
+            xml.value format('%.6f', level)
+          end
+        end
       end
     end
 

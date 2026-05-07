@@ -87,7 +87,9 @@ class Export
       start_at = timecode_to_seconds(clip['in_point'])
       duration = timecode_to_seconds(clip['out_point']) - start_at
 
-      { path: path, start_at: start_at.to_f, duration: duration.to_f }
+      buttercut_clip = { path: path, start_at: start_at.to_f, duration: duration.to_f }
+      buttercut_clip[:level_db] = clip['audio_level_db'] if clip.key?('audio_level_db')
+      buttercut_clip
     end
   end
 

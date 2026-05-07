@@ -63,7 +63,7 @@ class ButterCut
                         duration: clip[:duration],
                         audioRole: 'dialogue'
                       ) do
-                        xml.send('adjust-volume', amount: volume_adjustment)
+                        xml.send('adjust-volume', amount: fcpxml_volume_amount(clip))
                       end
                     end
                   end

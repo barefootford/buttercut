@@ -99,5 +99,26 @@ RSpec.describe ButterCut::FCP7 do
       # 01:00:00:00 @ 25fps => 90000 frames
       expect(xml).to include('<frame>90000</frame>')
     end
+
+    it 'emits an Audio Levels filter on each audio clipitem with the default level' do
+      xml = generator.to_xml
+
+      # Default -13.1 dB → linear ~0.221309
+      expect(xml.scan(%r{<filter>\s*<effect>\s*<name>Audio Levels</name>}).length).to eq(2)
+      expect(xml).to include('<value>0.221309</value>')
+    end
+
+    it 'honors per-clip level_db overrides and mute' do
+      generator = described_class.new([
+        { path: clip_a_path, level_db: -6 },
+        { path: clip_b_path, level_db: -96 }
+      ])
+      xml = generator.to_xml
+
+      # -6 dB → ~0.501187
+      expect(xml).to include('<value>0.501187</value>')
+      # -96 dB hits the mute threshold → 0.0
+      expect(xml).to include('<value>0.000000</value>')
+    end
   end
 end

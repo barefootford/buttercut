@@ -18,6 +18,9 @@ clips:
     out_point: "00:00:05.24"
     dialogue: ""
     visual_description: "[POV from inside San Francisco Muni bus looking out window at passing street. Yellow safety handrails visible. Transit journey B-roll.]"
+    # audio_level_db is optional, in dB. Omit for the standard mix level.
+    # Examples: -20 = quieter than the default; -96 (or lower) = effectively muted; 0 = unity gain (raw camera audio, often too hot).
+    audio_level_db: -20
 
 # Rough cut metadata
 metadata:

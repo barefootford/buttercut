@@ -383,7 +383,7 @@ RSpec.describe ButterCut::FCPX do
 
       expect(xml).to include('audioRate="48000"')
       expect(xml).to include('audioRate="48k"')
-      expect(xml).to include('<adjust-volume amount="-13.100000000000001db"/>')
+      expect(xml).to include('<adjust-volume amount="-13.1dB"/>')
     end
 
     it 'handles multiple video files' do
@@ -394,6 +394,25 @@ RSpec.describe ButterCut::FCPX do
       expect(xml.scan(/<asset id="/).length).to eq(1)
       # Should have two asset-clips
       expect(xml.scan(/<asset-clip/).length).to eq(2)
+    end
+
+    it 'uses per-clip level_db when provided and falls back to default when omitted' do
+      generator = ButterCut::FCPX.new([
+        { path: video_file_path, level_db: -6 },
+        { path: video_file_path, level_db: -96 },
+        { path: video_file_path }
+      ])
+      xml = generator.to_xml
+
+      expect(xml).to include('<adjust-volume amount="-6dB"/>')
+      expect(xml).to include('<adjust-volume amount="-96dB"/>')
+      expect(xml).to include('<adjust-volume amount="-13.1dB"/>')
+    end
+
+    it 'rejects non-numeric level_db' do
+      expect {
+        ButterCut::FCPX.new([{ path: video_file_path, level_db: '-6db' }])
+      }.to raise_error(ArgumentError, /level_db must be a number/)
     end
 
     it 'deduplicates same file used multiple times' do

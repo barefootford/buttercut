@@ -9,9 +9,10 @@ class ButterCut
   class EditorBase
     DEFAULT_START_TIME = "0s"
     DEFAULT_INITIAL_OFFSET = "0s"
-    DEFAULT_VOLUME_ADJUSTMENT = "-13.100000000000001db"
+    DEFAULT_LEVEL_DB = -13.1
+    MUTE_THRESHOLD_DB = -96.0
 
-    attr_reader :clips, :initial_offset, :volume_adjustment
+    attr_reader :clips, :initial_offset
 
     def initialize(clips)
       raise ArgumentError, "No clips provided" if clips.nil? || clips.empty?
@@ -23,6 +24,9 @@ class ButterCut
         unless clip.key?(:path)
           raise ArgumentError, "Clip at index #{index} must have a 'path' key"
         end
+        if clip.key?(:level_db) && !clip[:level_db].is_a?(Numeric)
+          raise ArgumentError, "Clip at index #{index} :level_db must be a number, got #{clip[:level_db].class}"
+        end
       end
 
       relative_paths = clips.select { |clip| !Pathname.new(clip[:path]).absolute? }
@@ -33,7 +37,6 @@ class ButterCut
 
       @clips = clips
       @initial_offset = DEFAULT_INITIAL_OFFSET
-      @volume_adjustment = DEFAULT_VOLUME_ADJUSTMENT
 
       @metadata_cache = {}
       @clips.each do |clip|
@@ -485,6 +488,21 @@ class ButterCut
         digest[16, 4],
         digest[20, 12]
       ].join('-')
+    end
+
+    def clip_level_db(clip_data)
+      level = clip_data[:clip_definition][:level_db]
+      level.nil? ? DEFAULT_LEVEL_DB : level.to_f
+    end
+
+    def fcpxml_volume_amount(clip_data)
+      "#{format('%g', clip_level_db(clip_data))}dB"
+    end
+
+    def xmeml_audio_level(clip_data)
+      db = clip_level_db(clip_data)
+      return 0.0 if db <= MUTE_THRESHOLD_DB
+      10.0**(db / 20.0)
     end
   end
 end
