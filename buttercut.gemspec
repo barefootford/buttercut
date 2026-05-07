@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.summary       = "Video Editor XML generator with Agent skills for analyzing video, creating rough cuts and sequences."
   spec.description   = "ButterCut generates video projects for Final Cut Pro and Adobe Premiere. It includes Claude Skills to perform metadata extraction through FFmpeg, audio extraction with WhisperX and visual analysis to create rough cuts and sequences."
   spec.homepage      = "https://github.com/andrewford/buttercut"
-  spec.license       = "MIT"
+  spec.license       = "Nonstandard"
   spec.required_ruby_version = ">= 2.7.0"
 
   spec.files = Dir[

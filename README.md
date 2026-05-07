@@ -120,7 +120,12 @@ ButterCut was inspired by ambitious open source work from [Chris Hocking](https:
 
 ## License
 
-MIT
+ButterCut is open source under the [PolyForm Noncommercial License 1.0.0 with a Commercial Output exception](LICENSE).
+
+- **You can use ButterCut to make videos commercially.** Cut a YouTube video for ad revenue, edit a paid client project, deliver a sponsored brand piece — all fine. The videos are yours, and the licensor claims no rights to them.
+- **You can't repackage ButterCut as commercial software.** Selling, hosting, or bundling the tool itself (or a fork of it) into a commercial product, plugin, or SaaS requires a separate commercial license from TubeSalt LLC.
+
+Personal, hobby, research, and educational use of the software is also free under the underlying license. If you'd like a commercial software license, reach out.
 
 ## Contributing
 
