@@ -83,6 +83,13 @@ brew install libyaml
 which mise || brew install mise
 ```
 
+If mise is already installed, make sure it's at least version 2025.12.4 (the release that added precompiled Ruby support):
+
+```bash
+mise --version
+brew upgrade mise   # run if version is older than 2025.12.4
+```
+
 Activate mise in shell profile:
 
 ```bash
@@ -107,7 +114,7 @@ mise trust
 mise install
 ```
 
-**Note:** Ruby is compiled from source and can take 5-10 minutes. This is normal.
+Mise downloads precompiled Ruby and Python binaries (configured in `.mise.toml`), so this typically finishes in under a minute. If a precompiled binary isn't available for the pinned version, mise falls back to building from source, which can take 5-10 minutes.
 
 Verify versions:
 
@@ -116,19 +123,13 @@ ruby --version    # Should show 3.3.6
 python3 --version # Should show 3.12.8
 ```
 
-## Step 5: Bundler
-
-```bash
-which bundle || gem install bundler
-```
-
-## Step 6: FFmpeg
+## Step 5: FFmpeg
 
 ```bash
 which ffmpeg || brew install ffmpeg
 ```
 
-## Step 7: WhisperX Virtual Environment
+## Step 6: WhisperX Virtual Environment
 
 ```bash
 mkdir -p ~/.buttercut
@@ -143,7 +144,7 @@ pip install whisperx
 deactivate
 ```
 
-## Step 8: WhisperX Wrapper Script
+## Step 7: WhisperX Wrapper Script
 
 ```bash
 cat > ~/.buttercut/whisperx << 'EOF'
@@ -155,7 +156,7 @@ EOF
 chmod +x ~/.buttercut/whisperx
 ```
 
-## Step 9: Add to PATH
+## Step 8: Add to PATH
 
 ```bash
 if [[ "$SHELL" == *"zsh"* ]]; then
@@ -165,7 +166,7 @@ elif [[ "$SHELL" == *"bash"* ]]; then
 fi
 ```
 
-## Step 10: Install ButterCut Dependencies
+## Step 9: Install ButterCut Dependencies
 
 ```bash
 bundle install

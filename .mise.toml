@@ -1,9 +1,23 @@
 # Mise configuration for video-agent project
 # This locks down tool versions to ensure reproducible transcription
 
+# 2025.12.4 introduced `ruby.compile` (precompiled Ruby support).
+min_version = "2025.12.4"
+
 [tools]
 python = "3.12.8"
 ruby = "3.3.6"
+
+# Use precompiled binaries instead of building from source.
+# - Ruby: pulled from github.com/jdx/ruby (macOS arm64 supported)
+# - Python: pulled from python-build-standalone
+# Falls back to source compile if no binary exists for the requested version.
+[settings]
+ruby.compile = false
+python.compile = false
+# python-build-standalone 3.12.8 (Jan 2025) predates GitHub artifact
+# attestations. The tarball is still checksum-verified.
+python.github_attestations = false
 
 # Notes on dependencies:
 # - whisperx 3.4.2 requires pyannote-audio <4.0.0
