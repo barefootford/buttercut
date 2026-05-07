@@ -13,10 +13,10 @@ Version files (`.ruby-version`, `.python-version`) are included for compatibilit
 
 ## Setup Guide
 
-See the [advanced setup guide](../.claude/skills/setup/advanced-setup.md) for step-by-step instructions.
+See the [advanced setup guide](../skills/setup/advanced-setup.md) for step-by-step instructions.
 
 ## Verify Installation
 
 ```bash
-ruby .claude/skills/setup/verify_install.rb
+ruby skills/setup/verify_install.rb
 ```

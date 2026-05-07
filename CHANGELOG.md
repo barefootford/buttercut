@@ -5,6 +5,12 @@ All notable changes to ButterCut will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Skills moved to top-level `skills/`.** Shipped skills now live in `skills/` so Claude Code, Codex, and other agentic CLIs that read `skills/` natively all find the same files. `.claude/skills` is a git-tracked symlink pointing to `../skills`, so Claude Code keeps working unchanged. On a fresh clone this is automatic; if you're updating an old install via `update-buttercut`'s rsync path (no git), you may need to delete the old `.claude/skills/` directory once so the symlink can take its place.
+- **Project instructions moved to `AGENTS.md`.** `CLAUDE.md` is now a one-line `@AGENTS.md` import, so non-Claude agents that read `AGENTS.md` by convention pick up the same rules.
+
 ## [0.6.0] - 2026-05-03
 
 Honestly, this is the biggest single release for ButterCut so far. 0.6 has dramatically better rough cuts driven by the user, sharper editing thanks to new word-by-word timing, and process improvements that help ButterCut make sense of all your footage without getting overwhelmed. It's So. Much. Better.
@@ -48,7 +54,7 @@ Libraries created before this release have no `transcript_refinement` field. The
 
 ```bash
 # Back up your libraries first (creates ZIP in /backups/)
-ruby .claude/skills/backup-library/backup_libraries.rb
+ruby skills/backup-library/backup_libraries.rb
 
 # Add transcript_refinement: false to any library.yaml that's missing the key
 ruby scripts/002_migrate_add_transcript_refinement.rb --all
@@ -89,7 +95,7 @@ ruby scripts/002_migrate_add_transcript_refinement.rb --all
 ### Migration
 ```bash
 # Back up your libraries first (creates ZIP in /backups/)
-ruby .claude/skills/backup-library/backup_libraries.rb
+ruby skills/backup-library/backup_libraries.rb
 
 # Migrate library.yaml files to new field names
 ruby scripts/001_migrate_0.2_to_0.3.rb --all
