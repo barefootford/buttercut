@@ -26,6 +26,8 @@ class FrameExtractor
     duration = video_duration
     timestamps = build_timestamps(duration)
     FileUtils.mkdir_p(@output_dir)
+    # Clean directory before creating new frames
+    Dir.glob(File.join(@output_dir, "frame_*.jpg")).each { |f| File.delete(f) }
     frames = timestamps.map { |t| extract_one(t) }
     report(duration, timestamps, frames)
   end
@@ -47,7 +49,8 @@ class FrameExtractor
       "-vf", "select='gt(scene,#{SCENE_THRESHOLD})',showinfo",
       "-vsync", "vfr", "-f", "null", "-"
     ]
-    _out, err, _status = Open3.capture3(*cmd)
+    _out, err, status = Open3.capture3(*cmd)
+    raise "ffmpeg scene detect failed for #{@video_path}:\n#{err}" unless status.success?
     err.scan(/pts_time:([0-9.]+)/).flatten.map(&:to_f)
   end
 
