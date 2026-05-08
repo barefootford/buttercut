@@ -11,7 +11,7 @@ Adds visual descriptions to a video's audio transcript by extracting JPG frames 
 
 ## Prerequisites
 
-Each video must already have an audio transcript. Run `transcribe-audio` first if any are missing.
+Each video must already have an audio transcript. Run `transcribe-audio` first if any are missing. Silent B-roll clips have empty-but-valid transcripts (`segments: []`, `b_roll: true`) — they still need a visual pass and the sub-agent will annotate them entirely from frames.
 
 ## Parallelism
 

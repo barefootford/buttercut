@@ -7,6 +7,7 @@
 #   ruby summary_skeleton.rb <visual_transcript.json> <summary_output.md>
 
 require 'json'
+require 'open3'
 
 class SummarySkeleton
   def self.create(transcript_path, output_path)
@@ -43,7 +44,13 @@ class SummarySkeleton
   end
 
   def total_duration
-    segments.last["end"].to_f
+    last = segments.last
+    return last["end"].to_f if last
+
+    video_path = data["video_path"].to_s
+    return 0.0 if video_path.empty?
+    out, _err, _status = Open3.capture3("ffprobe", "-v", "quiet", "-show_entries", "format=duration", "-of", "csv=p=0", video_path)
+    out.strip.to_f
   end
 
   def format_timestamp(seconds)

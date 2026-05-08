@@ -28,6 +28,19 @@ whisperx "<video_path>" \
   --output_dir <transcript_output_dir>
 ```
 
+### Silent / B-roll fallback
+
+If WhisperX exits with `No active speech found in audio`, the clip is B-roll (silent or music-only). This is **not an error** — visuals are the only signal, and `analyze-video` will annotate them later. Probe duration and write a stub transcript:
+
+```bash
+DUR=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "<video_path>")
+cat > <transcript_output_dir>/<video_basename>.json <<JSON
+{"segments": [], "word_segments": [], "language": "<language_code>", "duration": $DUR, "b_roll": true}
+JSON
+```
+
+Then continue to step 2 as normal. Note `(silent / b-roll)` in your success response.
+
 ## 2. Prepare audio transcript
 
 ```bash
@@ -49,5 +62,7 @@ If `transcript_refinement: true`, follow `.claude/skills/transcribe-audio/refine
   Audio transcript: <transcript_output_dir>/<video_basename>.json
   Video path: <video_path>
 ```
+
+If the clip was B-roll, append `(silent / b-roll)` to the first line.
 
 **Do NOT update library.yaml** — the parent handles all yaml I/O to avoid race conditions in parallel runs.

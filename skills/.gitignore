@@ -5,12 +5,23 @@
 !.gitignore
 
 # Allowlist of shipped skills. Add a new line when shipping a new skill.
+# Need both `!dir/` (so git descends into it) and `!dir/**` (so files inside
+# are re-included). With only the first, new files inside stay ignored.
 !analyze-video/
+!analyze-video/**
 !backup-library/
+!backup-library/**
 !cut-planner/
+!cut-planner/**
 !release/
+!release/**
 !roughcut/
+!roughcut/**
 !setup/
+!setup/**
 !summarize-video/
+!summarize-video/**
 !transcribe-audio/
+!transcribe-audio/**
 !update-buttercut/
+!update-buttercut/**

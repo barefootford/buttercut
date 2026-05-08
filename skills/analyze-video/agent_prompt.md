@@ -19,26 +19,21 @@ cp <audio_transcript_path> <visual_transcript_path>
 ruby .claude/skills/analyze-video/prepare_visual_script.rb <visual_transcript_path>
 ```
 
-## 2. Extract frames (binary search)
+## 2. Extract frames (scene-detect driven)
 
-Create frame directory: `mkdir -p tmp/frames/[video_name]`
-
-**Videos ≤30s:** extract one frame at 2s
-**Videos >30s:** extract start (2s), middle (duration/2), end (duration-2s)
+Use `extract_frames.rb` — it runs ffmpeg scene-change detection on the clip, then samples frames at the detected change moments (plus first/last, deduped to ≥2s apart, with a 3-frame floor for static clips). This is much more reliable than fixed start/middle/end sampling, which silently misses subjects that enter or change mid-clip.
 
 ```bash
-ffmpeg -ss 00:00:02 -i video.mov -vframes 1 -vf "scale=1280:-1" tmp/frames/[video_name]/start.jpg
+ruby .claude/skills/analyze-video/extract_frames.rb <video_path> tmp/frames/[video_name]
 ```
 
-**Subdivide when:** start, middle, and end have different subjects, settings, or angle changes
-**Stop when:** the footage no longer seems to be changing or only has minor changes
-**Never sample** more frequently than once per 30 seconds
+The script prints JSON with `sampled_timestamps` and `frames[].path`. Read every frame in the `frames` array — these are your full sampling coverage for the clip. The timestamps anchor your segment boundaries: if the script returned 4 frames at 0.5s / 3.2s / 6.1s / 9.1s, those are the natural cut points for splitting the clip into visual segments.
 
 ## 3. Add visual descriptions
 
 Read the visual transcript JSON you created in step 1.
 
-**Read the JPG frames** from `tmp/frames/[video_name]/` using the Read tool, then **Edit** the file at `<visual_transcript_path>`. Do this incrementally — no script needed; just edit the JSON each time you read new frames.
+**Read the JPG frames** that `extract_frames.rb` produced (paths from its JSON output) using the Read tool, then **Edit** the file at `<visual_transcript_path>`. Do this incrementally — no script needed; just edit the JSON each time you read new frames.
 
 **Dialogue segments — add `visual` field:**
 ```json
@@ -62,6 +57,8 @@ Read the visual transcript JSON you created in step 1.
   "words": []
 }
 ```
+
+**Fully silent B-roll clip (audio transcript has `b_roll: true` and empty `segments`):** the clip itself is B-roll end-to-end. With no dialogue to chunk on, the sampled frames are your only signal. Use the `sampled_timestamps` from `extract_frames.rb` as segment boundaries: each consecutive pair of timestamps becomes a segment whose `visual` describes that interval. Only collapse to a single `0`→`duration` segment if every frame is visually near-identical (truly static clip — extractor will typically return only 3 padding frames in that case). Each segment uses `text: ""`, `b_roll: true`, `words: []`, and a `visual` field.
 
 **Guidelines:**
 - Descriptions: 3 sentences max
