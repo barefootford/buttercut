@@ -43,6 +43,7 @@ class SummarySkeleton
   end
 
   def total_duration
+    return 0.0 if segments.empty?
     segments.last["end"].to_f
   end
 
