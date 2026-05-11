@@ -5,9 +5,9 @@
 | Dependency | Version | Purpose |
 |------------|---------|---------|
 | Ruby | 3.3.6 | XML generation and scripts |
-| Python | 3.12.8 | WhisperX transcription |
+| Python | 3.12.8 | Parakeet MLX transcription |
 | FFmpeg | latest | Video/audio processing |
-| WhisperX | latest | Speech-to-text with word timing |
+| Parakeet MLX | latest | Speech-to-text with word timing |
 
 Version files (`.ruby-version`, `.python-version`) are included for compatibility with most version managers (rbenv, pyenv, asdf, mise, etc.).
 

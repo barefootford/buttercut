@@ -24,7 +24,7 @@ You are an AI video editor assistant working with a software engineer. You gener
    - Create directory structure and library.yaml from template
    - Automatically start footage analysis after setup
 2. **Transcribe** → Use `transcribe-audio`, `analyze-video`, and `summarize-video` skills to process videos
-   - First: `transcribe-audio` creates audio transcripts with WhisperX (word-level timing)
+   - First: `transcribe-audio` creates audio transcripts with Parakeet MLX (word-level timing, normalized to ButterCut's standard JSON shape)
    - Then: `analyze-video` adds visual descriptions by extracting and analyzing frames
    - Then: `summarize-video` generates a short markdown summary from each visual transcript
    - All videos must have audio transcripts, visual transcripts, AND summaries before proceeding to rough cut or sequence creation
@@ -49,19 +49,14 @@ Before any library setup, check if `libraries/settings.yaml` exists. If not, cop
 cp templates/settings_template.yaml libraries/settings.yaml
 ```
 
-If no previous settings.yaml was present, use the ask user question tool to ask the user to confirm or change their defaults (editor and whisper_model).
+If no previous settings.yaml was present, use the ask user question tool to ask the user to confirm or change their default editor.
 
 Editor Options:
 - Final Cut Pro X
 - Adobe Premiere Pro
 - DaVinci Resolve
 
-Model Options:
-- Small (recommended — pairs well with per-library transcript_refinement)
-- Medium
-- Turbo (Large)
-
-Save these options into libraries/settings.yaml.
+Save the editor choice into libraries/settings.yaml.
 
 Note: `transcript_refinement` is a **per-library** setting (not global). Ask about it during library setup (see "Gather Project Information" below), not during initial settings setup.
 
@@ -146,9 +141,9 @@ Progressively update the `footage_summary` field after each video is transcribed
 After library setup completes, **automatically start analyzing all footage**:
 
 1. Inform user: "Library setup complete. Found [N] videos ([total size]). Starting footage analysis..."
-2. Read `libraries/settings.yaml` (for `whisper_model`) and the library's `library.yaml` (for `language`, `transcript_refinement`, `user_context`, `footage_summary`) ONCE in the parent thread. If any expected field is missing, run the appropriate migration first (see Critical Principles below).
+2. Read the library's `library.yaml` (for `language`, `transcript_refinement`, `user_context`, `footage_summary`) ONCE in the parent thread. If any expected field is missing, run the appropriate migration first (see Critical Principles below).
 3. Launch `transcribe-audio` agents. Pass these values inline in each agent's prompt:
-   - `video_path`, `transcript_output_dir`, `language_code`, `whisper_model`
+   - `video_path`, `transcript_output_dir`, `language_code`
    - `transcript_refinement` (boolean). If `true`, also pass the current `user_context` and `footage_summary` strings (empty strings are fine — refinement still catches nonsense-token and self-witness fixes).
 4. As each agent completes, update library.yaml with `transcript` (filename only, not full path).
 5. After all audio transcripts complete, launch `analyze-video` agents. Pass inline: `video_path`, `audio_transcript_path`, `visual_transcript_path`.
@@ -185,14 +180,14 @@ After library setup completes, **automatically start analyzing all footage**:
 When processing multiple videos, use parallel agents for maximum throughput:
 
 1. **Parent agent responsibilities:**
-   - Read `library.yaml` and `settings.yaml` once to gather: videos needing work, `language_code`, `whisper_model`, `transcript_refinement`, `user_context`, `footage_summary`.
+   - Read `library.yaml` once to gather: videos needing work, `language_code`, `transcript_refinement`, `user_context`, `footage_summary`.
    - Launch Task agents with transcribe-audio or analyze-video skills, passing all needed values **inline in the prompt**.
    - Update library.yaml sequentially as agents complete.
    - Handle errors and retries.
 
 2. **Child agent (transcribe-audio/analyze-video) responsibilities:**
    - Process ONE video file using only the inputs passed inline by the parent.
-   - Run WhisperX or frame extraction.
+   - Run Parakeet MLX or frame extraction.
    - Prepare and clean transcript JSON.
    - Return structured response with file paths.
 
@@ -261,7 +256,7 @@ When you add a Ruby script under `.claude/scripts/` or similar, follow these con
 - `spec/` - RSpec test suite
 - `templates/` - Library and project templates
 - `libraries/` - Working directory for user's video projects (gitignored)
-- `libraries/settings.yaml` - User settings (editor, whisper_model) — created from template on first library setup
+- `libraries/settings.yaml` - User settings (editor) — created from template on first library setup
 - `backups/` - Compressed library backups (transcriptions, roughcuts, etc) (gitignored)
 
 ## Design Philosophy
@@ -284,7 +279,7 @@ Don't say → say (one per category — generalize the pattern, don't treat as a
 
 - *File/format nouns:* "I'll update the YAML" / "regenerate the FCPXML" → "I'll update the cut" / "I'll re-export it for Final Cut"
 - *Architecture nouns:* "I'll spin up a sub-agent" / "running the roughcut skill" / "the parent thread" → just speak in first person ("I'll build the cut")
-- *Tools and models:* "WhisperX will transcribe" / "running ffmpeg" / "I used Haiku for the summary" → "I'll transcribe the audio" / "I'll analyze the visuals" (don't name models)
+- *Tools and models:* "Parakeet will transcribe" / "running ffmpeg" / "I used Haiku for the summary" → "I'll transcribe the audio" / "I'll analyze the visuals" (don't name models)
 - *Internal field names:* "I'll update footage_summary" / "transcript_refinement is true" → "I'll note that about your footage" / "I'll proofread the transcripts"
 - *Paths in casual chat:* `.fcpxml`, `.json`, `libraries/foo/transcripts/…` → name the artifact ("the Final Cut export", "the transcript") and only show the path at final delivery or when the user needs to grab the file
 

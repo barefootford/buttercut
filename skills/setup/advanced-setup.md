@@ -79,30 +79,30 @@ brew install ffmpeg
 
 Or install via your preferred method.
 
-### 8. WhisperX
+### 8. Parakeet MLX
 
 Two options depending on how you manage Python:
 
 **Option A: Virtual Environment (Recommended)**
 
-Isolates WhisperX dependencies. Creates a wrapper script for easy access.
+Isolates Parakeet MLX dependencies. Creates a wrapper script for easy access.
 
 ```bash
 mkdir -p ~/.buttercut
 python3 -m venv ~/.buttercut/venv
 source ~/.buttercut/venv/bin/activate
 pip install --upgrade pip
-pip install whisperx
+pip install parakeet-mlx
 deactivate
 
 # Create wrapper script
-cat > ~/.buttercut/whisperx << 'EOF'
+cat > ~/.buttercut/parakeet-mlx << 'EOF'
 #!/bin/bash
 source ~/.buttercut/venv/bin/activate
-whisperx "$@"
+parakeet-mlx "$@"
 deactivate
 EOF
-chmod +x ~/.buttercut/whisperx
+chmod +x ~/.buttercut/parakeet-mlx
 
 # Add to PATH (adjust for your shell)
 echo 'export PATH="$HOME/.buttercut:$PATH"' >> ~/.zshrc
@@ -110,13 +110,13 @@ echo 'export PATH="$HOME/.buttercut:$PATH"' >> ~/.zshrc
 
 **Option B: Direct pip install**
 
-If you manage Python environments yourself and want whisperx globally available:
+If you manage Python environments yourself and want parakeet-mlx globally available:
 
 ```bash
-pip install whisperx
+pip install parakeet-mlx
 ```
 
-Ensure `whisperx` is in your PATH.
+Ensure `parakeet-mlx` is in your PATH.
 
 ### 9. ButterCut Ruby Dependencies
 
@@ -139,5 +139,5 @@ All items should show OK.
 ## Notes
 
 - The `.mise.toml` file is provided for mise users but is not required. It pins `ruby.compile = false` and `python.compile = false` so `mise install` pulls precompiled binaries (Ruby from jdx/ruby, Python from python-build-standalone) instead of building from source. Requires mise >= 2025.12.4. Override in your user config if you'd rather compile.
-- WhisperX uses CPU-only mode for simplicity (no CUDA/GPU setup needed)
-- If you use pyenv-virtualenv or similar, you can install whisperx in a dedicated virtualenv instead of `~/.buttercut/venv`
+- Parakeet MLX runs on Apple Silicon via Apple's MLX framework (no CUDA/GPU setup needed)
+- If you use pyenv-virtualenv or similar, you can install parakeet-mlx in a dedicated virtualenv instead of `~/.buttercut/venv`

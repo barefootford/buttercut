@@ -1,42 +1,40 @@
 # Transcribe Audio (sub-agent prompt)
 
-You are a sub-agent. Transcribe one video file using WhisperX and produce a clean JSON transcript with word-level timing.
+You are a sub-agent. Transcribe one video file using Parakeet MLX and produce a clean JSON transcript with word-level timing, normalized to ButterCut's standard transcript shape.
 
-**Critical:** Use WhisperX, NOT standard Whisper. WhisperX preserves the original video timeline including leading silence, ensuring transcripts match actual video timestamps. Run WhisperX directly on the video file — don't extract audio separately.
+**Critical:** Run Parakeet directly on the video file — don't extract audio separately. Parakeet uses ffmpeg internally and preserves the original video timeline.
 
 ## Inputs (passed inline by the parent)
 
 - `video_path` — absolute path to the video file
 - `transcript_output_dir` — where to write the transcript JSON
 - `language_code` — ISO 639-1 code (e.g. `en`, `es`)
-- `whisper_model` — model size (e.g. `small`, `medium`, `turbo`)
 - `transcript_refinement` — boolean; if `true`, also expect:
   - `user_context` — string, may be empty
   - `footage_summary` — string, may be empty
 
 Do NOT read `library.yaml` or `settings.yaml`. If a required input is missing from your prompt, stop and ask the parent rather than inferring from the filesystem.
 
-## 1. Run WhisperX
+## 1. Run Parakeet MLX
 
 ```bash
-whisperx "<video_path>" \
-  --language <language_code> \
-  --model <whisper_model> \
-  --compute_type float32 \
-  --device cpu \
-  --output_format json \
-  --output_dir <transcript_output_dir>
+parakeet-mlx "<video_path>" \
+  --output-format json \
+  --output-dir <transcript_output_dir>
 ```
 
-## 2. Prepare audio transcript
+This writes `<transcript_output_dir>/<video_basename>.json` in Parakeet's native shape (`text`, `sentences[]`, `tokens[]`).
+
+## 2. Normalize to ButterCut's transcript shape
 
 ```bash
-ruby .claude/skills/transcribe-audio/prepare_audio_script.rb \
+ruby .claude/skills/transcribe-audio/parakeet_normalizer.rb \
   <transcript_output_dir>/<video_basename>.json \
-  <video_path>
+  <video_path> \
+  <language_code>
 ```
 
-This script adds the video source path as metadata, removes unnecessary fields, and prettifies the JSON.
+Rewrites the file in place: `sentences` → `segments`, `tokens` → `words`, adds a flat `word_segments` array, plus `language` and `video_path` metadata. Pretty-printed.
 
 ## 3. (Optional) Refine the transcript
 

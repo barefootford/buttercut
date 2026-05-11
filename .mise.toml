@@ -18,8 +18,3 @@ python.compile = false
 # python-build-standalone 3.12.8 (Jan 2025) predates GitHub artifact
 # attestations. The tarball is still checksum-verified.
 python.github_attestations = false
-
-# Notes on dependencies:
-# - whisperx 3.4.2 requires pyannote-audio <4.0.0
-# - pyannote-audio 4.x removed the 'use_auth_token' parameter
-# - We use pyannote-audio 3.4.0 for compatibility

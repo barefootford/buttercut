@@ -2,7 +2,7 @@
 
 Fully automatic installation. Run each step in order, waiting for each to complete. Don't move forward until each step is successful. This may be a non-technical user so adjust your explanations accordingly.
 
-**Note:** ButterCut encourages the use of the CPU version of WhisperX only. This simplifies installation and works reliably on all modern Macs with Apple Silicon.
+**Note:** ButterCut uses Parakeet MLX for transcription. Parakeet runs on Apple Silicon via Apple's MLX framework and works reliably on all modern Macs.
 
 ## Step 0: Check Install Location
 
@@ -129,7 +129,7 @@ python3 --version # Should show 3.12.8
 which ffmpeg || brew install ffmpeg
 ```
 
-## Step 6: WhisperX Virtual Environment
+## Step 6: Parakeet MLX Virtual Environment
 
 ```bash
 mkdir -p ~/.buttercut
@@ -140,20 +140,20 @@ fi
 
 source ~/.buttercut/venv/bin/activate
 pip install --upgrade pip
-pip install whisperx
+pip install parakeet-mlx
 deactivate
 ```
 
-## Step 7: WhisperX Wrapper Script
+## Step 7: Parakeet MLX Wrapper Script
 
 ```bash
-cat > ~/.buttercut/whisperx << 'EOF'
+cat > ~/.buttercut/parakeet-mlx << 'EOF'
 #!/bin/bash
 source ~/.buttercut/venv/bin/activate
-whisperx "$@"
+parakeet-mlx "$@"
 deactivate
 EOF
-chmod +x ~/.buttercut/whisperx
+chmod +x ~/.buttercut/parakeet-mlx
 ```
 
 ## Step 8: Add to PATH
@@ -182,5 +182,5 @@ Tell user to open a new terminal window for all changes to take effect.
 - **Homebrew not in PATH**: Run `eval "$(/opt/homebrew/bin/brew shellenv)"`
 - **Mise not activating**: Open new terminal, run `mise doctor`
 - **Wrong Ruby/Python**: Run `mise trust && mise install` from buttercut directory
-- **WhisperX not found**: Ensure `~/.buttercut` is in PATH, open new terminal
-- **WhisperX import errors**: The wrapper script handles venv activation automatically; ensure you're using `~/.buttercut/whisperx` not calling whisperx directly
+- **Parakeet MLX not found**: Ensure `~/.buttercut` is in PATH, open new terminal
+- **Parakeet MLX import errors**: The wrapper script handles venv activation automatically; ensure you're using `~/.buttercut/parakeet-mlx` not calling parakeet-mlx directly

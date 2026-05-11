@@ -1,6 +1,6 @@
 # Transcript refinement instructions
 
-Companion file for `SKILL.md`. Invoked from SKILL.md Step 4 when the parent passed `transcript_refinement: true`. Reviews a WhisperX transcript and corrects misheard words using the context strings the parent supplied, in place.
+Companion file for `SKILL.md`. Invoked from SKILL.md Step 4 when the parent passed `transcript_refinement: true`. Reviews a Parakeet transcript (already normalized to ButterCut's standard shape) and corrects misheard words using the context strings the parent supplied, in place.
 
 ## Step 1 — Gather inputs from the parent
 
@@ -24,14 +24,14 @@ Read ONLY that `.txt` file for the analysis steps below. Do NOT `Read` the full 
 
 ## Step 3 — HARD RULE: preserve word count, never change timing
 
-WhisperX produces word-level timing. The `segments[].words[]` array is 1:1 with the space-separated tokens in `segments[].text`. Splitting or merging tokens breaks this alignment and corrupts downstream timing used by roughcut.
+The normalized transcript carries word-level timing. The `segments[].words[]` array is 1:1 with the space-separated tokens in `segments[].text`. Splitting or merging tokens breaks this alignment and corrupts downstream timing used by roughcut.
 
 Allowed:
 - **1→1 token spelling fix** (same count, different characters). Transcript: `"The bike ended up in a second-floor apartment over near the Tenderlohn, which is where the cops met us."` Fix: `Tenderlohn` → `Tenderloin` — one mangled token replaced by the correct San Francisco neighborhood spelling, same single-token slot. Surrounding words are untouched.
 - **N→N token phrase fix** (same count across a phrase). Transcript: `"We had been planning to ride out to Walnut Creak for the weekend before the whole thing happened."` Fix: `Walnut Creak` → `Walnut Creek` — two tokens stay two tokens; only one character-set changes, but the phrase is treated as the unit of edit for safety.
 
 Disallowed:
-- **1→2 token split**. Transcript: `"Her cousin grew up in Sanjose and still lives in the same house her parents bought in the sixties."` The correct spelling is "San Jose" (two tokens), but WhisperX fused it into a single token covering the speaker's fast delivery. Splitting that one timing slot into two requires guessing where "San" ends and "Jose" begins — don't do it. (See squashing technique below for the right move.)
+- **1→2 token split**. Transcript: `"Her cousin grew up in Sanjose and still lives in the same house her parents bought in the sixties."` The correct spelling is "San Jose" (two tokens), but the transcriber fused it into a single token covering the speaker's fast delivery. Splitting that one timing slot into two requires guessing where "San" ends and "Jose" begins — don't do it. (See squashing technique below for the right move.)
 - **2→1 token merge**. Transcript: `"We walked every single block of the neighborhood looking for the stolen bike that afternoon."` If you wanted to "normalize" `every single` into a single `everysingle` token, you'd drop one entry from the words array. Same corruption in reverse. Don't.
 
 Never modify timing fields (`start`, `end`, `duration`, `word.start`, `word.end`) for any reason.

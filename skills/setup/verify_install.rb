@@ -16,7 +16,7 @@ class DependencyChecker
     results << check("Bundler", "which bundle", "gem install bundler")
     results << check_python_version
     results << check("FFmpeg", "which ffmpeg", "brew install ffmpeg")
-    results << check_whisperx
+    results << check_parakeet_mlx
     results << check_bundle_install
 
     # Optional: show mise status if installed (not required)
@@ -81,22 +81,22 @@ class DependencyChecker
     end
   end
 
-  def check_whisperx
-    # Check various possible locations for whisperx
+  def check_parakeet_mlx
+    # Check various possible locations for parakeet-mlx
     locations = [
-      "which whisperx",
-      "test -x ~/.buttercut/whisperx",
-      "test -x ~/.buttercut/venv/bin/whisperx"
+      "which parakeet-mlx",
+      "test -x ~/.buttercut/parakeet-mlx",
+      "test -x ~/.buttercut/venv/bin/parakeet-mlx"
     ]
 
     found = locations.any? { |cmd| system("#{cmd} > /dev/null 2>&1") }
 
     if found
-      puts "OK       WhisperX"
-      { name: "WhisperX", status: :ok }
+      puts "OK       Parakeet MLX"
+      { name: "Parakeet MLX", status: :ok }
     else
-      puts "MISSING  WhisperX"
-      { name: "WhisperX", status: :missing, install: "pip install whisperx (see setup instructions)" }
+      puts "MISSING  Parakeet MLX"
+      { name: "Parakeet MLX", status: :missing, install: "pip install parakeet-mlx (see setup instructions)" }
     end
   end
 

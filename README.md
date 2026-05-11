@@ -38,7 +38,7 @@ claude --dangerously-skip-permissions
 > Install ButterCut
 ```
 
-Claude will check your system and install any missing dependencies (Ruby, Python, FFmpeg, WhisperX).
+Claude will check your system and install any missing dependencies (Ruby, Python, FFmpeg, Parakeet MLX).
 
 For manual installation, see [docs/installation.md](docs/installation.md).
 
@@ -60,7 +60,7 @@ You:
 
 Claude: [Automatically processes all videos]
   ✓ Creates library structure
-  ✓ Transcribes audio with WhisperX
+  ✓ Transcribes audio with Parakeet MLX
   ✓ Analyzes video frames
   ✓ Generates visual transcripts
 

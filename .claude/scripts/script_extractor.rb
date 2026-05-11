@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-# Extract the plain-text script from a WhisperX-style transcript JSON.
+# Extract the plain-text script from a ButterCut transcript JSON.
 #
 # Usage:
 #   ruby .claude/scripts/script_extractor.rb <transcript.json> <output.txt>

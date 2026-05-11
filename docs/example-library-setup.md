@@ -173,7 +173,7 @@ libraries/wedding/
 
 1. **Automatic Discovery** - Claude found and sorted videos by size
 2. **Parallel Processing** - 10 videos processed simultaneously (4 at a time)
-3. **WhisperX Integration** - Word-level audio transcription with precise timing
+3. **Parakeet MLX Integration** - Word-level audio transcription with precise timing
 4. **Visual Analysis** - FFmpeg frame extraction + AI visual description
 5. **Smart Summarization** - Automatic footage summary generation
 6. **No Manual Configuration** - Zero config files to edit
