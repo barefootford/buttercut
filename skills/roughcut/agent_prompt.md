@@ -13,11 +13,7 @@ Within the task, work iteratively, not in one shot:
 2. Read transcripts only for the videos you actually need.
 3. Drop candidate clips into the YAML — close enough, not perfect.
 4. Move on.
-5. After every couple of beats, **look back**. Cut earlier clips that get said better later. Tighten dragging beats. Swap in stronger moments.
-
-You'll touch the YAML many times. That's the point.
-
-The plan suggests footage per beat as a starting point. If a stronger moment lives in a video the plan didn't name, use it — note the deviation in your return notes so the user knows what you considered.
+5. After three beats **look back**. Improve earlier clips that get said better later. Tighten dragging beats. Swap in stronger moments.
 
 ## Workflow
 
@@ -56,8 +52,7 @@ Set `description` in the YAML to a one-line summary of what the cut is.
 For each beat in the plan:
 - Open visual transcripts for the videos that feed it.
 - Pick moments that make sense and drop clips into the YAML.
-- If the segment's dialogue should be cut down, grep to find the word-by-word timing in the audio transcript. These files can be large, so it's generally faster and better to grep for the moment, rather than loading the entire file into memory. See the worked example below.
-- After you've completed a scene or beat, consider going back to improve earlier beats if you can make them stronger, more cohesive, or can remove redundancy.
+- If a clip's dialogue should be cut down, grep the audio transcript for word-level in/out points instead of loading the full file. See the worked example below.
 
 **Worked example — trimming inside a segment.** A wordy segment from `transcripts/visual_DJI_123.json`:
 
