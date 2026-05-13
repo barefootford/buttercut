@@ -123,10 +123,11 @@ ruby --version    # Should show 3.3.6
 python3 --version # Should show 3.12.8
 ```
 
-## Step 5: FFmpeg
+## Step 5: FFmpeg and ImageMagick
 
 ```bash
 which ffmpeg || brew install ffmpeg
+which magick || brew install imagemagick
 ```
 
 ## Step 6: WhisperX Virtual Environment

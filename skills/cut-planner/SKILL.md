@@ -37,21 +37,24 @@ If the user wants a full roughcut, read every `libraries/[library-name]/summarie
 
 Only ask the user a question if something is genuinely ambiguous *for this cut* — e.g., "the footage covers two arcs, which one is the focus?" or "are the in-vehicle clips meant to be part of this story or unrelated b-roll?".
 
-### 4. Ask target length
+### 4. Ask for a script or outline
+Before proposing concepts, ask the user: "Do you have a script or outline I can use to guide the cut?" Use `AskUserQuestion` with options like "Yes — I'll paste it in" and "No — let's figure it out from the footage." If they provide one, treat it as the primary narrative guide and skip or compress the concept-proposal step (step 5) — the structure is already decided. Still read the summaries for footage coverage, but build the plan around the provided script.
+
+### 5. Ask target length
 If available, use the `AskUserQuestion` tool or similar to ask the user what length of video they want to create. Use your judgement based on the footage — options like short sequence (30–60s), medium cut (5–8 min), or longer roughcut (9+ min) make good starting points. Podcast footage will likely require a longer option.
 
-### 5. If creating a roughcut, propose 2–3 concepts (titles only)
-Give the user 2–3 genuinely distinct narrative concepts. Keep this round short — it's about picking a direction, not approving a full plan. For each concept, write only:
+### 6. If creating a roughcut, propose 2–3 concepts (titles only)
+Give the user 2 distinct narrative structures. Keep this round short — it's about picking a direction, not approving a full plan. For each concept, write only:
 - **Title** — short, evocative
-- **Concept** — 1–2 sentences explaining the angle, tone, or arc
+- **Concept** — 1–2 sentences explaining the arc and structure
 
-Do **not** include beats, footage suggestions, runtime breakdowns, or format notes yet. Those come in step 6 once a direction is chosen.
+Do **not** include beats, footage suggestions, runtime breakdowns, or format notes yet. Those come in step 7 once a direction is chosen.
 
-Make the options genuinely distinct — different angles, tones, or arcs. End with: "Which feels right, or want me to explore something different?"
+Make the options genuinely distinct — different angles or arcs. End by asking the user if any of these structures are what they had in mind with the footage.
 
 If the user just wants a short sequence, give them information about what the sequence will contain.
 
-### 6. Flesh out the chosen concept
+### 7. Flesh out the chosen concept
 Once the user picks a direction for a full roughcut, expand it into a full plan and present that for approval. Now include:
 - **Format** — vlog, YouTube Short, long-form, documentary, etc.
 - **Beats** — 3–6 beats, each with editorial intent and a rough share of the runtime ("open with ~3 min of X", "montage of Y", "close on Z")
@@ -60,11 +63,15 @@ Once the user picks a direction for a full roughcut, expand it into a full plan 
 
 Iterate on the fleshed-out plan until the user explicitly signals go.
 
-If the user wants a short sequence, be brief, just a few sentences, including dialogue if that makes sense.
+**Any time the user changes the plan — adds a beat, removes a beat, retitles, restructures, adjusts a beat's duration or footage, anything — restate the ENTIRE beat-by-beat plan back to them with the change folded in.** Don't just acknowledge the edit in prose ("got it, Beat 2 is now ~30s") — show every beat again, top to bottom, so the user can see the whole shape after the change. Then ask for the green light.
 
-### 7. Save the plan
-Copy `templates/plan_template.md` to `libraries/[library-name]/plans/plan_[short-name]_[YYYYMMDD_HHMMSS].md` and fill in every section. The template is the canonical structure — Concept, Format, Target Duration, Beats (with intent / approx. share / footage suggestions), Required Dialogue, Notes for the Build.
+**You must get an explicit "yes, let's create the roughcut" (or equivalent affirmative — "go", "build it", "let's do it", "ship it") from the user before moving on.** Tweaks, edits, or refinements to the plan are NOT consent to build. A question like "look right?" answered with another tweak request is a continued iteration, not a green light. Default to staying in the iteration loop. If you're unsure whether the user has approved, ask plainly: "Want me to save this plan and start building the roughcut?" — and wait for an unambiguous yes. Saving the plan file and invoking `roughcut` are part of moving forward, so do neither until that yes lands.
+
+If the user wants a short sequence, be brief, just a few sentences, including dialogue if that makes sense. The same explicit-yes rule applies.
+
+### 8. Save the plan
+Only after the explicit yes from step 7: copy `templates/plan_template.md` to `libraries/[library-name]/plans/plan_[short-name]_[YYYYMMDD_HHMMSS].md` and fill in every section. The template is the canonical structure — Concept, Format, Target Duration, Beats (with intent / approx. share / footage suggestions), Required Dialogue, Notes for the Build.
 
 The plan is direction. The build agent confirms specific clips inside each beat.
 
-Tell the user the plan is ready and confirm they want to move forward, then invoke the `roughcut` skill, passing the full plan path (`libraries/[library-name]/plans/plan_[short-name]_[YYYYMMDD_HHMMSS].md`) as a skill argument — `roughcut` hard-stops if it isn't given one.
+Once saved, invoke the `roughcut` skill, passing the full plan path (`libraries/[library-name]/plans/plan_[short-name]_[YYYYMMDD_HHMMSS].md`) as a skill argument — `roughcut` hard-stops if it isn't given one.

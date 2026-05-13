@@ -12,7 +12,8 @@ ls -la libraries/
 
 Run backup:
 ```bash
-ruby .claude/skills/backup-library/backup_libraries.rb
+# Prefer mise if available; fall back to bare ruby otherwise.
+mise exec -- ruby .claude/skills/backup-library/backup_libraries.rb
 ```
 
 Creates `backups/libraries_YYYYMMDD_HHMMSS.zip` containing the entire libraries directory.

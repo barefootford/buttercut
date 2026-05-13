@@ -4,13 +4,25 @@
 # Track this file itself.
 !.gitignore
 
-# Allowlist of shipped skills. Add a new line when shipping a new skill.
+# Allowlist of shipped skills. For each, two lines are needed: the trailing-slash
+# entry un-ignores the directory itself, and the /** entry un-ignores its
+# contents (otherwise the `*` above re-matches files inside). When shipping a
+# new skill, add both lines.
 !analyze-video/
+!analyze-video/**
 !backup-library/
+!backup-library/**
 !cut-planner/
+!cut-planner/**
 !release/
+!release/**
 !roughcut/
+!roughcut/**
 !setup/
-!summarize-video/
+!setup/**
 !transcribe-audio/
+!transcribe-audio/**
 !update-buttercut/
+!update-buttercut/**
+!full-transcript/
+!full-transcript/**

@@ -71,10 +71,10 @@ Verify:
 python3 --version  # Should show 3.12.8
 ```
 
-### 7. FFmpeg
+### 7. FFmpeg and ImageMagick
 
 ```bash
-brew install ffmpeg
+brew install ffmpeg imagemagick
 ```
 
 Or install via your preferred method.

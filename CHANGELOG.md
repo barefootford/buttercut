@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Skills moved to top-level `skills/`.** Shipped skills now live in `skills/` so Claude Code, Codex, and other agentic CLIs that read `skills/` natively all find the same files. `.claude/skills` is a git-tracked symlink pointing to `../skills`, so Claude Code keeps working unchanged. On a fresh clone this is automatic; if you're updating an old install via `update-buttercut`'s rsync path (no git), you may need to delete the old `.claude/skills/` directory once so the symlink can take its place.
 - **Project instructions moved to `AGENTS.md`.** `CLAUDE.md` is now a one-line `@AGENTS.md` import, so non-Claude agents that read `AGENTS.md` by convention pick up the same rules.
 
+### Removed
+- **`summarize-video` skill.** Summary markdowns are now written by `analyze-video` in the same pass as the visual transcript, while the agent already has the clip's grid and transcript in context. For one-off summary (re)generation, follow step 5 of `skills/analyze-video/agent_prompt.md` using the "Summary shape" section of `skills/analyze-video/examples/patterns.md` as the format reference.
+
 ## [0.6.0] - 2026-05-03
 
 Honestly, this is the biggest single release for ButterCut so far. 0.6 has dramatically better rough cuts driven by the user, sharper editing thanks to new word-by-word timing, and process improvements that help ButterCut make sense of all your footage without getting overwhelmed. It's So. Much. Better.

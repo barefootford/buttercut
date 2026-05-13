@@ -19,3 +19,4 @@ vendor/bundle/
 __pycache__/
 /.zed
 IMPROVEMENTS.md
+/docs/evals/

@@ -23,10 +23,10 @@ You are an AI video editor assistant working with a software engineer. You gener
    - If new: gather project information (library name, video file locations, language)
    - Create directory structure and library.yaml from template
    - Automatically start footage analysis after setup
-2. **Transcribe** → Use `transcribe-audio`, `analyze-video`, and `summarize-video` skills to process videos
+2. **Transcribe** → Use `transcribe-audio` and `analyze-video` skills to process videos
    - First: `transcribe-audio` creates audio transcripts with WhisperX (word-level timing)
-   - Then: `analyze-video` adds visual descriptions by extracting and analyzing frames
-   - Then: `summarize-video` generates a short markdown summary from each visual transcript
+   - Then: `analyze-video` adds visual descriptions AND writes a short markdown summary for each clip in the same pass
+   - For a one-off summary (re)generation, see step 5 of `skills/analyze-video/agent_prompt.md` — the standalone `summarize-video` skill was removed
    - All videos must have audio transcripts, visual transcripts, AND summaries before proceeding to rough cut or sequence creation
 3. **Edit** → Use `cut-planner` then `roughcut` to plan and build a timeline from transcripts
    - `cut-planner` reads all summaries in the main thread, proposes 2–3 narrative options, iterates with the user, and writes an approved plan markdown file
@@ -151,23 +151,17 @@ After library setup completes, **automatically start analyzing all footage**:
    - `video_path`, `transcript_output_dir`, `language_code`, `whisper_model`
    - `transcript_refinement` (boolean). If `true`, also pass the current `user_context` and `footage_summary` strings (empty strings are fine — refinement still catches nonsense-token and self-witness fixes).
 4. As each agent completes, update library.yaml with `transcript` (filename only, not full path).
-5. After all audio transcripts complete, launch `analyze-video` agents. Pass inline: `video_path`, `audio_transcript_path`, `visual_transcript_path`.
-6. As each agent completes, update library.yaml with `visual_transcript` (filename only, not full path).
-7. After all visual transcripts complete, summarize each video using the `summarize-video` skill on the **Haiku model**:
-   - For each video, first pre-create a skeleton file in the parent: `ruby skills/summarize-video/summary_skeleton.rb <visual_transcript_path> <summary_output_path>`
-   - Then launch the agent passing inline: `visual_transcript_path`, `summary_output_path` (e.g., `libraries/[library-name]/summaries/summary_[videoname].md`)
-   - The agent fills the four placeholders via Edit. The skeleton + Edit pattern is required: without it, Haiku frequently refuses Write and dumps markdown into its reply instead.
-8. As each agent completes, update library.yaml with `summary` (filename only, not full path).
-9. **Confirm footage understanding with the user.** Once every summary is written, talk through what the footage actually shows — confirm character names, locations, the narrative through-line, any stray or off-thesis clips, and the user's creative intent for this library. Use plain conversation; only reach for `AskUserQuestion` when offering a discrete choice. As you learn things, update:
+5. After all audio transcripts complete, launch `analyze-video` agents in **batches of 10 clips per agent** (parallelism cap of 8 — see `skills/analyze-video/SKILL.md`). Pass inline: list of clips, each with `video_path`, `audio_transcript_path`, `visual_transcript_path`, `summary_output_path` (e.g., `libraries/[library-name]/summaries/summary_[videoname].md`). The agent writes both the visual transcript AND the markdown summary for each clip while it has the context loaded.
+6. As each agent completes, parse its return summary AND verify against disk: for every clip whose visual transcript file AND summary file both exist, update library.yaml with `visual_transcript` and `summary` (filenames only, not full paths). Re-dispatch any clips that are missing either output.
+7. **Confirm footage understanding with the user.** Once every summary is written, talk through what the footage actually shows — confirm character names, locations, the narrative through-line, any stray or off-thesis clips, and the user's creative intent for this library. Use plain conversation; only reach for `AskUserQuestion` when offering a discrete choice. As you learn things, update:
    - `footage_summary` (locations, characters, narrative arc)
    - `user_context` (preferences, goals, the user's name, tone preferences)
    - individual `summary_*.md` files when a summary mislabels someone or misses a key detail (e.g., "a man in a tan jacket" → the user's name)
 
-   This is the one place to do this thorough pass. Every later cut-planner run inherits the resulting context rather than re-interrogating the library.
-10. Analyze ALL videos before offering to create rough cuts.
-11. **After all analysis completes, automatically create a backup** using the `backup-library` skill.
+8. Analyze ALL videos before offering to create rough cuts.
+9. **After all analysis completes, automatically create a backup** using the `backup-library` skill.
 
-**Contract: sub-agents receive `agent_prompt.md`, not `SKILL.md`.** For parallelizable skills (`transcribe-audio`, `analyze-video`, `summarize-video`), the parent reads `SKILL.md` for dispatch info (parallelism cap, required inputs) and inlines `agent_prompt.md` into the sub-agent's prompt. `SKILL.md` is parent-only.
+**Contract: sub-agents receive `agent_prompt.md`, not `SKILL.md`.** For parallelizable skills (`transcribe-audio`, `analyze-video`), the parent reads `SKILL.md` for dispatch info (parallelism cap, required inputs) and inlines `agent_prompt.md` into the sub-agent's prompt. `SKILL.md` is parent-only.
 
 **Note on refinement:** When `transcript_refinement: true`, each `transcribe-audio` agent reviews and corrects its transcript in place before returning, using the `user_context` and `footage_summary` the parent passed in. Empty context strings are fine — the agent still runs and catches nonsense-token and self-witness fixes. The parent still only writes `transcript: <filename>.json` to `library.yaml` after the agent completes.
 
@@ -333,4 +327,4 @@ User-created skills must be prefixed with `user-` so they can never collide with
 - `user-create-instagram-reel`
 - `user-process-aroll`
 
-When shipping a new skill, add a `!<skill-name>/` line to `skills/.gitignore` along with the skill directory itself. If you forget the gitignore line, `git status` won't show the new skill.
+When shipping a new skill, add two lines to `skills/.gitignore` for it: `!<skill-name>/` (un-ignore the directory so git traverses into it) and `!<skill-name>/**` (un-ignore its contents so the leading `*` rule doesn't re-match files inside). Both are needed — without the `/**` line, new files inside the allowlisted directory will silently stay ignored.

@@ -16,6 +16,7 @@ class DependencyChecker
     results << check("Bundler", "which bundle", "gem install bundler")
     results << check_python_version
     results << check("FFmpeg", "which ffmpeg", "brew install ffmpeg")
+    results << check("ImageMagick", "which magick", "brew install imagemagick")
     results << check_whisperx
     results << check_bundle_install
 

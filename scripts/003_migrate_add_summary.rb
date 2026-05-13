@@ -1,12 +1,13 @@
 #!/usr/bin/env ruby
 # Migration script: Add `summary` field to video entries that predate the
-# summarize-video skill.
+# summary feature.
 #
-# The summarize-video skill produces a short markdown summary of each video
-# from its visual transcript. Libraries created before that skill existed have
-# no `summary:` key in their video entries. Missing means "todo" — the same
-# convention as `transcript:` and `visual_transcript:`. The migration inserts
-# an empty `summary:` line directly after each `visual_transcript:` line.
+# Each video entry now carries a `summary:` field with the filename of a short
+# markdown summary written by `analyze-video` alongside the visual transcript.
+# Libraries created before this feature existed have no `summary:` key in their
+# video entries. Missing means "todo" — the same convention as `transcript:`
+# and `visual_transcript:`. The migration inserts an empty `summary:` line
+# directly after each `visual_transcript:` line.
 #
 # Video entries that already have `summary:` are left alone. Video entries
 # without `visual_transcript:` (mid-pipeline videos) are skipped — they'll get
@@ -21,6 +22,7 @@
 #        ruby scripts/003_migrate_add_summary.rb --all
 
 require 'yaml'
+require 'date'
 
 def migrate_library(library_path)
   unless File.exist?(library_path)

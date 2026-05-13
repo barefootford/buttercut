@@ -62,4 +62,4 @@ The library copy stays as the canonical artifact; the desktop copy is a convenie
 Run the `backup-library` skill. This snapshots the library (yaml, transcripts, summaries, plans, roughcuts) so progress can be restored if needed.
 
 ## 7. Report Results
-Surface the agent's return message to the user — the YAML path, the library XML path, the desktop XML path (only if step 5 actually copied one), plus the editorial notes. The notes are the conversational hook for what comes next; small fixes you can do directly in the YAML, larger restructures relaunch this skill with a revised plan.
+Surface the agent's return message to the user — the library XML path or the desktop XML path if they have that enabled. Also include very abbreviated editorial notes from the agent. **Do not include the YAML path** — it's an internal build artifact, not something the user opens. The notes are the conversational hook for what comes next; small fixes you can do directly in the YAML and then re-export without another subagent. For very large changes you can assign the work to a (Claude Sonnet or equivalent) subagent to perform.
