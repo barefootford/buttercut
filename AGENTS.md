@@ -1,37 +1,37 @@
 # ButterCut - Video Rough Cut Generator
-**ButterCut** is a Ruby gem for generating Final Cut Pro XML from video files with AI-powered rough cut creation. It combines automatic metadata extraction via FFmpeg with Claude Code for intelligent video editing workflows.
+ButterCut is a special folder that video editors open to get help with generating roughcuts, finding broll, and other assorted video editing tasks. It runs through Claude Code, Codex, and other agentic tools.
 
-The project has two main components:
-1. **Ruby Gem** - XML generation library supporting Final Cut Pro X and FCP7/Premiere
-2. **Claude Code Integration** - AI-powered video editing workflow with transcription and rough cut creation
+The ButtterCut folder includes two main components:
 
-## Supported Editors
-
-Currently supports:
-- **Final Cut Pro X** (FCPXML 1.8 format)
-- **Adobe Premiere Pro** (xmeml version 5)
-- **DaVinci Resolve** (xmeml version 5)
+1. **Ruby Gem** - XML generation library supporting Final Cut Pro X and FCP7/Premiere (and any other editing app that supports these formats)
+2. **Agent Skill Integration** - AI-powered video editing workflow with video processing (audio transcription and visual understanding) and rough cut creation, dialogue extraction, etc.
 
 ## Core Workflow
 
-You are an AI video editor assistant working with a software engineer. You generate Final Cut Pro rough cut project files from raw video footage by analyzing transcripts, indexing visuals, then creating rough cuts based on what the user asks for. Work is organized into **libraries** (video series/projects), each self-contained under `/libraries/[library-name]/`. The user will type library names from memory and they are likely to be imprecise in naming. When a user refers to a library, first list the libraries available in the libraries directory to see what you have and find the correct one. If you're unsure, confirm naming with the user and give them names of libraries. If it's clear what library they're referring to, just start working with that library.
+Claude/Codex/The Agent/You are working as an assistant AI video editor working for a (non-technical, non-engineer) video editor. 
+
+You help with video tasks by processing raw video footage by analyzing transcripts and indexing visuals through libraries.
+
+Work is organized into **libraries** (video series/projects), each self-contained under `/libraries/[library-name]/`. When a user refers to a library, you you'll want to load the library file in memory. If they talk about building a roughcut, extracting dialogue, etc, you'll need to first find and read the correct library file. If it's not clear what library they're talking about, find recently modified libraries and list them for the user using the AskUserQuestionTool or similiar to see what library they want to work with. If it's clear what library they're referring to, just start working with that library.
+
+(In addition to the primary thread, many times subagents are initiated to work on smaller, more focused tasks. In these cases you should be given all of the arguments/information necessary to finish your task by the primary agent.)
 
 ### Workflow Steps
 
 1. **Setup** → Initialize a new library or work with an existing library
    - Check for existing library in `/libraries/[library-name]/`
-   - If new: gather project information (library name, video file locations, language)
+   - Create a new one if necessary. If a new one is necessary, ask the user questions needed to fill out template in `templates/library_template.yaml`
    - Create directory structure and library.yaml from template
-   - Automatically start footage analysis after setup
-2. **Transcribe** → Use `transcribe-audio`, `analyze-video`, and `summarize-video` skills to process videos
-   - First: `transcribe-audio` creates audio transcripts with WhisperX (word-level timing)
-   - Then: `analyze-video` adds visual descriptions by extracting and analyzing frames
+   - Start footage analysis after initial setup with the user
+2. **Analyze Video** → Use `transcribe-audio`, `analyze-video`, and `summarize-video` skills to process videos
+   - First: `transcribe-audio` creates audio transcripts with word-level timing
+   - Then: `analyze-video` adds visual descriptions to visual transcripts by extracting and analyzing frames
    - Then: `summarize-video` generates a short markdown summary from each visual transcript
    - All videos must have audio transcripts, visual transcripts, AND summaries before proceeding to rough cut or sequence creation
-3. **Edit** → Use `cut-planner` then `roughcut` to plan and build a timeline from transcripts
-   - `cut-planner` reads all summaries in the main thread, proposes 2–3 narrative options, iterates with the user, and writes an approved plan markdown file
-   - `roughcut` consumes that plan, spins up a sub-agent that reads the library directly, builds the YAML iteratively, reviews against format conventions, exports the XML, and returns conversational editorial notes the parent uses to dialogue with the user
-   - **Rough cuts**: 3–15+ min edits. **Sequences**: 30–60s clips. Same pair of skills, different target duration.
+3. **Edit** → Use `roughcut` to plan and build a timeline from transcripts
+   - First the roughcut skill first comes up with a plan for the edit
+   - Then it spins up a sub-agent to read the library, and build a YAML  iteratively, reviews against format conventions, exports the XML, and returns conversational editorial notes the parent uses to dialogue with the user
+   - **Rough cuts**: 3–15+ min edits. **Sequences**: 30–60s clips. Same skill, different target duration.
    - **PREREQUISITE:** Check library.yaml to verify all videos have `visual_transcript` and `summary` populated
 4. **Backup** → Use `backup-library` skill to create compressed archives of all libraries
    - Creates timestamped ZIP backup of entire libraries directory
@@ -163,7 +163,7 @@ After library setup completes, **automatically start analyzing all footage**:
    - `user_context` (preferences, goals, the user's name, tone preferences)
    - individual `summary_*.md` files when a summary mislabels someone or misses a key detail (e.g., "a man in a tan jacket" → the user's name)
 
-   This is the one place to do this thorough pass. Every later cut-planner run inherits the resulting context rather than re-interrogating the library.
+   This is the one place to do this thorough pass. Every later `roughcut` planning run inherits the resulting context rather than re-interrogating the library.
 10. Analyze ALL videos before offering to create rough cuts.
 11. **After all analysis completes, automatically create a backup** using the `backup-library` skill.
 
