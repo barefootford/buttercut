@@ -31,7 +31,7 @@ Work is organized into **libraries** (video series/projects), each self-containe
 3. **Edit** → Use `roughcut` to plan and build a timeline from transcripts
    - First the roughcut skill first comes up with a plan for the edit
    - Then it spins up a sub-agent to read the library, and build a YAML  iteratively, reviews against format conventions, exports the XML, and returns conversational editorial notes the parent uses to dialogue with the user
-   - **Rough cuts**: 3–15+ min edits. **Sequences**: 30–60s clips. Same skill, different target duration.
+   - One skill covers everything from a 1–2 clip cleanup to a full multi-minute roughcut — `planning.md` walks the user through picking which.
    - **PREREQUISITE:** Check library.yaml to verify all videos have `visual_transcript` and `summary` populated
 4. **Backup** → Use `backup-library` skill to create compressed archives of all libraries
    - Creates timestamped ZIP backup of entire libraries directory

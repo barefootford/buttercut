@@ -10,12 +10,12 @@ Plans a cut with the user, then builds the timeline and exports it for their edi
 ## 1. Plan the Cut
 If a plan path was passed in as a skill argument (`libraries/[library-name]/plans/plan_[short-name]_[timestamp].md`) and that file already exists, skip to step 2 — the plan is already approved.
 
-Otherwise, read `.claude/skills/roughcut/planning.md` and run that flow with the user. It covers verifying clip coverage, asking for a script or paper edit, picking a length, proposing concepts, fleshing out beats, getting explicit approval, and saving the plan markdown.
+Otherwise, read `skills/roughcut/planning.md` and run that flow with the user. It covers verifying clip coverage, asking for a script or paper edit, picking a length, proposing concepts, fleshing out beats, getting explicit approval, and saving the plan markdown.
 
 Only proceed past step 1 once a plan file exists at `libraries/[library-name]/plans/plan_[short-name]_[timestamp].md`.
 
-## 2. Resolve the Editor (Parent Only)
-The sub-agent receives a final editor value:
+## 2. Determine the Editing Application (Parent Only)
+The sub-agent receives a final editor application value:
 1. If `library.yaml` has `editor` set, use it.
 2. Otherwise fall back to `libraries/settings.yaml`'s `editor` and write the value back to `library.yaml`.
 3. If neither has one, ask the user (Final Cut Pro X / Adobe Premiere Pro / DaVinci Resolve), then save the choice to both `library.yaml` and `libraries/settings.yaml`.
