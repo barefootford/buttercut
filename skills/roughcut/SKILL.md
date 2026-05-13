@@ -1,14 +1,18 @@
 ---
 name: roughcut
-description: Builds a roughcut YAML and exported XML (Final Cut, Premiere, or Resolve) from an approved plan markdown file produced by `cut-planner`. Spins up a sub-agent that reads the library directly, builds the cut iteratively, reviews against format conventions, then returns paths plus conversational editorial notes. If the user asks for a "roughcut", "sequence", or "scene" and no plan exists yet, run `cut-planner` first.
+description: Plans and builds a roughcut, sequence, or scene from a library. First walks the user through shaping a plan (concepts, beats, length, footage), then builds the timeline as YAML and exports XML for Final Cut, Premiere, or Resolve. Use when the user asks for a "roughcut", "sequence", or "scene".
 ---
 
-# Skill: Roughcut Build
+# Skill: Roughcut
 
-Turns an approved plan into a working roughcut YAML and exported XML. The sub-agent runs async — it commits to a complete cut and returns with notes you can dialogue about.
+Plans a cut with the user, then builds the timeline and exports it for their editor.
 
-## 1. Locate the Plan
-A plan path **must** be passed in as a skill argument (the format produced by `cut-planner` step 7: `libraries/[library-name]/plans/plan_[short-name]_[timestamp].md`). If no plan path is passed in, stop immediately and return a message to the parent saying a plan path is required and `cut-planner` should be run first. Do not search for plans, do not pick one, do not proceed without one.
+## 1. Plan the Cut
+If a plan path was passed in as a skill argument (`libraries/[library-name]/plans/plan_[short-name]_[timestamp].md`) and that file already exists, skip to step 2 — the plan is already approved.
+
+Otherwise, read `.claude/skills/roughcut/planning.md` and run that flow with the user. It covers verifying clip coverage, asking for a script or paper edit, picking a length, proposing concepts, fleshing out beats, getting explicit approval, and saving the plan markdown.
+
+Only proceed past step 1 once a plan file exists at `libraries/[library-name]/plans/plan_[short-name]_[timestamp].md`.
 
 ## 2. Resolve the Editor (Parent Only)
 The sub-agent receives a final editor value:
@@ -28,7 +32,7 @@ Agent tool with:
 ### Agent Prompt Template
 
 ```
-You are a video editor AI agent for the "{library_name}" library. The plan below is approved direction — beats, intent, rough length, format. The specific clips are yours to find inside the library. Work iteratively, then review and refine before returning.
+You are a video editor AI agent for the "{library_name}" library. The plan below is approved direction — beats, intent, rough length, format. The specific clips are yours to find inside the library. Create an initial draft that focuses on a coherent story with coherent dialogue, then review your work, focusing on the dialogue, consider what improvements should be made, then make those improvements and refine before returning.
 
 LIBRARY YAML: libraries/{library_name}/library.yaml
 
@@ -62,4 +66,4 @@ The library copy stays as the canonical artifact; the desktop copy is a convenie
 Run the `backup-library` skill. This snapshots the library (yaml, transcripts, summaries, plans, roughcuts) so progress can be restored if needed.
 
 ## 7. Report Results
-Surface the agent's return message to the user — the YAML path, the library XML path, the desktop XML path (only if step 5 actually copied one), plus the editorial notes. The notes are the conversational hook for what comes next; small fixes you can do directly in the YAML, larger restructures relaunch this skill with a revised plan.
+Surface the agent's return message to the user — the library XML path or the desktop XML path if they have that enabled. Also include very abbreviated editorial notes from the agent. **Do not include the YAML path** — it's an internal build artifact, not something the user opens. The notes are the conversational hook for what comes next; small fixes you can do directly in the YAML and then re-export without another subagent. For very large changes you can assign the work to a (Claude Sonnet or equivalent) subagent to perform.

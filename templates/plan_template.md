@@ -1,5 +1,5 @@
 <!--
-Cut Plan Template — written by `cut-planner`, consumed by `roughcut`.
+Cut Plan Template — written and consumed by `roughcut` (see `skills/roughcut/planning.md`).
 
 Fill in every section. Delete this comment block before saving.
 The plan is editorial direction; the build agent picks the exact clips
