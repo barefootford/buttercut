@@ -31,7 +31,8 @@ whisperx "<video_path>" \
 ## 2. Prepare audio transcript
 
 ```bash
-ruby .claude/skills/transcribe-audio/prepare_audio_script.rb \
+# Prefer mise if available; fall back to bare ruby otherwise.
+mise exec -- ruby .claude/skills/transcribe-audio/prepare_audio_script.rb \
   <transcript_output_dir>/<video_basename>.json \
   <video_path>
 ```
