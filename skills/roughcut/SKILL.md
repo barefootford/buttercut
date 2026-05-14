@@ -20,7 +20,30 @@ The sub-agent receives a final editor application value:
 2. Otherwise fall back to `libraries/settings.yaml`'s `editor` and write the value back to `library.yaml`.
 3. If neither has one, ask the user (Final Cut Pro X / Adobe Premiere Pro / DaVinci Resolve), then save the choice to both `library.yaml` and `libraries/settings.yaml`.
 
-## 3. Launch Build Agent
+## 3. Decide: Build Directly or Launch Sub-Agent
+
+Two paths depending on how much editorial work is left:
+
+**Build directly in the main thread when the plan is already concrete.** If the approved plan names specific clips AND specific in/out timestamps (or dialogue spans precise enough to map to timestamps via grep on the audio transcript), the exploration work is done. The main thread already has the clips and trims in context from planning — handing off to a sub-agent just rebuilds what's already known. Write the YAML + export yourself following `agent_prompt.md` (YAML structure, dialogue corrections, export command). The export command, copied here so you don't have to chase it:
+
+```bash
+# Final Cut Pro X
+mise exec -- ruby -Ilib ./.claude/skills/roughcut/export.rb --editor fcpx libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].fcpxml
+
+# Premiere Pro
+mise exec -- ruby -Ilib ./.claude/skills/roughcut/export.rb --editor premiere libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].xml
+
+# DaVinci Resolve
+mise exec -- ruby -Ilib ./.claude/skills/roughcut/export.rb --editor resolve libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].xml
+```
+
+If `mise` is unavailable, drop the `mise exec --` prefix.
+
+**Launch a sub-agent when the plan is beat-level direction.** If the plan describes beats by intent ("find a moment where X", "B-roll over the meetup arrival", multi-minute roughcut spanning many clips), the build needs broad library exploration — reading summaries, scanning transcripts, picking from dozens of candidates. That work belongs in a sub-agent to protect main-thread context.
+
+Rule of thumb: If you have precise dialogue and only 5 or 6 clips, do a direct build yourself. If generating a roughcut that requires exploration, use a sub-agent.
+
+### Sub-agent invocation
 
 ```
 Agent tool with:
@@ -29,7 +52,7 @@ Agent tool with:
 - prompt: [see template below]
 ```
 
-### Agent Prompt Template
+#### Agent Prompt Template
 
 ```
 You are a video editor AI agent for the "{library_name}" library. The plan below is approved direction — beats, intent, rough length, format. The specific clips are yours to find inside the library. Create an initial draft that focuses on a coherent story with coherent dialogue, then review your work, focusing on the dialogue, consider what improvements should be made, then make those improvements and refine before returning.
@@ -48,7 +71,7 @@ TASK:
 ```
 
 ## 4. Context Contract
-This sub-agent reads `library.yaml` directly — it needs the full inventory plus `footage_summary` and `user_context`. This is a deliberate carve-out from the parallel-skill contract: `roughcut` runs as a single agent (no race risk), and editorial work needs broader library context than inline-passing comfortably supports.
+When a sub-agent is launched, it reads `library.yaml` directly — it needs the full inventory plus `footage_summary` and `user_context`. This is a deliberate carve-out from the parallel-skill contract: `roughcut` runs as a single agent (no race risk), and editorial work needs broader library context than inline-passing comfortably supports.
 
 ## 5. Copy XML to Desktop (if enabled)
 Check `libraries/settings.yaml` for `save_to_desktop_after_export`:
