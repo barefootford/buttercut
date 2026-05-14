@@ -3,6 +3,7 @@
 /libraries
 /media
 /backups
+/spec/assets
 
 # Ruby
 *.gem
