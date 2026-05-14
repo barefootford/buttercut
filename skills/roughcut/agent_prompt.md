@@ -115,18 +115,22 @@ Use editorial judgment based on what you know about the user (`user_context`) an
 
 ### 6. Export
 
-Use the `editor` value passed inline in the prompt — the parent already resolved it. Run the matching command:
+Use the `editor` value passed inline in the prompt — the parent already resolved it.
+
+**Ruby version matters.** This project pins Ruby via `.mise.toml`. macOS system Ruby (2.6) is too old and will fail. Run the export with mise's Ruby and `-Ilib` so it finds the local `buttercut` gem without bundler.
 
 ```bash
 # Final Cut Pro X
-bundle exec ./.claude/skills/roughcut/export.rb --editor fcpx libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].fcpxml
+mise exec -- ruby -Ilib ./.claude/skills/roughcut/export.rb --editor fcpx libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].fcpxml
 
 # Premiere Pro
-bundle exec ./.claude/skills/roughcut/export.rb --editor premiere libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].xml
+mise exec -- ruby -Ilib ./.claude/skills/roughcut/export.rb --editor premiere libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].xml
 
 # DaVinci Resolve
-bundle exec ./.claude/skills/roughcut/export.rb --editor resolve libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].xml
+mise exec -- ruby -Ilib ./.claude/skills/roughcut/export.rb --editor resolve libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].xml
 ```
+
+If `mise` is not available, run `ruby -Ilib ...` directly — it'll use whatever Ruby is on PATH, which on a machine without mise is typically a 3.x install from Homebrew or asdf.
 
 ### 7. Return — with notes
 
