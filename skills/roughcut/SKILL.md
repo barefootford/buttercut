@@ -90,3 +90,9 @@ Run the `backup-library` skill. This snapshots the library (yaml, transcripts, s
 
 ## 7. Report Results
 Surface the agent's return message to the user — the library XML path or the desktop XML path if they have that enabled. Also include very abbreviated editorial notes from the agent. **Do not include the YAML path** — it's an internal build artifact, not something the user opens. The notes are the conversational hook for what comes next; small fixes you can do directly in the YAML and then re-export without another subagent. For very large changes you can assign the work to a (Claude Sonnet or equivalent) subagent to perform.
+
+Also include the one-line import instruction for the editor used:
+
+- **Final Cut Pro X:** Open the cut in Final Cut Pro with File → Import → XML
+- **Adobe Premiere Pro:** Open the cut in Premiere with File → Import, then select the XML file
+- **DaVinci Resolve:** Open the cut in Resolve with File → Import → Timeline, then select the XML file
