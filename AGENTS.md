@@ -124,6 +124,7 @@ mkdir -p libraries/[library-name]/transcripts
 mkdir -p libraries/[library-name]/roughcuts
 mkdir -p libraries/[library-name]/summaries
 mkdir -p libraries/[library-name]/plans
+mkdir -p libraries/[library-name]/contact_sheets
 ```
 
 Note: A single `tmp/` directory inside the buttercut project root is used for all temporary files. Create subdirectories as needed and delete after use.
