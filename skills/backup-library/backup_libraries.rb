@@ -16,7 +16,7 @@ class LibraryBackup
 
   def backup
     unless Dir.exist?(@libraries_dir)
-      puts "❌ No libraries directory found"
+      puts "No libraries directory found"
       return nil
     end
 
@@ -25,7 +25,7 @@ class LibraryBackup
     timestamp = Time.now.strftime('%Y%m%d_%H%M%S')
     backup_path = File.join(@backups_dir, "libraries_#{timestamp}.zip")
 
-    puts "📦 Creating backup: #{backup_path}"
+    puts "Creating backup: #{backup_path}"
 
     files = Dir.glob(File.join(@libraries_dir, '**', '*')).select { |f| File.file?(f) }
 
@@ -35,7 +35,7 @@ class LibraryBackup
       end
     end
 
-    puts "✅ Backed up #{files.size} files"
+    puts "Backed up #{files.size} files"
     backup_path
   end
 end
