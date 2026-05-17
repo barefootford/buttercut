@@ -33,4 +33,11 @@ RSpec.configure do |config|
   end
 
   config.shared_context_metadata_behavior = :apply_to_host_groups
+
+  config.after(:suite) do
+    if RSpec.configuration.exclusion_filter[:benchmark]
+      puts "\nTip: benchmark specs were skipped. On a dev machine, run them with:"
+      puts "  bundle exec rspec --tag benchmark"
+    end
+  end
 end
