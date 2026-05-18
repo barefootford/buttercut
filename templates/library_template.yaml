@@ -14,10 +14,21 @@ footage_summary: "No footage analyzed yet."
 # "This footage appears to be wedding footage. It includes the bride and groom getting dressed, preparing for the wedding ceremomy, the ceremony, and the post ceremony dinner and party."
 # "This footage appears to be a vlog. The footage starts in The Richmond District in San Francisco, includes a bus ride on the 38R, and concludes at a Ruby Meetup in downtown San Francisco."
 
-# Video files and transcription status
+# Video files and analysis status
+#
+# Per clip, analysis produces three artifacts:
+#   transcript     — audio transcript JSON (word-level timing, in transcripts/)
+#   script         — clean dialogue text, no timing (in scripts/)
+#   contact_sheet  — _full.jpg visual overview (in contact_sheets/); per-segment
+#                    sheets for clips >10 min live alongside on disk
+#   summary        — markdown overview (in summaries/)
+#
+# Note: visual_transcript is deprecated. Older libraries may still carry the
+# field; new libraries use the contact_sheet artifact instead.
 videos:
   - path: /full/path/to/video_file.mp4
     duration: "00:05:32"
     transcript: # filename only (stored in libraries/[library-name]/transcripts/)
-    visual_transcript: # filename only (visual_*.json with frame descriptions)
-    summary: # filename only (summary_*.md overview stored in libraries/[library-name]/summaries/)
+    script: # filename only (clean dialogue text in libraries/[library-name]/scripts/)
+    contact_sheet: # filename only (_full.jpg in libraries/[library-name]/contact_sheets/)
+    summary: # filename only (summary_*.md in libraries/[library-name]/summaries/)
