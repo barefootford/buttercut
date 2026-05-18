@@ -8,8 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Footage analysis is dramatically faster.** Visual transcripts (LLM-driven, frame-by-frame) are gone. Each clip now gets a contact sheet (a single image grid covering the whole clip with timestamps burned in), a clean dialogue script (no timing weight), and the existing markdown summary. Contact sheet generation is pure ffmpeg — no LLM in that step — so analysis runtime drops from roughly 1× footage length to a small fraction of it. The roughcut agent reads the contact sheet to "see" a clip at a glance, the script for cheap dialogue context, and the audio transcript only when it needs word-level cut timing.
+- **`summarize-video` skill folded into `analyze-video`.** One skill, one parent dispatch, one sub-agent per clip.
+- **New `build_contact_sheets.rb` orchestrator.** Scans a library, skips clips that already have a `_full.jpg`, and generates the rest (plus 10-minute chunk sheets for clips longer than 10 minutes). Batches 10 clips per invocation by default; pass `--limit N` or `--all` to change that. Runs 4 ffmpeg workers in parallel, longest clips first — roughly 3-4× faster on an M-series Mac while staying inside ~80% CPU.
+- **New `build_scripts.rb` orchestrator.** Pre-bakes clean dialogue scripts for every clip in a library in one deterministic pass, so analyze-video sub-agents don't have to shell out per clip. Pure JSON parsing — no LLM. Idempotent.
+- **Analyze-video sub-agents now write each summary in one shot.** The four-placeholder skeleton + four-Edit dance is gone; the sub-agent reads the contact sheet and script, then issues a single `Write` with the full markdown. Drops per-clip from 7 tool calls to 3 — roughly halves the slowest-batch wall.
+- **Library schema:** new `script:` and `contact_sheet:` fields per video; `visual_transcript:` is deprecated. Old libraries keep their `visual_*.json` files on disk — no migration runs. Re-run analysis on an old library to populate the new fields.
 - **Skills moved to top-level `skills/`.** Shipped skills now live in `skills/` so Claude Code, Codex, and other agentic CLIs that read `skills/` natively all find the same files. `.claude/skills` is a git-tracked symlink pointing to `../skills`, so Claude Code keeps working unchanged. On a fresh clone this is automatic; if you're updating an old install via `update-buttercut`'s rsync path (no git), you may need to delete the old `.claude/skills/` directory once so the symlink can take its place.
 - **Project instructions moved to `AGENTS.md`.** `CLAUDE.md` is now a one-line `@AGENTS.md` import, so non-Claude agents that read `AGENTS.md` by convention pick up the same rules.
+
+### Removed
+- `summarize-video` skill (folded into `analyze-video`).
+- `skills/analyze-video/prepare_visual_script.rb` (no more visual transcripts).
+- `skills/analyze-video/summary_skeleton.rb` (sub-agents write the summary in one shot now; no placeholder skeleton needed).
 
 ## [0.6.0] - 2026-05-03
 

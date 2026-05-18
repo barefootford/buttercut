@@ -44,7 +44,7 @@ For manual installation, see [docs/installation.md](docs/installation.md).
 
 ## Usage
 
-First tell Claude to create a **Library**. A library organizes your video footage along with audio and visual transcripts. Then tell Claude you want to create a **rough cut** or **sequence**.
+First tell Claude to create a **Library**. A library organizes your video footage along with the transcripts, contact sheets, and summaries Claude needs to edit it. Then tell Claude you want to create a **rough cut** or **sequence**.
 
 ### Creating a Video Library
 
@@ -60,14 +60,14 @@ You:
 
 Claude: [Automatically processes all videos]
   ✓ Creates library structure
-  ✓ Transcribes audio with WhisperX
-  ✓ Analyzes video frames
-  ✓ Generates visual transcripts
+  ✓ Transcribes audio
+  ✓ Builds a contact sheet for every clip
+  ✓ Writes a short summary of each clip
 
 Result: Full footage analysis ready for rough cut creation
 ```
 
-Claude handles the parallel processing, metadata extraction, and transcript generation. See the [full walkthrough](docs/example-library-setup.md) for a detailed example of me setting up a library from my wedding footage.
+Claude handles the parallel processing, metadata extraction, and analysis. See the [full walkthrough](docs/example-library-setup.md) for a detailed example of me setting up a library from my wedding footage.
 
 ### Creating a Roughcut or Sequence
 
@@ -100,7 +100,7 @@ Claude: [Asks which video editor you want to use]
 You: "Final Cut Pro X"
 
 Claude: [Creates roughcut with editorial decisions]
-        ✓ Combined visual transcripts
+        ✓ Reviewed contact sheets and scripts
         ✓ Selected 29 clips (4:32 total)
         ✓ Exported to FCPXML
 
