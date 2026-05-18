@@ -18,8 +18,6 @@
 !roughcut/**
 !setup/
 !setup/**
-!summarize-video/
-!summarize-video/**
 !transcribe-audio/
 !transcribe-audio/**
 !update-buttercut/
@@ -28,3 +26,5 @@
 !full-transcript/**
 !contact-sheet/
 !contact-sheet/**
+!process-library/
+!process-library/**
