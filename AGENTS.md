@@ -14,219 +14,53 @@ You help with video tasks by processing raw video footage by analyzing transcrip
 
 Work is organized into **libraries** (video series/projects), each self-contained under `/libraries/[library-name]/`. When a user refers to a library, you you'll want to load the library file in memory. If they talk about building a roughcut, extracting dialogue, etc, you'll need to first find and read the correct library file. If it's not clear what library they're talking about, find recently modified libraries and list them for the user using the AskUserQuestionTool or similiar to see what library they want to work with. If it's clear what library they're referring to, just start working with that library.
 
-(In addition to the primary thread, many times subagents are initiated to work on smaller, more focused tasks. In these cases you should be given all of the arguments/information necessary to finish your task by the primary agent.)
+In addition to the primary thread, many times subagents are initiated to work on smaller, more focused tasks. In these cases the main thread should give all of the arguments/information necessary to the sub agent.
 
 ### Workflow Steps
 
-1. **Setup** → Initialize a new library or work with an existing library
-   - Check for existing library in `/libraries/[library-name]/`
-   - Create a new one if necessary. If a new one is necessary, ask the user questions needed to fill out template in `templates/library_template.yaml`
-   - Create directory structure and library.yaml from template
-   - Start footage analysis after initial setup with the user
-2. **Analyze Video** → Use `transcribe-audio`, `analyze-video`, and `summarize-video` skills to process videos
-   - First: `transcribe-audio` creates audio transcripts with word-level timing
-   - Then: `analyze-video` adds visual descriptions to visual transcripts by extracting and analyzing frames
-   - Then: `summarize-video` generates a short markdown summary from each visual transcript
-   - All videos must have audio transcripts, visual transcripts, AND summaries before proceeding to rough cut or sequence creation
-3. **Edit** → Use `roughcut` to plan and build a timeline from transcripts
-   - First the roughcut skill first comes up with a plan for the edit
-   - Then it spins up a sub-agent to read the library, and build a YAML  iteratively, reviews against format conventions, exports the XML, and returns conversational editorial notes the parent uses to dialogue with the user
-   - One skill covers everything from a 1–2 clip cleanup to a full multi-minute roughcut — `planning.md` walks the user through picking which.
-   - **PREREQUISITE:** Check library.yaml to verify all videos have `visual_transcript` and `summary` populated
-4. **Backup** → Use `backup-library` skill to create compressed archives of all libraries
-   - Creates timestamped ZIP backup of entire libraries directory
-   - Backups are stored in `/backups/` and excluded from git
+1. **Process Library** → `process-library` skill — set up a new project, resume an existing one, or add new footage.
+2. **Edit** → `roughcut` skill — plan and build a timeline from the processed library. Check readiness with `Library.find(name).summary` — when its `incomplete_count` is `0`, every video has all four artifacts and the library is ready.
+3. **Backup** → `backup-library` skill — compressed archives in `/backups/`. `process-library` triggers this automatically after analysis.
 
-## Library Setup and Management
-
-Libraries are the primary abstraction in ButterCut - each library represents a video series or project and is self-contained under `/libraries/[library-name]/`. A library is conceptually similar to a Final Cut Pro library, but uses a simple file structure (YAML, JSON transcripts) optimized for AI analysis rather than FCP's proprietary format.
-
-### Initialize Settings
-
-Before any library setup, check if `libraries/settings.yaml` exists. If not, copy from template:
-
-```bash
-cp templates/settings_template.yaml libraries/settings.yaml
-```
-
-If no previous settings.yaml was present, use the ask user question tool to ask the user to confirm or change their defaults (editor and whisper_model).
-
-Editor Options:
-- Final Cut Pro X
-- Adobe Premiere Pro
-- DaVinci Resolve
-
-Model Options:
-- Small (recommended — pairs well with per-library transcript_refinement)
-- Medium
-- Turbo (Large)
-
-Save these options into libraries/settings.yaml.
-
-Note: `transcript_refinement` is a **per-library** setting (not global). Ask about it during library setup (see "Gather Project Information" below), not during initial settings setup.
-
-
-When creating a new library, read `libraries/settings.yaml` and use the `editor` value to pre-populate the library's `editor` field.
-
-### Check for Existing Library
-
-**ALWAYS** check if a library already exists before starting setup:
-
-```bash
-ls libraries/[library-name]/library.yaml
-```
-
-**If library.yaml exists:**
-- Skip setup entirely - the library is already configured
-- Read the existing library.yaml to understand project status
-- User is returning to existing work
-
-**If library directory exists but library.yaml is missing:**
-- Check what files are present (`/transcripts/`, `/roughcuts/`, etc.)
-- Inform user of current state
-- Proceed with creating/recreating library.yaml to restore consistency
-
-**If no library directory exists:**
-- Proceed to gather project information and create new library
-
-### Gather Project Information
-
-Ask the user these questions for new libraries one at a time (never all at once):
-
-1. **What do you want to call this project library?**
-   - Examples: "bike-locking-video-series", "raiders-2025-highlights", "yo-yo-techniques"
-   - Normalize the name:
-     - Replace spaces with dashes
-     - Convert to lowercase
-     - Remove special characters (keep alphanumeric and dashes)
-
-2. **Where are the video files located?**
-   - Ask: "Where are your video files? You can drag folders or individual files directly into the chat."
-   - Verify all files exist before proceeding
-   - Inform user of what was found: "Found 5 video files totaling 2.3GB"
-
-3. **What language is spoken in these videos?**
-   - Ask using AskUserQuestion with options: "English", "Spanish" and a free-text fallback for other languages
-   - Save the language name (e.g., "English") to library.yaml
-   - Map to language code (e.g., `en`, `es`, `fr`) behind the scenes when needed for transcription
-
-4. **Can I proofread the transcripts after they're generated?**
-   - Ask using AskUserQuestion with this exact question: "Can I proofread the transcripts after they're generated? I'll use the video's context to fix mistakes."
-   - Options: "Yes - Recommended (Use Claude to refine video understanding)" and "No"
-   - Save the boolean to `transcript_refinement` in library.yaml (true for Yes, false for No)
-   - Default to `true` if the user skips
-
-### Create Directory Structure
-
-```bash
-mkdir -p libraries/[library-name]
-mkdir -p libraries/[library-name]/transcripts
-mkdir -p libraries/[library-name]/roughcuts
-mkdir -p libraries/[library-name]/summaries
-mkdir -p libraries/[library-name]/plans
-mkdir -p libraries/[library-name]/contact_sheets
-```
-
-Note: A single `tmp/` directory inside the buttercut project root is used for all temporary files. Create subdirectories as needed and delete after use.
-
-### Create Library File
-
-Duplicate `templates/library_template.yaml` to create `libraries/[library-name]/library.yaml`:
-
-For each video file:
-1. Use `ffprobe` to get duration
-2. Add entry to library.yaml with empty `transcript`, `visual_transcript`, and `summary`
-3. Empty fields mean "todo", valid filenames mean "done"
-
-The `language` field stores the language code for all videos in this library.
-
-Progressively update the `footage_summary` field after each video is transcribed with 1-3 sentences covering subjects, locations, activities, visual style, etc.
-
-### Start Footage Analysis
-
-After library setup completes, **automatically start analyzing all footage**:
-
-1. Inform user: "Library setup complete. Found [N] videos ([total size]). Starting footage analysis..."
-2. Read `libraries/settings.yaml` (for `whisper_model`) and the library's `library.yaml` (for `language`, `transcript_refinement`, `user_context`, `footage_summary`) ONCE in the parent thread. If any expected field is missing, run the appropriate migration first (see Critical Principles below).
-3. Launch `transcribe-audio` agents. Pass these values inline in each agent's prompt:
-   - `video_path`, `transcript_output_dir`, `language_code`, `whisper_model`
-   - `transcript_refinement` (boolean). If `true`, also pass the current `user_context` and `footage_summary` strings (empty strings are fine — refinement still catches nonsense-token and self-witness fixes).
-4. As each agent completes, update library.yaml with `transcript` (filename only, not full path).
-5. After all audio transcripts complete, launch `analyze-video` agents. Pass inline: `video_path`, `audio_transcript_path`, `visual_transcript_path`.
-6. As each agent completes, update library.yaml with `visual_transcript` (filename only, not full path).
-7. After all visual transcripts complete, summarize each video using the `summarize-video` skill on the **Haiku model**:
-   - For each video, first pre-create a skeleton file in the parent: `ruby skills/summarize-video/summary_skeleton.rb <visual_transcript_path> <summary_output_path>`
-   - Then launch the agent passing inline: `visual_transcript_path`, `summary_output_path` (e.g., `libraries/[library-name]/summaries/summary_[videoname].md`)
-   - The agent fills the four placeholders via Edit. The skeleton + Edit pattern is required: without it, Haiku frequently refuses Write and dumps markdown into its reply instead.
-8. As each agent completes, update library.yaml with `summary` (filename only, not full path).
-9. **Confirm footage understanding with the user.** Once every summary is written, talk through what the footage actually shows — confirm character names, locations, the narrative through-line, any stray or off-thesis clips, and the user's creative intent for this library. Use plain conversation; only reach for `AskUserQuestion` when offering a discrete choice. As you learn things, update:
-   - `footage_summary` (locations, characters, narrative arc)
-   - `user_context` (preferences, goals, the user's name, tone preferences)
-   - individual `summary_*.md` files when a summary mislabels someone or misses a key detail (e.g., "a man in a tan jacket" → the user's name)
-
-   This is the one place to do this thorough pass. Every later `roughcut` planning run inherits the resulting context rather than re-interrogating the library.
-10. Analyze ALL videos before offering to create rough cuts.
-11. **After all analysis completes, automatically create a backup** using the `backup-library` skill.
-
-**Contract: sub-agents receive `agent_prompt.md`, not `SKILL.md`.** For parallelizable skills (`transcribe-audio`, `analyze-video`, `summarize-video`), the parent reads `SKILL.md` for dispatch info (parallelism cap, required inputs) and inlines `agent_prompt.md` into the sub-agent's prompt. `SKILL.md` is parent-only.
-
-**Note on refinement:** When `transcript_refinement: true`, each `transcribe-audio` agent reviews and corrects its transcript in place before returning, using the `user_context` and `footage_summary` the parent passed in. Empty context strings are fine — the agent still runs and catches nonsense-token and self-witness fixes. The parent still only writes `transcript: <filename>.json` to `library.yaml` after the agent completes.
-
-**Terminology:**
-- User-facing: Call it "footage analysis" or "analyzing footage"
-- Internal/file names: Use "transcription" (library.yaml, transcript, etc.)
-
-**If user requests rough cut before analysis completes:**
-- Warn: "I can create a rough cut now, but I'll do a better job after analyzing all the footage. Continue anyway?"
-- If user confirms, proceed with rough cut creation
-- Otherwise, wait for analysis to complete
-
-## Parallel Transcription Pattern
-
-When processing multiple videos, use parallel agents for maximum throughput:
-
-1. **Parent agent responsibilities:**
-   - Read `library.yaml` and `settings.yaml` once to gather: videos needing work, `language_code`, `whisper_model`, `transcript_refinement`, `user_context`, `footage_summary`.
-   - Launch Task agents with transcribe-audio or analyze-video skills, passing all needed values **inline in the prompt**.
-   - Update library.yaml sequentially as agents complete.
-   - Handle errors and retries.
-
-2. **Child agent (transcribe-audio/analyze-video) responsibilities:**
-   - Process ONE video file using only the inputs passed inline by the parent.
-   - Run WhisperX or frame extraction.
-   - Prepare and clean transcript JSON.
-   - Return structured response with file paths.
-
-   Each skill's `agent_prompt.md` documents its own IO contract — including whether the sub-agent reads or writes `library.yaml`.
-
-3. **Benefits:**
-   - Multiple videos process simultaneously
-   - No race conditions on shared YAML file
-   - Clear separation of concerns
-   - Easy to retry individual failed videos
+Libraries are the primary abstraction — each is a video series/project self-contained under `/libraries/[library-name]/`. Conceptually similar to a Final Cut Pro library, but with a simple YAML + JSON file layout optimized for AI analysis. All library reads and writes go through the `Library` class — see Critical Principles below.
 
 ## Critical Principles
 
-Each library has a `library.yaml` file that serves as your persistent memory and the SOURCE OF TRUTH. This file contains all library metadata, footage descriptions, transcription status, and key learnings. Always read this file when working on a library and you need guidance for how/where to save files.
+Each library has a `library.yaml` file that serves as persistent memory and the source of truth. This file contains all library metadata, footage descriptions, transcription status, and key learnings. 
+
+You generally won't need to read this file, and instead can work through the Library ruby class.
 
 **Migrate legacy library.yaml files before doing anything else.** Every time you read a library.yaml, check it against the canonical field list in `templates/library_template.yaml`. If any expected field is missing, or any field appears under an old name, the library predates a feature and MUST be migrated before you do any further work on it — no rough cuts, sequences, transcription, exports, or anything else until the schema is current. The migrations are fast, idempotent, and safe; don't ask the user for permission and don't describe them as optional "tidying." Just run them.
 
 Known migration triggers (match each to a `scripts/NNN_migrate_*.rb` script via CHANGELOG.md):
 
 - `editor` missing (added in 0.4.0)
-- `transcript_refinement` missing (added in [Unreleased]; missing means "predates the feature, default to `false`" — NOT the template default of `true`)
-- `footage_summary` missing OR old name `footage_description` present (renamed in [Unreleased])
-- video entries with `summary` missing (added in [Unreleased]; missing means "todo", default to empty string)
+- `transcript_refinement` missing (added in 0.5.0; missing means "predates the feature, default to `false`" — NOT the template default of `true`)
+- `footage_summary` missing OR old name `footage_description` present (renamed in 0.5.0)
+- video entries with `summary` missing (added in 0.5.0; missing means "todo", default to empty string)
 - video entries with `transcript_path` / `visual_transcript_path` (renamed to `transcript` / `visual_transcript` in 0.3.0)
 - video entries with `file_size_mb` (removed in 0.3.0)
 
 A missing field is not the same as a field set to the template default — the template default only applies to freshly created libraries. If you see a schema issue not on this list, still check CHANGELOG.md; the list may be behind. After running migrations, re-read the library.yaml and continue with whatever the user asked for.
 
-**Keep main-thread context minimal.** The main thread orchestrates; sub-agents do the heavy work and return concise summaries. Don't read full transcript JSON, visual transcript JSON, or extracted frames into the main thread as part of routine workflow — across a large library this bloats context fast. Trust sub-agent return messages when updating library.yaml. Direct user requests ("show me transcript X") are fine; the rule is about automatic workflow behavior.
+**`visual_transcript` is deprecated.** Older libraries may still carry it (and the matching `transcripts/visual_*.json` files). Don't generate new ones, don't read them when planning roughcuts, and don't migrate them — the existing files are harmless and represent compute the user already paid for. New analysis produces `contact_sheet` + `script` instead.
+
+**Keep main-thread context minimal.** The main thread orchestrates; sub-agents do the heavy work and return concise summaries. Don't read full transcript JSON or contact sheet images into the main thread as part of routine workflow — across a large library this bloats context fast. Trust sub-agent return messages when updating library.yaml. Direct user requests ("show me transcript X") are fine; the rule is about automatic workflow behavior.
 
 **Use actual filenames.** Never use generic labels like "Video 1" or "Clip A" - always reference actual filenames like "DJI_20250423171212_0210_D.mov" for clear traceability.
 
-**Visual transcripts and summaries are mandatory.** Before creating any rough cut or sequence, verify ALL videos have audio transcripts, visual transcripts, AND summaries. Check `library.yaml` — every video entry must have `visual_transcript` and `summary` with filenames (not empty, null, or ""). Transcripts are stored in `libraries/[library-name]/transcripts/`; summaries in `libraries/[library-name]/summaries/`. Visual descriptions and summaries are essential for shot selection and pacing decisions.
+**Library.yaml mutations go through `Library` — only from the main thread.** `skills/analyze-video/library.rb` is the one place that reads and writes library.yaml. Sub-agents must NEVER call it (race conditions on the shared file); the orchestrator is the only writer.
+
+Use it from Ruby (`Library.find('name').complete_summary!([filenames])`) or shell (`ruby skills/analyze-video/library.rb <name> <action> [filenames]`). The file header in `skills/analyze-video/library.rb` is the API reference — read it for full method signatures. Quick map of what's there:
+
+- **Lifecycle:** `Library.exists?` / `.list` / `.create` / `.find`, and `lib.add_videos`.
+- **Status (call first):** `lib.summary` returns a hash with top-level metadata plus a clip-completion breakdown (`video_count`, `incomplete_count`, and the list of incomplete clips). This is the first thing to call when picking up a library.
+- **Other readers:** `lib.videos` for the full inventory; `lib.incomplete_videos` and `lib.processed?` if you need just one slice of the status; `lib.language` / `.editor` / `.user_context` / `.footage_summary` / `.transcript_refinement` for individual metadata fields; `lib.dir` and `lib.artifact_path(field, clipname)` for on-disk paths.
+- **Writers:** `lib.complete_<artifact>!([filenames])` after a batch (validates files exist on disk first); `lib.complete_all_<artifacts>!` to mark every video done at once; `lib.reset_<artifacts>!` to wipe a phase; `lib.update_metadata!` for the free-text fields.
+
+Never read or write library.yaml directly — go through `Library`. If you need a field the class doesn't expose, add a reader rather than parsing the YAML inline.
+
+**Contact sheets, clean scripts, and summaries are mandatory.** Before creating any rough cut or sequence, verify ALL videos have `transcript`, `script`, `contact_sheet`, and `summary` set in `library.yaml` (not empty, null, or ""). Artifacts live under `libraries/[library-name]/`: audio transcripts in `transcripts/`, clean scripts in `scripts/`, contact sheets in `contact_sheets/`, summaries in `summaries/`. The contact sheet (visual overview) plus the clean script (cheap dialogue) are what the roughcut agent reads to pick clips; the audio transcript JSON remains the source of truth for word-level in/out timing.
 
 **Single-track timelines only.** ButterCut produces one sequential video track. Each clip's own audio plays during that clip — there is no second video track for cutaways layered over a continuing voiceover, and no separate audio track. When planning or pitching cuts, never propose "B-roll over VO," "story under meetup footage," picture-in-picture, or any structure that assumes a clip's audio continues while different visuals play on top. Cutaways are fine, but they're hard cuts: when you cut to the wide shot, you cut to that shot's audio too. Plan every cut as a strictly linear sequence of clips.
 
