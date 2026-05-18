@@ -70,28 +70,10 @@ Never read or write library.yaml directly — go through `Library`. If you need 
 
 - Never modify source video files - always preserve originals
 - Flag areas needing human judgment rather than making assumptions
-- When you have lots of videos to process (dozens or hundreds isn't out of the ordinary), create a reasonable task list with 5 tasks and then a final task that says to check the yaml processing file to see if you need to then generate more tasks. This way users can see progress and the agent doesn't get overwhelmed.
-- Generally avoid writing one-off scripts, but if you do need to write one, write it in Ruby unless you have a very strong reason to write in another language.
-- Parallelism caps live in each skill's `SKILL.md` (parent brief). Read it before dispatching.
-- Whenever you export XML files, include a datetime timestamp in the filename so it's clear when they were generated.
-
-## Programming Style
-
-When you add a Ruby script under `.claude/scripts/` or similar, follow these conventions:
-
-- **One class per script; file name matches the class name.** `ScriptExtractor` lives in `script_extractor.rb`.
-- **Single high-level entry point.** Expose a class method (`Klass.extract`, `Klass.run`, etc.) that calls `new(...).extract` internally — callers shouldn't need to know about instantiation.
-- **Break the work into small private methods with clear names** (`load_transcript`, `format_script`, `write_output`, `report`). The public entry point should read like a short outline of the workflow.
-- **Required arguments are required.** Don't silently default `nil`/missing args — raise `ArgumentError` in `initialize` if a required value is missing or empty. No hidden fallback paths.
-- **Keep CLI arg parsing out of the class.** Use a bottom-of-file `if __FILE__ == $PROGRAM_NAME` block to parse `ARGV`, validate file paths, print a usage line, and delegate to the class.
-- **Never name a method `main`.** It's a C-ism that adds no information in Ruby. Generally name the class what the class does, and then define self.perform.
+- When possible, use the existing Ruby files to get work done. Make scripts when the skill or step doesn't provide what you need.
+- Parallelism caps live in each skill's `SKILL.md` (parent brief). Read it before dispatching sub agents.
 
 ## Project Structure
-
-- `lib/buttercut.rb` - Factory class that creates editor-specific generators
-- `lib/buttercut/editor_base.rb` - Shared validation, metadata extraction, and timeline math
-- `lib/buttercut/fcpx.rb` - Final Cut Pro X implementation (FCPXML 1.8)
-- `lib/buttercut/fcp7.rb` - Final Cut Pro 7 / Premiere / DaVinci Resolve implementation (xmeml v5)
 - `skills/` - Skills for AI-powered workflow (symlinked from `.claude/skills/` so Claude Code, Codex, and other agents that read top-level `skills/` natively all find them)
 - `spec/` - RSpec test suite
 - `templates/` - Library and project templates
@@ -101,48 +83,26 @@ When you add a Ruby script under `.claude/scripts/` or similar, follow these con
 
 ## Design Philosophy
 
-ButterCut is designed to be simple, automatic and geared toward working with non technical people using ButterCut via a client, Claude Cowork or Claude Code.
+ButterCut is designed to be geared toward working with non technical people using ButterCut via a client, Claude Cowork or Claude Code.
 
 - **Input**: Array of full file paths to video files
 - **Output**: Working XML file ready to import into the non-technical user's video editor (Final Cut, Premiere, Resolve)
-- **Automatic Metadata Extraction**: Uses FFmpeg internally to extract video properties (duration, resolution, frame rate, audio rate, etc.)
-
-The user should not need to understand video codecs, frame rates, or FCPXML structure - just provide file paths and get working XML. We should talk to the user from a video editing perspective, not a technical software engineer perspective.
+- **Metadata Extraction**: Uses FFmpeg internally to extract video properties (duration, resolution, frame rate, audio rate, etc.)
 
 ### Vocabulary — talk like an editor, not a developer
 
-The user is a video editor, not a programmer (generally). They don't need to know what file the cut lives in, what tool transcribed their audio, or which skill or sub-agent is doing the work behind the scenes. Implementation details are for the codebase; user-facing chat stays in the language of video editing. When in doubt, drop the technical noun entirely and just say what's happening. Skills, code, etc, should obviously stay technical, but keep that out when chatting with the user. 
+The user is a video editor, not a programmer. User-facing chat stays in the language of video editing.
 
 Editor vocabulary that's always fine: rough cut, sequence, scene, beat, timeline, B-roll, cutaway, shot, take, transcript, footage, library, clip, splice, Final Cut, Premiere, Resolve.
-
-Don't say → say (one per category — generalize the pattern, don't treat as a lookup table):
-
-- *File/format nouns:* "I'll update the YAML" / "regenerate the FCPXML" → "I'll update the cut" / "I'll re-export it for Final Cut"
-- *Architecture nouns:* "I'll spin up a sub-agent" / "running the roughcut skill" / "the parent thread" → just speak in first person ("I'll build the cut")
-- *Tools and models:* "WhisperX will transcribe" / "running ffmpeg" / "I used Haiku for the summary" → "I'll transcribe the audio" / "I'll analyze the visuals" (don't name models)
-- *Internal field names:* "I'll update footage_summary" / "transcript_refinement is true" → "I'll note that about your footage" / "I'll proofread the transcripts"
-- *Paths in casual chat:* `.fcpxml`, `.json`, `libraries/foo/transcripts/…` → name the artifact ("the Final Cut export", "the transcript") and only show the path at final delivery or when the user needs to grab the file
-
-Two exceptions where technical detail IS appropriate:
-1. The user explicitly asks ("where is it saved?", "what format?") — answer plainly.
-2. Final delivery summary — naming the export file path is genuinely useful so they can find it.
 
 ## Development Commands
 
 ### Testing
-RSpec tests for the XML generation library. This doesn't include agent or end to end testing.
-```bash
-# Install dependencies
-bundle install
+We have RSpec tests for the XML generation library and Library helpers. This doesn't include agent or end-to-end testing.
 
+```bash
 # Run all tests
 bundle exec rspec
-
-# Run specific test file
-bundle exec rspec spec/buttercut_spec.rb
-
-# Run specific test
-bundle exec rspec spec/buttercut_spec.rb:10
 ```
 
 ## Claude Skills
@@ -168,4 +128,4 @@ User-created skills must be prefixed with `user-` so they can never collide with
 - `user-create-instagram-reel`
 - `user-process-aroll`
 
-When shipping a new skill, add a `!<skill-name>/` line to `skills/.gitignore` along with the skill directory itself. If you forget the gitignore line, `git status` won't show the new skill.
+When shipping a new (non-`user-`) skill, add a `!<skill-name>/` line to `skills/.gitignore` along with the skill directory itself. If you forget the gitignore line, `git status` won't show the new skill.
