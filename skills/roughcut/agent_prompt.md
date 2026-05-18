@@ -20,7 +20,7 @@ Within the task, work iteratively, not in one shot:
 ### 1. Read the library
 
 Open `libraries/[library-name]/library.yaml`. The library includes:
-- The full video inventory (filenames, paths, audio + visual transcript paths)
+- The full video inventory (filenames, paths, transcript/script/contact-sheet/summary filenames)
 - `footage_summary` — what the project is, the tone, the subjects
 - `user_context` — what you've learned about this user across sessions
 
@@ -44,27 +44,29 @@ Set `description` in the YAML to a one-line summary of what the cut is.
 
 ### 3. Build beat by beat
 
-**Clip file types** (all under `libraries/[library-name]/`):
-- **Summary** (`summaries/summary_*.md`) — high-level markdown about what happens in a clip. Short and quick to scan. Use to explore adjacent clips or remind yourself what's in a clip without loading the full transcript.
-- **Visual transcript** (`transcripts/visual_*.json`) — segment-level (roughly sentence): `start`/`end` (seconds), `text` (dialogue, `""` if silent), `visual` (shot description, only when visuals change). This is the primary file for picking moments.
-- **Audio transcript** (`transcripts/*.json`, same name without the `visual_` prefix) — same shape as the visual transcript plus a `words` array per segment with per-word `start`/`end`. Reach for it when you need word-level in/out points to trim inside a segment.
+**Clip artifacts** (all under `libraries/[library-name]/`):
+- **Summary** (`summaries/summary_*.md`) — short markdown overview: arc, key visuals, notable dialogue, b-roll. Read first to scan candidates cheaply.
+- **Contact sheet** (`contact_sheets/<clipname>_full.jpg`) — a single image with 16 evenly-spaced frames from the clip, each labeled with its `HH:MM:SS` timestamp. Read this to "see" the whole clip at once: locations, action, who's on camera, where the visual changes are. Clips longer than 10 minutes also have per-segment sheets (`<clipname>_HH-MM-SS_to_HH-MM-SS.jpg`) for finer-grain scrubbing.
+- **Script** (`scripts/script_*.txt`) — clean dialogue text, no timing. Cheap to read when you want the words without the JSON weight.
+- **Audio transcript** (`transcripts/*.json`) — segment-level `start`/`end` plus a per-segment `words` array with per-word `start`/`end`. Reach for it when you need word-level in/out points to set or trim a cut. Don't read the whole file — grep for the words you need.
 
 For each beat in the plan:
-- Open visual transcripts for the videos that feed it.
-- Pick moments that make sense and drop clips into the YAML.
-- If a clip's dialogue should be cut down, grep the audio transcript for word-level in/out points instead of loading the full file. See the worked example below.
+- Skim summaries to shortlist candidate clips.
+- For shortlisted clips, read the contact sheet and the clean script.
+- Set in/out points by grepping the audio transcript for the words at your cut boundaries.
+- If you need to scrub a tighter section of a long clip, generate a smaller contact sheet on demand:
 
-**Worked example — trimming inside a segment.** A wordy segment from `transcripts/visual_DJI_123.json`:
+   ```bash
+   mise exec -- ruby skills/contact-sheet/contact_sheet.rb <video_path> <start> <end> --library libraries/[library-name]
+   ```
 
-```json
-{
-  "start": 15.129,
-  "end": 17.195,
-  "text": "We're also using AI on the back end to try to find issues as well as try to find more test issues."
-}
+**Worked example — trimming inside a segment.** A wordy segment in `scripts/script_DJI_123.txt`:
+
+```
+We're also using AI on the back end to try to find issues as well as try to find more test issues.
 ```
 
-The line restates itself — "to try to find issues as well as try to find more test issues." End the clip after the first "issues" instead. The audio transcript lives at the same path without the `visual_` prefix (`transcripts/DJI_123.json`). Grep for the word to get its `end` time:
+The line restates itself — "to try to find issues as well as try to find more test issues." End the clip after the first "issues" instead. Grep the audio transcript for the word to get its `end` time:
 
 ```bash
 grep -B 1 -A 2 '"word": "issues' libraries/[library-name]/transcripts/DJI_123.json
@@ -81,12 +83,12 @@ Trimmed clip: `in_point: 00:00:15.13`, `out_point: 00:00:16.27`. Drops nearly a 
 
 **Each clip needs:**
 - `source_file`: filename only (from the video's entry in `library.yaml`)
-- `in_point`: start of the FIRST segment in the clip, `HH:MM:SS.ss`
-- `out_point`: end of the LAST segment in the clip, `HH:MM:SS.ss`
-- `dialogue`: spoken words for the span — concatenate across segments if the clip covers more than one
-- `visual_description`: shot description from the visual transcript
+- `in_point`: start of the cut, `HH:MM:SS.ss`
+- `out_point`: end of the cut, `HH:MM:SS.ss`
+- `dialogue`: spoken words for the span (concatenate across segments if needed)
+- `visual_description`: shot description based on what the contact sheet shows for this range
 
-Use `start`/`end` from segments directly — preserve sub-second precision (e.g. 2.849s → `00:00:02.85`).
+Preserve sub-second precision on timestamps (e.g. 2.849s → `00:00:02.85`).
 
 **Transcripts can be wrong — fix them in the `dialogue` field in the roughcut YAML.** Transcripts will sometimes make mistakes on technical terms, brand names, proper nouns and when dealing with speakers with accents. They're not perfect. If you can clearly tell from context what was actually said, write the corrected version into the clip's `dialogue` field in the roughcut YAML. Do NOT edit the transcript JSON files themselves.
 
