@@ -54,11 +54,18 @@ For each beat in the plan:
 - Skim summaries to shortlist candidate clips.
 - For shortlisted clips, read the contact sheet and the clean script.
 - Set in/out points by grepping the audio transcript for the words at your cut boundaries.
-- If you need to scrub a tighter section of a long clip, generate a smaller contact sheet on demand:
 
-   ```bash
-   mise exec -- ruby skills/contact-sheet/contact_sheet.rb <video_path> <start> <end> --library libraries/[library-name]
-   ```
+**Zoom in when timing matters.** Generate a tighter contact sheet for any clip and any range whenever the existing one leaves you guessing at a cut point:
+
+```bash
+mise exec -- ruby skills/contact-sheet/contact_sheet.rb <video_path> <start> <end> --library libraries/[library-name]
+# e.g. zoom into a 30-second window 2 minutes into a clip:
+mise exec -- ruby skills/contact-sheet/contact_sheet.rb <video_path> 02:00 02:30 --library libraries/[library-name]
+```
+
+One second of precision is the goal, not perfect-frame. We're building a roughcut, not finishing it — the editor will tighten in their NLE. Landing within ~1 second of the right moment (24-60 frames at typical frame rates) is plenty. Don't recursively zoom hunting for an exact frame: pick what looks right and move on.
+
+**When a clip has dialogue, coherent dialogue wins over visual timing.** Set cuts to complete the sentence even if a tighter visual cut exists. A mid-sentence cut breaks audience attention; a slightly held visual doesn't.
 
 **Worked example — trimming inside a segment.** A wordy segment in `scripts/script_DJI_123.txt`:
 
