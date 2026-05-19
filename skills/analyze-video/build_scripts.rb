@@ -1,13 +1,19 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Build clean dialogue scripts for every video in a library that doesn't
-# already have one. Wraps ScriptExtractor over each clip's audio transcript.
-# Deterministic, no LLM — same parent-side pre-bake pattern as
-# build_contact_sheets.rb so sub-agents don't have to shell out per-clip.
+# Build clean dialogue scripts for an explicit list of clips in a library.
+# Wraps ScriptExtractor over each clip's audio transcript. Deterministic, no
+# LLM — same parent-side pre-bake pattern as build_contact_sheets.rb so
+# sub-agents don't have to shell out per-clip.
+#
+# Single-threaded by design. The parent agent decides how many invocations to
+# run in parallel based on machine headroom.
 #
 # Usage:
-#   ruby build_scripts.rb <library_name>
+#   ruby build_scripts.rb <library_name> <clip> [<clip> ...]
+#
+#   <library_name>  e.g. my-library
+#   <clip>          clip filename including extension, e.g. P1055016.MP4
 
 require 'fileutils'
 
@@ -15,19 +21,24 @@ require_relative 'script_extractor'
 require_relative 'library'
 
 class ScriptBuilder
-  def self.build(library_name)
-    new(library_name).build
+  def self.build(library_name, clips:)
+    new(library_name, clips: clips).build
   end
 
-  def initialize(library_name)
+  def initialize(library_name, clips:)
+    raise ArgumentError, 'clips must be a non-empty array' if !clips.is_a?(Array) || clips.empty?
+
     @library = Library.find(library_name)
+    @requested_clips = clips.map(&:to_s)
+    missing_ext = @requested_clips.reject { |c| File.extname(c).length > 1 }
+    raise ArgumentError, "clip filenames must include an extension: #{missing_ext.join(', ')}" if missing_ext.any?
   end
 
   def build
     FileUtils.mkdir_p(File.join(@library.dir, 'scripts'))
     counters = { built: 0, skipped: 0, missing: 0 }
     completed = []
-    videos = @library.videos
+    videos = resolve_videos
 
     videos.each_with_index do |video, idx|
       result = process(video, idx + 1, videos.size)
@@ -44,6 +55,19 @@ class ScriptBuilder
   end
 
   private
+
+  def resolve_videos
+    by_filename = @library.videos.each_with_object({}) do |video, acc|
+      acc[File.basename(video['path'].to_s)] = video
+    end
+
+    @requested_clips.map do |filename|
+      video = by_filename[filename]
+      raise ArgumentError, "clip not found in library: #{filename}" unless video
+
+      video
+    end
+  end
 
   def process(video, index, total)
     prefix = "[#{index}/#{total}]"
@@ -76,14 +100,16 @@ class ScriptBuilder
 end
 
 if __FILE__ == $PROGRAM_NAME
-  library_name = ARGV[0]
-  if library_name.nil? || library_name.empty?
-    warn 'Usage: ruby build_scripts.rb <library_name>'
+  library_name = ARGV.shift
+  clips = ARGV.dup
+
+  if library_name.nil? || library_name.empty? || clips.empty?
+    warn 'Usage: ruby build_scripts.rb <library_name> <clip> [<clip> ...]'
     exit 1
   end
 
   begin
-    ScriptBuilder.build(library_name)
+    ScriptBuilder.build(library_name, clips: clips)
   rescue StandardError => e
     warn "build_scripts: #{e.message}"
     exit 1

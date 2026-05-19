@@ -1,23 +1,20 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Build contact sheets for every video in a library that doesn't already have
-# one. Drives the contact-sheet skill directly — no agent in the loop. Each
-# video gets a `_full` sheet; clips longer than 10 minutes also get
-# per-segment sheets covering successive 10-minute slices.
+# Build contact sheets for an explicit list of clips in a library. Drives the
+# contact-sheet skill directly — no agent in the loop. Each clip gets a `_full`
+# sheet; clips longer than 10 minutes also get per-segment sheets covering
+# successive 10-minute slices.
+#
+# Single-threaded by design. The parent agent decides how many invocations to
+# run in parallel based on machine headroom.
 #
 # Usage:
-#   ruby build_contact_sheets.rb <library_name> [--limit N | --all]
+#   ruby build_contact_sheets.rb <library_name> <clip> [<clip> ...]
 #
 #   <library_name>  e.g. my-library
-#   --limit N       stop after generating sheets for N clips
-#   --all           process every remaining clip (no batch cap)
-#
-# Defaults to a batch of 10 clips per invocation. Re-run until the script
-# reports nothing was built. Batching keeps long libraries interruptible and
-# gives the caller a chance to spot-check sheets before committing the rest.
+#   <clip>          clip filename including extension, e.g. P1055016.MP4
 
-require 'optparse'
 require 'fileutils'
 
 require_relative '../contact-sheet/contact_sheet'
@@ -26,46 +23,31 @@ require_relative 'library'
 class ContactSheetBuilder
   CHUNK_THRESHOLD_SECONDS = 600.0 # 10 minutes
   CHUNK_LENGTH_SECONDS = 600.0
-  DEFAULT_LIMIT = 10
-  # Empirical sweet spot on an M1: above 4 concurrent ffmpegs, videotoolbox
-  # serializes GPU access and wall time gets worse. CPU stays in the 60-80%
-  # band at P=4 — fast without taking over the machine.
-  WORKERS = 4
 
-  def self.build(library_name, limit: DEFAULT_LIMIT)
-    new(library_name, limit: limit).build
+  def self.build(library_name, clips:)
+    new(library_name, clips: clips).build
   end
 
-  def initialize(library_name, limit:)
-    raise ArgumentError, 'limit must be a positive integer or nil' if limit && limit.to_i < 1
+  def initialize(library_name, clips:)
+    raise ArgumentError, 'clips must be a non-empty array' if !clips.is_a?(Array) || clips.empty?
 
     @library = Library.find(library_name)
-    @limit = limit&.to_i
-    @log_mutex = Mutex.new
+    @requested_clips = clips.map(&:to_s)
+    missing_ext = @requested_clips.reject { |c| File.extname(c).length > 1 }
+    raise ArgumentError, "clip filenames must include an extension: #{missing_ext.join(', ')}" if missing_ext.any?
     @counters = { built: 0, skipped: 0, missing: 0 }
-    @counters_mutex = Mutex.new
     @completed_filenames = []
-    @completed_mutex = Mutex.new
   end
 
   def build
     FileUtils.mkdir_p(File.join(@library.dir, 'contact_sheets'))
-    videos = @library.videos
-    queue = build_queue(videos)
+    videos = resolve_videos
 
-    workers = WORKERS.times.map do
-      Thread.new do
-        while (item = queue.pop(true) rescue nil)
-          video, index = item
-          result = process(video, index, videos.size)
-          @counters_mutex.synchronize { @counters[result] += 1 if @counters.key?(result) }
-          if %i[built skipped].include?(result)
-            @completed_mutex.synchronize { @completed_filenames << File.basename(video['path'].to_s) }
-          end
-        end
-      end
+    videos.each_with_index do |video, idx|
+      result = process(video, idx + 1, videos.size)
+      @counters[result] += 1 if @counters.key?(result)
+      @completed_filenames << File.basename(video['path'].to_s) if %i[built skipped].include?(result)
     end
-    workers.each(&:join)
 
     @library.complete_contact_sheet!(@completed_filenames) unless @completed_filenames.empty?
 
@@ -73,29 +55,20 @@ class ContactSheetBuilder
     log "Done. Built sheets for #{@counters[:built]} clip#{'s' unless @counters[:built] == 1}, skipped #{@counters[:skipped]} (already present)."
   end
 
-  # Sort by descending duration so the slowest clips start first — short clips
-  # backfill while the long ones decode, instead of becoming a tail at the end.
-  def build_queue(videos)
-    queue = Queue.new
-    enqueued = 0
-    videos
-      .each_with_index
-      .sort_by { |video, _idx| -parse_duration_safely(video['duration']) }
-      .each do |video, idx|
-        break if @limit && enqueued >= @limit
-        queue << [video, idx + 1]
-        enqueued += 1
-      end
-    queue
-  end
-
-  def parse_duration_safely(value)
-    parse_duration(value)
-  rescue StandardError
-    0.0
-  end
-
   private
+
+  def resolve_videos
+    by_filename = @library.videos.each_with_object({}) do |video, acc|
+      acc[File.basename(video['path'].to_s)] = video
+    end
+
+    @requested_clips.map do |filename|
+      video = by_filename[filename]
+      raise ArgumentError, "clip not found in library: #{filename}" unless video
+
+      video
+    end
+  end
 
   def process(video, index, total)
     path = video['path']
@@ -134,9 +107,8 @@ class ContactSheetBuilder
     end
   end
 
-  # Serialize stdout/stderr across worker threads so log lines don't interleave.
   def log(line, io: $stdout)
-    @log_mutex.synchronize { io.puts(line) }
+    io.puts(line)
   end
 
   def chunk_ranges(duration)
@@ -174,27 +146,16 @@ class ContactSheetBuilder
 end
 
 if __FILE__ == $PROGRAM_NAME
-  options = { limit: ContactSheetBuilder::DEFAULT_LIMIT }
+  library_name = ARGV.shift
+  clips = ARGV.dup
 
-  parser = OptionParser.new do |opts|
-    opts.banner = 'Usage: ruby build_contact_sheets.rb <library_name> [--limit N | --all]'
-    opts.on('--limit N', Integer, "Stop after generating sheets for N clips (default #{ContactSheetBuilder::DEFAULT_LIMIT})") do |n|
-      options[:limit] = n
-    end
-    opts.on('--all', 'Process every remaining clip (no batch cap)') do
-      options[:limit] = nil
-    end
-  end
-  parser.parse!
-
-  library_name = ARGV[0]
-  if library_name.nil? || library_name.empty?
-    puts parser.help
+  if library_name.nil? || library_name.empty? || clips.empty?
+    warn 'Usage: ruby build_contact_sheets.rb <library_name> <clip> [<clip> ...]'
     exit 1
   end
 
   begin
-    ContactSheetBuilder.build(library_name, limit: options[:limit])
+    ContactSheetBuilder.build(library_name, clips: clips)
   rescue StandardError => e
     warn "build_contact_sheets: #{e.message}"
     exit 1

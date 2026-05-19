@@ -37,20 +37,20 @@ As each agent completes, update library.yaml with `transcript` (filename only, n
 Run from the project root:
 
 ```bash
-ruby skills/analyze-video/build_contact_sheets.rb [library-name]
+ruby skills/analyze-video/build_contact_sheets.rb <library-name> <clip> [<clip> ...]
 ```
 
-Defaults to a batch of 10 clips per invocation; re-run until it reports `Built sheets for 0 clips`. Use `--limit N` to change the batch size or `--all` to drain the queue in one shot. Skips clips that already have a `_full.jpg`, and for clips longer than 10 minutes also generates per-segment sheets covering successive 10-minute slices. Updates library.yaml's `contact_sheet` field for every clip it processes. No LLM — pure ffmpeg.
+Takes an explicit list of clip filenames (including extension, e.g. `P1055016.MP4`). Runs single-threaded — launch multiple invocations in parallel from the main thread when machine headroom allows (a 3-4 way split across cores is usually safe on an M-series Mac). Skips clips that already have a `_full.jpg`, and for clips longer than 10 minutes also generates per-segment sheets covering successive 10-minute slices. Updates library.yaml's `contact_sheet` field for every clip it processes. No LLM — pure ffmpeg.
 
 ## Step 3 — Clean scripts (deterministic, no agent)
 
 Run from the project root:
 
 ```bash
-ruby skills/analyze-video/build_scripts.rb [library-name]
+ruby skills/analyze-video/build_scripts.rb <library-name> <clip> [<clip> ...]
 ```
 
-Wraps `script_extractor` over every clip's audio transcript and writes `scripts/script_<clipname>.txt`. Updates library.yaml's `script` field for every clip it processes. Pure JSON parsing — no LLM. Skips clips whose script already exists, so it's safe to re-run.
+Takes an explicit list of clip filenames (including extension). Wraps `script_extractor` over each clip's audio transcript and writes `scripts/script_<clipname>.txt`. Updates library.yaml's `script` field for every clip it processes. Pure JSON parsing — no LLM. Skips clips whose script already exists, so it's safe to re-run. Single-threaded; launch multiple invocations in parallel from the main thread if you want.
 
 ## Step 4 — Summaries (Sonnet sub-agents, batched, rolling)
 
@@ -67,6 +67,8 @@ For each sub-agent, pass a list of 10 clip records inline. Each clip record need
 - `summary_output_path` — absolute path where the agent should write the summary markdown
 
 As each sub-agent returns its batch, update library.yaml with `summary` for every clip in that batch — `Library.find(name).complete_summary!([filenames])`. The `contact_sheet` and `script` fields were already populated in steps 2 and 3, so the sub-agent return only contributes summaries.
+
+**If a sub-agent returns summaries inline instead of writing them to disk** (sometimes Sonnet hallucinates "the Write tool is blocked" and dumps the markdown into its reply), don't retry blindly — just extract each summary from the agent's response and `Write` it to the matching `summary_output_path` from the parent thread. Then run `complete_summary!` as usual. Faster than redispatching, and the content is already there.
 
 (Per-segment contact sheets generated for long clips live alongside the `_full` sheet on disk and are discoverable by convention — they aren't listed in library.yaml.)
 
