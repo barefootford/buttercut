@@ -28,7 +28,6 @@ Gem::Specification.new do |spec|
 
   # Runtime dependencies
   spec.add_dependency "nokogiri", "~> 1.13"
-  spec.add_dependency "rubyzip", "~> 2.3"
 
   # Development dependencies
   spec.add_development_dependency "rspec", "~> 3.12"

@@ -16,12 +16,18 @@ Run backup:
 mise exec -- ruby .claude/skills/backup-library/backup_libraries.rb
 ```
 
-Creates `backups/libraries_YYYYMMDD_HHMMSS.zip` containing the entire libraries directory.
+Creates `backups/libraries_YYYYMMDD_HHMMSS.aar` when the macOS Apple Archive CLI (`aa`) is available — hardware-accelerated on Apple Silicon, Finder handles double-click extract. Falls back to `.zip` when `aa` is not present.
 
 ## Restore Library
 
-To restore from a backup, extract the ZIP file to the project root.
+Extract to the project root. The command depends on the archive format:
+
 ```bash
+# Apple Archive
+aa extract -i backups/libraries_timestamp.aar -d .
+
+# Zip
 unzip backups/libraries_timestamp.zip -d .
 ```
-This restores all libraries to their original locations.
+
+Either restores all libraries to their original locations.
