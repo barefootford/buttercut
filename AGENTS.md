@@ -79,7 +79,7 @@ Never read or write library.yaml directly — go through `Library`. If you need 
 - `templates/` - Library and project templates
 - `libraries/` - Working directory for user's video projects (gitignored)
 - `libraries/settings.yaml` - User settings (editor, whisper_model) — created from template on first library setup
-- `backups/` - Compressed library backups (transcriptions, roughcuts, etc) (gitignored)
+- `backups/` - Compressed library backups (gitignored)
 
 ## Design Philosophy
 
