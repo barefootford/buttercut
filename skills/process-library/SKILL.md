@@ -23,17 +23,17 @@ cp templates/settings_template.yaml libraries/settings.yaml
 
 If no previous `settings.yaml` was present, use `AskUserQuestion` to ask the user to confirm or change their defaults (editor and `whisper_model`).
 
-Editor options:
-- Final Cut Pro X
-- Adobe Premiere Pro
-- DaVinci Resolve
+Editor options (label shown to user → value to save):
+- Final Cut Pro X → `fcpx`
+- Adobe Premiere Pro → `premiere`
+- DaVinci Resolve → `resolve`
 
 `whisper_model` options:
 - Small (recommended — pairs well with per-library `transcript_refinement`)
 - Medium
 - Turbo (Large)
 
-Save these into `libraries/settings.yaml`.
+Save the shortcode (`fcpx` / `premiere` / `resolve`) to `libraries/settings.yaml`, not the long-form name — downstream export expects the shortcode.
 
 Note: `transcript_refinement` is a **per-library** setting, not global. Ask about it during library setup (Step 3 below), not here.
 
@@ -88,7 +88,7 @@ Use `Library.create`. It creates the directory tree (transcripts/, scripts/, con
 Library.create(
   'my-library',
   language: 'en',                       # language code from Step 3
-  editor: 'Final Cut Pro X',            # from settings.yaml
+  editor: 'fcpx',                       # shortcode from settings.yaml (fcpx/premiere/resolve)
   transcript_refinement: true,          # from Step 3
   video_paths: ['/abs/foo.mov', '/abs/bar.mov']
 )
