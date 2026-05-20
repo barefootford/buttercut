@@ -37,10 +37,10 @@ As each agent completes, update library.yaml with `transcript` (filename only, n
 Run from the project root:
 
 ```bash
-ruby skills/analyze-video/build_contact_sheets.rb <library-name> <clip> [<clip> ...]
+ruby skills/analyze-video/contact_sheet_job.rb <library-name> <clip> [<clip> ...]
 ```
 
-Takes an explicit list of clip filenames (including extension, e.g. `P1055016.MP4`). Runs single-threaded — launch multiple invocations in parallel from the main thread when machine headroom allows (a 3-4 way split across cores is usually safe on an M-series Mac). Skips clips that already have a `_full.jpg`, and for clips longer than 10 minutes also generates per-segment sheets covering successive 10-minute slices. Updates library.yaml's `contact_sheet` field for every clip it processes. No LLM — pure ffmpeg.
+Takes an explicit list of clip filenames (including extension, e.g. `P1055016.MP4`). Runs single-threaded — launch multiple invocations in parallel from the main thread when machine headroom allows (a 3-4 way split across cores is usually safe on an M-series Mac). Always rebuilds every sheet for the clips it's given; for clips longer than 10 minutes that includes per-segment sheets covering successive 10-minute slices. Updates library.yaml's `contact_sheet` field for every clip it processes. No LLM — pure ffmpeg.
 
 ## Step 3 — Clean scripts (deterministic, no agent)
 
