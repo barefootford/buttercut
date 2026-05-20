@@ -49,6 +49,7 @@ Set `description` in the YAML to a one-line summary of what the cut is.
 - **Contact sheet** (`contact_sheets/<clipname>_full.jpg`) — a single image with 16 evenly-spaced frames from the clip, each labeled with its `HH:MM:SS` timestamp. Read this to "see" the whole clip at once: locations, action, who's on camera, where the visual changes are. Clips longer than 10 minutes also have per-segment sheets (`<clipname>_HH-MM-SS_to_HH-MM-SS.jpg`) for finer-grain scrubbing.
 - **Script** (`scripts/script_*.txt`) — clean dialogue text, no timing. Cheap to read when you want the words without the JSON weight.
 - **Audio transcript** (`transcripts/*.json`) — segment-level `start`/`end` plus a per-segment `words` array with per-word `start`/`end`. Reach for it when you need word-level in/out points to set or trim a cut. Don't read the whole file — grep for the words you need.
+- **Visual transcript** (`transcripts/visual_*.json`, legacy / optional) — older libraries from the previous pipeline carry these. If present, treat them as extra planning context alongside the contact sheet. Newly-processed libraries won't have them, and you should never generate new ones.
 
 For each beat in the plan:
 - Skim summaries to shortlist candidate clips.

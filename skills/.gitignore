@@ -10,6 +10,8 @@
 # new skill, add both lines.
 !analyze-video/
 !analyze-video/**
+!buttercut-lib/
+!buttercut-lib/**
 !backup-library/
 !backup-library/**
 !release/
