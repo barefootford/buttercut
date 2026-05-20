@@ -3,7 +3,7 @@
 
 # Build clean dialogue scripts for an explicit list of clips in a library.
 # Wraps ScriptExtractor over each clip's audio transcript. Deterministic, no
-# LLM — same parent-side pre-bake pattern as build_contact_sheets.rb so
+# LLM — same parent-side pre-bake pattern as contact_sheet_job.rb so
 # sub-agents don't have to shell out per-clip.
 #
 # Single-threaded by design. The parent agent decides how many invocations to

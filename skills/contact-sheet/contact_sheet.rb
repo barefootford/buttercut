@@ -2,7 +2,6 @@
 # frozen_string_literal: true
 
 require 'english'
-require 'fileutils'
 require 'json'
 require 'optparse'
 require 'shellwords'
@@ -200,9 +199,7 @@ class ContactSheet
   def output_dir
     return File.dirname(@video_path) unless @library_dir
 
-    dir = File.join(@library_dir, 'contact_sheets')
-    FileUtils.mkdir_p(dir)
-    dir
+    File.join(@library_dir, 'contact_sheets')
   end
 
   def range_descriptor
