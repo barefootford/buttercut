@@ -92,6 +92,37 @@ RSpec.describe Library do
     end
   end
 
+  describe '.recent' do
+    it 'orders by the newest file mtime inside the library dir, not just library.yaml' do
+      write_library(videos: [], name: 'a')
+      write_library(videos: [], name: 'b')
+
+      old = Time.now - 1000
+      [%w[a library.yaml], %w[b library.yaml]].each { |parts| File.utime(old, old, File.join(libraries_root, *parts)) }
+
+      transcript = File.join(libraries_root, 'b', 'transcripts', 'foo.json')
+      File.write(transcript, '{}')
+
+      expect(Library.recent).to eq(%w[b a])
+    end
+
+    it 'caps the result at limit (default 10)' do
+      11.times { |i| write_library(videos: [], name: "lib#{i}") }
+      expect(Library.recent.size).to eq(10)
+      expect(Library.recent(limit: 3).size).to eq(3)
+    end
+
+    it 'ignores directories without a library.yaml' do
+      write_library(videos: [], name: 'real')
+      FileUtils.mkdir_p(File.join(libraries_root, 'half-built'))
+      expect(Library.recent).to eq(['real'])
+    end
+
+    it 'returns an empty array when the root is empty' do
+      expect(Library.recent).to eq([])
+    end
+  end
+
   describe '.create' do
     let(:video_path) { File.join(@libraries_root, 'src', 'a.mov') }
 
@@ -389,20 +420,20 @@ RSpec.describe Library do
     end
   end
 
-  describe '#processed?' do
+  describe '#ready?' do
     it 'returns true when every video has script + summary (current pipeline)' do
       write_library(videos: [
                       video_entry('a.mov', script: 'script_a.txt', summary: 'summary_a.md'),
                       video_entry('b.mov', script: 'script_b.txt', summary: 'summary_b.md')
                     ])
-      expect(Library.find(library_name).processed?).to be(true)
+      expect(Library.find(library_name).ready?).to be(true)
     end
 
     it 'returns true when every video has visual_transcript + summary (legacy)' do
       write_library(videos: [
                       video_entry('a.mov', summary: 'summary_a.md').merge('visual_transcript' => 'visual_a.json')
                     ])
-      expect(Library.find(library_name).processed?).to be(true)
+      expect(Library.find(library_name).ready?).to be(true)
     end
 
     it 'accepts a mix of legacy and current videos' do
@@ -410,7 +441,7 @@ RSpec.describe Library do
                       video_entry('a.mov', script: 'script_a.txt', summary: 'summary_a.md'),
                       video_entry('b.mov', summary: 'summary_b.md').merge('visual_transcript' => 'visual_b.json')
                     ])
-      expect(Library.find(library_name).processed?).to be(true)
+      expect(Library.find(library_name).ready?).to be(true)
     end
 
     it 'returns false when any video is missing a summary' do
@@ -418,12 +449,12 @@ RSpec.describe Library do
                       video_entry('a.mov', script: 'script_a.txt', summary: 'summary_a.md'),
                       video_entry('b.mov', script: 'script_b.txt')
                     ])
-      expect(Library.find(library_name).processed?).to be(false)
+      expect(Library.find(library_name).ready?).to be(false)
     end
 
     it 'returns false for an empty library' do
       write_library(videos: [])
-      expect(Library.find(library_name).processed?).to be(false)
+      expect(Library.find(library_name).ready?).to be(false)
     end
   end
 
