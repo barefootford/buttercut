@@ -128,13 +128,7 @@ bundle install
 
 ## Verification
 
-Run the verification script:
-
-```bash
-ruby skills/setup/verify_install.rb
-```
-
-All items should show OK.
+Re-run the checklist in `skills/setup/SKILL.md` (Step 1). Every item should pass.
 
 ## Notes
 

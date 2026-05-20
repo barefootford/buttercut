@@ -9,13 +9,18 @@ Sets up a Mac for ButterCut. Two installation paths available based on user pref
 
 ## Step 1: Check Current State
 
-First, run the verification script to see what's already installed:
+Run each check below. Each command exits 0 when the dependency is present. Note which ones fail — that's what setup needs to install.
 
-```bash
-ruby skills/setup/verify_install.rb
-```
+- [ ] **Xcode CLI Tools** — `xcode-select -p` (fix: `xcode-select --install`)
+- [ ] **Homebrew** — `which brew` (fix: see https://brew.sh)
+- [ ] **Ruby 3.3.x** — `ruby --version | grep -q 'ruby 3\.3'` (fix: install Ruby 3.3.6, see `.ruby-version`)
+- [ ] **Bundler** — `which bundle` (fix: `gem install bundler`)
+- [ ] **Python 3.12.x** — `python3 --version | grep -q 'Python 3\.12'` (fix: install Python 3.12.8, see `.python-version`)
+- [ ] **FFmpeg** — `which ffmpeg` (fix: `brew install ffmpeg`)
+- [ ] **WhisperX** — `which whisperx || test -x ~/.buttercut/whisperx || test -x ~/.buttercut/venv/bin/whisperx` (fix: see setup steps below)
+- [ ] **Bundle installed** — `test -f Gemfile.lock` (fix: `bundle install` in buttercut directory)
 
-If all dependencies pass, inform the user they're ready to go.
+If everything passes, tell the user they're ready to go and stop.
 
 ## Step 2: Ask User Preference
 
@@ -38,10 +43,4 @@ Based on user choice:
 
 ## Step 4: Verify Installation
 
-After setup completes, run verification again:
-
-```bash
-ruby skills/setup/verify_install.rb
-```
-
-Report results to user.
+After setup completes, re-run the checklist from Step 1 and report results to the user.
