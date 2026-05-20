@@ -16,7 +16,7 @@
 #   <clip>          clip filename including extension, e.g. P1055016.MP4
 
 require_relative '../contact-sheet/contact_sheet'
-require_relative 'library'
+require_relative '../buttercut-lib/library'
 
 class ContactSheetJob
   CHUNK_LENGTH_SECONDS = 600.0
@@ -41,7 +41,7 @@ class ContactSheetJob
       process_clip(video, idx + 1, @videos.size)
     end
 
-    @library.complete_contact_sheet!(@videos.map { |v| File.basename(v['path']) })
+    @library.complete!('contact_sheet', @videos.map { |v| File.basename(v['path']) })
     puts "\nDone. Built sheets for #{@videos.size} clip#{'s' unless @videos.size == 1}."
   end
 

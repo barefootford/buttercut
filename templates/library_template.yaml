@@ -16,9 +16,10 @@ footage_summary: "No footage analyzed yet."
 
 # Video files and analysis status
 #
-# Per clip, analysis fills four fields:
-#   transcript     — audio transcript JSON (word-level timing, in transcripts/)
-#   script         — clean dialogue text, no timing (in scripts/)
+# Per clip, analysis fills three fields:
+#   transcript     — audio transcript JSON (word-level timing, in transcripts/);
+#                    also the source for on-demand dialogue extraction via
+#                    skills/analyze-video/script_extractor.rb
 #   contact_sheet  — _full.jpg visual overview (in contact_sheets/); per-segment
 #                    sheets for clips >10 min live alongside on disk
 #   summary        — markdown overview (in summaries/)
@@ -29,6 +30,5 @@ videos:
   - path: /full/path/to/video_file.mp4
     duration: "00:05:32"
     transcript: # filename only (stored in libraries/[library-name]/transcripts/)
-    script: # filename only (clean dialogue text in libraries/[library-name]/scripts/)
     contact_sheet: # filename only (_full.jpg in libraries/[library-name]/contact_sheets/)
     summary: # filename only (summary_*.md in libraries/[library-name]/summaries/)

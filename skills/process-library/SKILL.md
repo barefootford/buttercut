@@ -11,7 +11,7 @@ This skill is the main thread's playbook for the **Setup** and **Analyze Video**
 - Return to an existing library to process (loads it and continues from wherever analysis left off).
 - Add new footage to an existing library (appends clips, runs analysis just on the new ones).
 
-It orchestrates the full `transcribe-audio` → contact sheets → scripts → summaries pipeline. The mechanics of each analysis step live in `skills/analyze-video/SKILL.md`; this skill calls into them.
+It orchestrates the full `transcribe-audio` → contact sheets → summaries pipeline. The mechanics of each analysis step live in `skills/analyze-video/SKILL.md`; this skill calls into them.
 
 ## Step 1 — Initialize settings (one-time)
 
@@ -93,7 +93,7 @@ Read the `editor` from `libraries/settings.yaml` — you'll pass it into the cre
 
 ## Step 4 — Create the library
 
-`Library.create` is the one operation that doesn't have a plain CLI form (kwarg-heavy). Run it via `ruby -e`. It creates the directory tree (transcripts/, scripts/, contact_sheets/, summaries/, roughcuts/, plans/), ffprobes each video for duration, and writes library.yaml in one call:
+`Library.create` is the one operation that doesn't have a plain CLI form (kwarg-heavy). Run it via `ruby -e`. It creates the directory tree (transcripts/, contact_sheets/, summaries/, roughcuts/, plans/), ffprobes each video for duration, and writes library.yaml in one call:
 
 ```bash
 ruby -e "require_relative 'skills/buttercut-lib/library'; \
@@ -104,7 +104,7 @@ ruby -e "require_relative 'skills/buttercut-lib/library'; \
     video_paths: ['/abs/foo.mov', '/abs/bar.mov'])"
 ```
 
-Each video entry starts with empty `transcript`, `script`, `contact_sheet`, and `summary` — empty means "todo", a filename means "done."
+Each video entry starts with empty `transcript`, `contact_sheet`, and `summary` — empty means "todo", a filename means "done."
 
 If the user later drags in more clips:
 
@@ -118,7 +118,7 @@ Then re-run the analyze steps for just the new clips.
 
 Inform the user: "Library setup complete. Found [N] videos ([total size]). Starting footage analysis..."
 
-Follow `skills/analyze-video/SKILL.md` end-to-end. That skill covers audio transcripts (parallel sub-agents), contact sheets (deterministic), clean scripts (deterministic), summaries (Sonnet sub-agents, batched + rolling), and the post-analysis footage-understanding pass.
+Follow `skills/analyze-video/SKILL.md` end-to-end. That skill covers audio transcripts (parallel sub-agents), contact sheets (deterministic), summaries (Sonnet sub-agents, batched + rolling), and the post-analysis footage-understanding pass.
 
 Progressively update `footage_summary` as transcripts come in — 1-3 sentences covering subjects, locations, activities, visual style:
 
