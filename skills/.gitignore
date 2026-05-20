@@ -16,8 +16,8 @@
 !backup-library/**
 !release/
 !release/**
-!roughcut/
-!roughcut/**
+!cut/
+!cut/**
 !setup/
 !setup/**
 !transcribe-audio/

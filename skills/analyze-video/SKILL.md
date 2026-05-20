@@ -1,11 +1,11 @@
 ---
 name: analyze-video
-description: Full footage analysis pipeline — audio transcripts, contact sheets, clean scripts, and Sonnet-written summaries. Produces every artifact the roughcut skill reads. Orchestrated from the main thread.
+description: Full footage analysis pipeline — audio transcripts, contact sheets, clean scripts, and Sonnet-written summaries. Produces every artifact the cut skill reads. Orchestrated from the main thread.
 ---
 
 # Skill: Analyze Video (parent brief)
 
-This is the main thread's playbook for the **Analyze Video** workflow step. Run it after library setup, before any roughcut. It covers all four artifacts produced per clip: audio `transcript`, `contact_sheet`, clean `script`, and markdown `summary`.
+This is the main thread's playbook for the **Analyze Video** workflow step. Run it after library setup, before any cut work. It covers all four artifacts produced per clip: audio `transcript`, `contact_sheet`, clean `script`, and markdown `summary`.
 
 `SKILL.md` is the parent's dispatch brief. The sub-agent working prompt lives in `agent_prompt.md` — inline its contents when launching a Task agent. Don't pass `SKILL.md`.
 
@@ -58,7 +58,7 @@ Takes an explicit list of clip filenames (including extension). Wraps `script_ex
 
 ## Step 4 — Summaries (Sonnet sub-agents, batched, rolling)
 
-Dispatch `analyze-video` sub-agents on the **Sonnet model**. Sonnet reads the contact sheet with noticeably more visual specificity than Haiku (catches clothing, architecture, camera framing) — worth it since the summaries feed every later roughcut decision.
+Dispatch `analyze-video` sub-agents on the **Sonnet model**. Sonnet reads the contact sheet with noticeably more visual specificity than Haiku (catches clothing, architecture, camera framing) — worth it since the summaries feed every later cut decision.
 
 **Batch 10 clips per sub-agent, up to 10 sub-agents in parallel, with rolling dispatch.** Each sub-agent processes its 10 clips sequentially; batching amortizes the ~5–10s per-agent dispatch overhead. For a 93-clip library that's ~10 sub-agents total instead of 93. Start the next sub-agent as soon as one returns — don't wait for the whole wave of 10 to finish, or you give up ~30% of wall-clock to whichever agent in the wave is slowest.
 
@@ -89,7 +89,7 @@ Once every summary is written, talk through what the footage actually shows — 
 - `footage_summary` and `user_context` via `ruby skills/buttercut-lib/library.rb <name> update_metadata footage_summary "..."` (and the same with `user_context`)
 - individual `summary_*.md` files when a summary mislabels someone or misses a key detail (e.g., "a man in a tan jacket" → the user's name)
 
-This is the one place to do this thorough pass. Every later `roughcut` planning run inherits the resulting context rather than re-interrogating the library.
+This is the one place to do this thorough pass. Every later roughcut planning run inherits the resulting context rather than re-interrogating the library.
 
 ## Step 6 — Backup
 

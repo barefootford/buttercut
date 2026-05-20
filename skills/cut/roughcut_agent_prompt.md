@@ -28,19 +28,9 @@ After reading the library, you can determine what files you'll need to read beat
 
 ### 2. Set up the YAML
 
-Derive a slug from the plan's filename (the `[short-name]` portion of `plan_[short-name]_[timestamp].md`). Generate a fresh timestamp:
+Schema reference — output path, fields, timestamp format, dialogue-correction policy — lives in `skills/cut/cut_yaml_schema.md`. Read it once; the rest of this prompt assumes you know the shape.
 
-```bash
-date +%Y%m%d_%H%M%S
-```
-
-Reuse the same timestamp string for the YAML and exported XML. Copy the template:
-
-```bash
-cp templates/roughcut_template.yaml "libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml"
-```
-
-Set `description` in the YAML to a one-line summary of what the cut is.
+Derive a slug from the plan's working title — the `# ` heading at the top of the pasted plan markdown. Lowercase it, strip punctuation, and join words with underscores (e.g. `# Learning to Juggle` → `learning_to_juggle`). Seed the file per the schema doc, then set `description` to a one-line summary of what the cut is.
 
 ### 3. Build beat by beat
 
@@ -89,23 +79,7 @@ Returns both occurrences — pick the one matching context (the first "issues" e
 
 Trimmed clip: `in_point: 00:00:15.13`, `out_point: 00:00:16.27`. Drops nearly a second of redundant phrasing.
 
-**Each clip needs:**
-- `source_file`: filename only (from the video's entry in `library.yaml`)
-- `in_point`: start of the cut, `HH:MM:SS.ss`
-- `out_point`: end of the cut, `HH:MM:SS.ss`
-- `dialogue`: spoken words for the span (concatenate across segments if needed)
-- `visual_description`: shot description based on what the contact sheet shows for this range
-
-Preserve sub-second precision on timestamps (e.g. 2.849s → `00:00:02.85`).
-
-**Transcripts can be wrong — fix them in the `dialogue` field in the roughcut YAML.** Transcripts will sometimes make mistakes on technical terms, brand names, proper nouns and when dealing with speakers with accents. They're not perfect. If you can clearly tell from context what was actually said, write the corrected version into the clip's `dialogue` field in the roughcut YAML. Do NOT edit the transcript JSON files themselves.
-
-#### Examples:
-"RubyVeedums" → "Ruby Meetups"
-"Cloud Code" → "Claude Code"
-"Hot Wide Native" → "HotWire Native"
-
-Only correct when you're confident based on context. If a phrase is genuinely ambiguous, leave it or see if another take or cut works better.
+Drop each candidate into `clips:` following the per-clip schema (`cut_yaml_schema.md`). The dialogue-correction policy lives there too — apply it as you go.
 
 ### 4. Review pass — format-aware refinement
 
@@ -119,40 +93,18 @@ Use editorial judgment based on what you know about the user (`user_context`) an
 
 ### 5. Finalize the YAML
 
-- `total_duration`: sum of all clips, `HH:MM:SS.ss`
-- `created_date`: `YYYY-MM-DD HH:MM:SS`
-- Confirm `description` still reflects the cut
+Fill in the top-level metadata per `cut_yaml_schema.md` — `total_duration` (sum of clip durations) and `created_date` — and re-check that `description` still reflects the finished cut.
 
-### 6. Export
+### 6. Return — with notes
 
-Use the `editor` value passed inline in the prompt — the parent already resolved it.
+Your job ends at the YAML. The parent runs the export. Return a conversational message that includes:
 
-**Ruby version matters.** This project pins Ruby via `.mise.toml`. macOS system Ruby (2.6) is too old and will fail. Run the export with mise's Ruby and `-Ilib` so it finds the local `buttercut` gem without bundler.
-
-```bash
-# Final Cut Pro X
-mise exec -- ruby -Ilib ./.claude/skills/roughcut/export.rb --editor fcpx libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].fcpxml
-
-# Premiere Pro
-mise exec -- ruby -Ilib ./.claude/skills/roughcut/export.rb --editor premiere libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].xml
-
-# DaVinci Resolve
-mise exec -- ruby -Ilib ./.claude/skills/roughcut/export.rb --editor resolve libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].xml
-```
-
-If `mise` is not available, run `ruby -Ilib ...` directly — it'll use whatever Ruby is on PATH, which on a machine without mise is typically a 3.x install from Homebrew or asdf.
-
-### 7. Return — with notes
-
-Return a conversational message. Include:
 - The path to the YAML
-- The path to the exported XML in the library
 - Your editorial notes — alternatives you considered, judgment calls, plan deviations, pacing flags
 
 Example:
 
 > YAML: libraries/foo/roughcuts/my_cut_20260501_143022.yaml
-> XML:  libraries/foo/roughcuts/my_cut_20260501_143022.fcpxml
 >
 > A couple of alternates I had in mind:
 >
