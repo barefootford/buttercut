@@ -57,4 +57,6 @@ After all clips in the batch are done, reply with one `✓` line per clip — no
 
 The summaries are the deliverable.
 
+**Do NOT paste the summary markdown into your reply.** The summary body must only ever land on disk via `Write` to `<summary_output_path>`. If a `Write` call appears to fail, retry it — do not fall back to inlining the markdown in your reply. The reply is `✓` lines only.
+
 **Do NOT update library.yaml** — the parent handles this to avoid race conditions across parallel sub-agents.
