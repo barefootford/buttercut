@@ -40,15 +40,19 @@ If any check fails the call raises and the YAML is left untouched.
 
 ### Discover and check
 ```bash
-ruby skills/buttercut-lib/library.rb list                # one library name per line, newest first
+ruby skills/buttercut-lib/library.rb list                # every library, newest first by library.yaml mtime
+ruby skills/buttercut-lib/library.rb recent [N]          # N most recent libraries by deepest file mtime (default 10)
 ruby skills/buttercut-lib/library.rb <name> exists       # exit 0 if it exists, 1 if not
 ruby skills/buttercut-lib/library.rb <name> summary      # JSON: metadata + clip-completion breakdown
 ruby skills/buttercut-lib/library.rb <name> incomplete_videos
-ruby skills/buttercut-lib/library.rb <name> processed    # exit 0 if every video is processed, 1 if not
+ruby skills/buttercut-lib/library.rb <name> ready        # exit 0 if every video is ready for roughcut, 1 if not
 ```
 
-`summary` is the snapshot to call first when picking up a library —
-`incomplete_count == 0` means ready for roughcut.
+`recent` is the right tool for "which library was the user most recently working on?" — it sees activity across `transcripts/`, `contact_sheets/`, `scripts/`, `summaries/`, and `roughcuts/`, not just `library.yaml`. `list` is fine when you want the full set.
+
+`summary` is the snapshot to call when picking up a library — full metadata plus a clip-completion breakdown. `ready` is the one-shot pre-flight before building a cut: it's legacy-aware (a clip with `summary` + either `script` or `visual_transcript` counts as ready, even without a `contact_sheet`), so it doesn't block roughcut work on libraries that predate the contact-sheet pipeline. The roughcut sub-agent generates contact sheets on demand when it needs to see a clip.
+
+Use `summary` when you want to look at *what's* missing; use `ready` when you only need a yes/no gate.
 
 ### Add and update
 ```bash

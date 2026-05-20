@@ -44,6 +44,28 @@ class Library
        .map(&:first)
   end
 
+  # The most recent libraries, ordered by the newest file mtime inside the
+  # library dir (recursive). Why deepest mtime, not just library.yaml: footage
+  # analysis writes transcripts/contact_sheets/scripts/summaries; library.yaml
+  # may not change for hours even while the library is being actively built.
+  # Libraries without a `library.yaml` are skipped. Hidden files are excluded
+  # so `.DS_Store` from a Finder browse doesn't promote an idle library.
+  def self.recent(limit: 10)
+    return [] unless File.directory?(LIBRARIES_ROOT)
+
+    Dir.children(LIBRARIES_ROOT)
+       .filter_map do |name|
+         dir = File.join(LIBRARIES_ROOT, name)
+         next unless File.exist?(File.join(dir, 'library.yaml'))
+
+         mtimes = Dir.glob(File.join(dir, '**', '*')).filter_map { |p| File.mtime(p) if File.file?(p) }
+         [name, mtimes.max] unless mtimes.empty?
+       end
+       .sort_by { |_name, mtime| -mtime.to_f }
+       .first(limit)
+       .map(&:first)
+  end
+
   def self.create(library_name, language:, editor:, transcript_refinement:, video_paths:)
     raise ArgumentError, 'library_name is required' if library_name.to_s.strip.empty?
 
@@ -205,9 +227,12 @@ class Library
     self
   end
 
-  # True when every video has been processed under either pipeline. Current:
-  # script + summary. Legacy: visual_transcript + summary.
-  def processed?
+  # True when every video is ready for roughcut work under either pipeline.
+  # Current: script + summary. Legacy: visual_transcript + summary.
+  # `contact_sheet` is intentionally not required — new libraries always have
+  # them, and the roughcut sub-agent can generate sheets on demand for legacy
+  # libraries when it needs to "see" a clip.
+  def ready?
     vids = videos
     return false if vids.empty?
 
@@ -335,14 +360,15 @@ end
 if __FILE__ == $PROGRAM_NAME
   USAGE = <<~USAGE
     Usage:
-      ruby library.rb list                            — every library, newest first
+      ruby library.rb list                            — every library, newest first (library.yaml mtime)
+      ruby library.rb recent [N]                      — N most recent libraries by deepest file mtime (default 10)
       ruby library.rb <library_name> <action> [args]
 
     Existence + status (no library load required for `exists`):
       <name> exists                                   — exits 0 if library exists, 1 otherwise
       <name> summary                                  — JSON snapshot
       <name> incomplete_videos                        — JSON array of incomplete clips
-      <name> processed                                — exits 0 if every video is processed, 1 otherwise
+      <name> ready                                    — exits 0 if every video is ready for roughcut, 1 otherwise
 
     Writes:
       <name> add_videos <video_path>...               — append video records
@@ -365,6 +391,12 @@ if __FILE__ == $PROGRAM_NAME
 
   if ARGV.first == 'list'
     puts Library.list
+    exit 0
+  end
+
+  if ARGV.first == 'recent'
+    limit = ARGV[1] ? Integer(ARGV[1]) : 10
+    puts Library.recent(limit: limit)
     exit 0
   end
 
@@ -393,8 +425,8 @@ if __FILE__ == $PROGRAM_NAME
       puts JSON.pretty_generate(library.summary)
     when 'incomplete_videos'
       puts JSON.pretty_generate(library.incomplete_videos)
-    when 'processed'
-      exit(library.processed? ? 0 : 1)
+    when 'ready'
+      exit(library.ready? ? 0 : 1)
     when 'add_videos'
       raise ArgumentError, 'add_videos requires <video_path>...' if rest.empty?
 

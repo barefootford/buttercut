@@ -19,7 +19,7 @@ In addition to the primary thread, many times subagents are initiated to work on
 ### Workflow Steps
 
 1. **Process Library** → `process-library` skill — set up a new project, resume an existing one, or add new footage.
-2. **Edit** → `roughcut` skill — plan and build a timeline from the processed library. Check readiness with `ruby skills/buttercut-lib/library.rb <name> summary` — when its `incomplete_count` is `0`, every video has all four fields set and the library is ready.
+2. **Edit** → `cut` skill — build a scene, selects reel, roughcut, or custom task as a timeline from the processed library. Pre-flight with `ruby skills/buttercut-lib/library.rb <name> ready` (exit `0` means yes). The check is legacy-aware: a clip with `summary` + either `script` or `visual_transcript` counts as ready, so libraries that predate the contact-sheet pipeline still pass.
 3. **Backup** → `backup-library` skill — compressed archives in `/backups/`. `process-library` triggers this automatically after analysis.
 
 Libraries are the primary abstraction — each is a video series/project self-contained under `/libraries/[library-name]/`. Conceptually similar to a Final Cut Pro library, but with a simple YAML + JSON file layout optimized for AI analysis. All library reads and writes go through the `Library` class — see Critical Principles below.
@@ -53,7 +53,7 @@ A missing field is not the same as a field set to the template default — the t
 
 Two habits when working with `Library`:
 
-- **Status first.** `lib.summary` is the snapshot hash to call when picking up a library. `incomplete_count == 0` means ready for roughcut.
+- **Status first.** `lib.summary` is the snapshot hash to call when picking up a library. `lib.ready?` is the legacy-aware yes/no gate to call before building a cut.
 - **Mark progress incrementally.** Run `ruby skills/buttercut-lib/library.rb <name> complete <field> <files>` after each batch lands, not in one big final sweep — that way progress persists if a later batch fails.
 
 Full Ruby and shell API reference: `skills/buttercut-lib/README.md`.
