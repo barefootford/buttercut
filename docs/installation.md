@@ -17,6 +17,4 @@ See the [advanced setup guide](../skills/setup/advanced-setup.md) for step-by-st
 
 ## Verify Installation
 
-```bash
-ruby skills/setup/verify_install.rb
-```
+Ask Claude to "check my installation" — the `setup` skill walks through each dependency check and reports anything missing.
