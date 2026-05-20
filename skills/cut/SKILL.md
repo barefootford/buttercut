@@ -50,16 +50,14 @@ Run the export with the editor resolved in step 3 and the YAML produced in step 
 
 ```bash
 # Final Cut Pro X
-mise exec -- ruby -Ilib skills/cut/export.rb --editor fcpx libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].fcpxml
+ruby -Ilib skills/cut/export.rb --editor fcpx libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].fcpxml
 
 # Premiere Pro
-mise exec -- ruby -Ilib skills/cut/export.rb --editor premiere libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].xml
+ruby -Ilib skills/cut/export.rb --editor premiere libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].xml
 
 # DaVinci Resolve
-mise exec -- ruby -Ilib skills/cut/export.rb --editor resolve libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].xml
+ruby -Ilib skills/cut/export.rb --editor resolve libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].xml
 ```
-
-If `mise` is unavailable, drop the `mise exec --` prefix.
 
 ## 6. Copy XML to Desktop (if enabled)
 Check `libraries/settings.yaml` for `save_to_desktop_after_export`:

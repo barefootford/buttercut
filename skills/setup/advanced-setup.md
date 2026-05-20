@@ -131,7 +131,7 @@ bundle install
 Run the verification script:
 
 ```bash
-ruby .claude/skills/setup/verify_install.rb
+ruby skills/setup/verify_install.rb
 ```
 
 All items should show OK.

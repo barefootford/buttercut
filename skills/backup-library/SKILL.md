@@ -12,8 +12,7 @@ ls -la libraries/
 
 Run backup:
 ```bash
-# Prefer mise if available; fall back to bare ruby otherwise.
-mise exec -- ruby .claude/skills/backup-library/backup_libraries.rb
+ruby skills/backup-library/backup_libraries.rb
 ```
 
 Creates `backups/libraries_YYYYMMDD_HHMMSS.aar` when the macOS Apple Archive CLI (`aa`) is available — hardware-accelerated on Apple Silicon, Finder handles double-click extract. Falls back to `.zip` when `aa` is not present.

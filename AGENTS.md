@@ -103,6 +103,9 @@ We have RSpec tests for the XML generation library and Library helpers. This doe
 bundle exec rspec
 ```
 
+### Running Ruby scripts
+Skill prompts invoke Ruby with plain `ruby ...`. The project pins Ruby via `.mise.toml`; once mise is activated in your shell (the default setup), plain `ruby` resolves to it through mise shims. If your shell doesn't have mise activated — or you'd rather not install mise at all — prefix any `ruby ...` command with `mise exec -- ` (e.g. `mise exec -- ruby skills/buttercut-lib/library.rb my-lib summary`), or run the command from any shell where the right Ruby is already on `PATH`.
+
 ## Claude Skills
 
 When creating new Claude skills, aim to keep them as brief as possible. Use active voice to help condense instructions. Use simple, plain language.
@@ -110,6 +113,8 @@ When creating new Claude skills, aim to keep them as brief as possible. Use acti
 ### Where skills live
 
 Shipped skills live in top-level `skills/`. `.claude/skills` is a git-tracked symlink pointing to `../skills` so Claude Code (which looks under `.claude/skills/`) and other agentic CLIs that natively read `skills/` both find the same files. Drop new skills into `skills/` directly — no need to touch `.claude/skills/`.
+
+**Always write paths in skill prompts as `skills/<name>/...`, never `.claude/skills/<name>/...`.** Both resolve to the same files thanks to the symlink, but `skills/` is the canonical, agent-neutral form — non-Claude tools (Codex, etc.) read top-level `skills/` natively and may not look under `.claude/`. The only place `.claude/skills` should appear is in documentation about the symlink itself (like this section).
 
 **If skills aren't showing up in Claude Code:** check that `.claude/skills` is a symlink to `../skills` (`ls -la .claude/skills` should show `.claude/skills -> ../skills`). If it's a regular directory or missing entirely (common after the rsync path of `update-buttercut`, talk to the user and ask them if they want you to repair it.
 

@@ -12,7 +12,7 @@ Sets up a Mac for ButterCut. Two installation paths available based on user pref
 First, run the verification script to see what's already installed:
 
 ```bash
-ruby .claude/skills/setup/verify_install.rb
+ruby skills/setup/verify_install.rb
 ```
 
 If all dependencies pass, inform the user they're ready to go.
@@ -33,15 +33,15 @@ Options:
 
 Based on user choice:
 
-- **Simple**: Read and follow `.claude/skills/setup/simple-setup.md`
-- **Advanced**: Read and follow `.claude/skills/setup/advanced-setup.md`
+- **Simple**: Read and follow `skills/setup/simple-setup.md`
+- **Advanced**: Read and follow `skills/setup/advanced-setup.md`
 
 ## Step 4: Verify Installation
 
 After setup completes, run verification again:
 
 ```bash
-ruby .claude/skills/setup/verify_install.rb
+ruby skills/setup/verify_install.rb
 ```
 
 Report results to user.

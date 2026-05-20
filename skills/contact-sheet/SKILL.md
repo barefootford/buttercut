@@ -13,16 +13,14 @@ When the clip belongs to a library, always pass `--library` so the output lands 
 
 ```bash
 # Whole clip
-mise exec -- ruby skills/contact-sheet/contact_sheet.rb <video-path> --library libraries/<lib>
+ruby skills/contact-sheet/contact_sheet.rb <video-path> --library libraries/<lib>
 
 # From <start> to the end of the clip
-mise exec -- ruby skills/contact-sheet/contact_sheet.rb <video-path> <start> --library libraries/<lib>
+ruby skills/contact-sheet/contact_sheet.rb <video-path> <start> --library libraries/<lib>
 
 # Explicit range
-mise exec -- ruby skills/contact-sheet/contact_sheet.rb <video-path> <start> <end> --library libraries/<lib>
+ruby skills/contact-sheet/contact_sheet.rb <video-path> <start> <end> --library libraries/<lib>
 ```
-
-If `mise` is unavailable, drop the `mise exec --` prefix.
 
 `<start>` and `<end>` accept seconds (e.g. `12.5`) or `HH:MM:SS` / `MM:SS`.
 
