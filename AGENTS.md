@@ -19,7 +19,7 @@ In addition to the primary thread, many times subagents are initiated to work on
 ### Workflow Steps
 
 1. **Process Library** → `process-library` skill — set up a new project, resume an existing one, or add new footage.
-2. **Edit** → `cut` skill — build a scene, selects reel, roughcut, or custom task as a timeline from the processed library. Pre-flight with `ruby skills/buttercut-lib/library.rb <name> ready` (exit `0` means yes). The check is legacy-aware: a clip with `summary` + either `script` or `visual_transcript` counts as ready, so libraries that predate the contact-sheet pipeline still pass.
+2. **Edit** → `cut` skill — build a scene, selects reel, roughcut, or custom task as a timeline from the processed library. Pre-flight with `ruby skills/buttercut-lib/library.rb <name> ready` (exit `0` means yes). The check is legacy-aware: a clip with `summary` + either `transcript` or `visual_transcript` counts as ready, so libraries that predate the contact-sheet pipeline still pass.
 3. **Backup** → `backup-library` skill — compressed archives in `/backups/`. `process-library` triggers this automatically after analysis.
 
 Libraries are the primary abstraction — each is a video series/project self-contained under `/libraries/[library-name]/`. Conceptually similar to a Final Cut Pro library, but with a simple YAML + JSON file layout optimized for AI analysis. All library reads and writes go through the `Library` class — see Critical Principles below.
@@ -43,7 +43,7 @@ Known migration triggers (match each to a `scripts/NNN_migrate_*.rb` script via 
 
 A missing field is not the same as a field set to the template default — the template default only applies to freshly created libraries. If you see a schema issue not on this list, still check CHANGELOG.md; the list may be behind. After running migrations, re-read the library.yaml and continue with whatever the user asked for.
 
-**`visual_transcript` is deprecated for new analysis.** Don't generate them on new libraries — `contact_sheet` + `script` + `summary` is the current pipeline. Older libraries may still carry `visual_transcript` entries with matching `transcripts/visual_*.json` files; those are fine to use as additional planning context where they exist.
+**`visual_transcript` is deprecated for new analysis.** Don't generate them on new libraries — `transcript` + `contact_sheet` + `summary` is the current pipeline. Dialogue is extracted from the audio transcript JSON on demand via `ruby skills/analyze-video/script_extractor.rb <transcript>`; there is no separate script file on disk. Older libraries may still carry `visual_transcript` entries with matching `transcripts/visual_*.json` files; those are fine to use as additional planning context where they exist.
 
 **Keep main-thread context minimal.** The main thread orchestrates; sub-agents do the heavy work and return concise summaries. Don't read full transcript JSON or contact sheet images into the main thread as part of routine workflow — across a large library this bloats context fast. Trust sub-agent return messages when updating library.yaml. Direct user requests ("show me transcript X") are fine; the rule is about automatic workflow behavior.
 
@@ -58,7 +58,7 @@ Two habits when working with `Library`:
 
 Full Ruby and shell API reference: `skills/buttercut-lib/README.md`.
 
-**Contact sheets, clean scripts, and summaries are mandatory.** Before creating any rough cut or sequence, verify ALL videos have `transcript`, `script`, `contact_sheet`, and `summary` set in `library.yaml` (not empty, null, or ""). Artifacts live under `libraries/[library-name]/`: audio transcripts in `transcripts/`, clean scripts in `scripts/`, contact sheets in `contact_sheets/`, summaries in `summaries/`. The contact sheet (visual overview) plus the clean script (cheap dialogue) are what the roughcut agent reads to pick clips; the audio transcript JSON remains the source of truth for word-level in/out timing.
+**Transcripts, contact sheets, and summaries are mandatory.** Before creating any rough cut or sequence, verify ALL videos have `transcript`, `contact_sheet`, and `summary` set in `library.yaml` (not empty, null, or ""). Artifacts live under `libraries/[library-name]/`: audio transcripts in `transcripts/`, contact sheets in `contact_sheets/`, summaries in `summaries/`. The roughcut agent reads the contact sheet (visual overview) to "see" a clip, the summary to scan candidates cheaply, and the audio transcript JSON for dialogue (extracted on demand via `script_extractor.rb`) and word-level in/out timing.
 
 **Single-track timelines only.** ButterCut produces one sequential video track. Each clip's own audio plays during that clip — there is no second video track for cutaways layered over a continuing voiceover, and no separate audio track. When planning or pitching cuts, never propose "B-roll over VO," "story under meetup footage," picture-in-picture, or any structure that assumes a clip's audio continues while different visuals play on top. Cutaways are fine, but they're hard cuts: when you cut to the wide shot, you cut to that shot's audio too. Plan every cut as a strictly linear sequence of clips.
 

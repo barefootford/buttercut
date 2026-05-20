@@ -100,7 +100,7 @@ Claude: [Asks which video editor you want to use]
 You: "Final Cut Pro X"
 
 Claude: [Creates roughcut with editorial decisions]
-        ✓ Reviewed contact sheets and scripts
+        ✓ Reviewed contact sheets and transcripts
         ✓ Selected 29 clips (4:32 total)
         ✓ Exported to FCPXML
 

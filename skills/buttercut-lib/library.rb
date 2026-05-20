@@ -20,11 +20,10 @@ class Library
   FIELDS = {
     'transcript'    => { subdir: 'transcripts',    namer: ->(c) { "#{c}.json" },        keep: /\Avisual_/ }.freeze,
     'contact_sheet' => { subdir: 'contact_sheets', namer: ->(c) { "#{c}_full.jpg" } }.freeze,
-    'script'        => { subdir: 'scripts',        namer: ->(c) { "script_#{c}.txt" } }.freeze,
     'summary'       => { subdir: 'summaries',      namer: ->(c) { "summary_#{c}.md" } }.freeze
   }.freeze
 
-  SUBDIRS = %w[transcripts scripts contact_sheets summaries roughcuts plans].freeze
+  SUBDIRS = %w[transcripts contact_sheets summaries roughcuts plans].freeze
 
   def self.find(library_name) = new(library_name)
 
@@ -97,7 +96,6 @@ class Library
       'path' => path,
       'duration' => probe_duration(path),
       'transcript' => '',
-      'script' => '',
       'contact_sheet' => '',
       'summary' => ''
     }
@@ -228,7 +226,7 @@ class Library
   end
 
   # True when every video is ready for roughcut work under either pipeline.
-  # Current: script + summary. Legacy: visual_transcript + summary.
+  # Current: transcript + summary. Legacy: visual_transcript + summary.
   # `contact_sheet` is intentionally not required — new libraries always have
   # them, and the roughcut sub-agent can generate sheets on demand for legacy
   # libraries when it needs to "see" a clip.
@@ -237,7 +235,7 @@ class Library
     return false if vids.empty?
 
     vids.all? do |v|
-      present?(v['summary']) && (present?(v['script']) || present?(v['visual_transcript']))
+      present?(v['summary']) && (present?(v['transcript']) || present?(v['visual_transcript']))
     end
   end
 
@@ -379,7 +377,7 @@ if __FILE__ == $PROGRAM_NAME
       <name> reset_all_except_audio_transcripts       — wipe everything except audio transcripts
       <name> remove_visual_transcripts                — sweep legacy visual_*.json + clear field
 
-    <field>: transcript | contact_sheet | script | summary
+    <field>: transcript | contact_sheet | summary
     <files>: space- and/or comma-separated
     <key>:   footage_summary | user_context
 
@@ -450,7 +448,7 @@ if __FILE__ == $PROGRAM_NAME
       library.reset!(*Library::FIELDS.keys)
       library.remove_visual_transcripts!
     when 'reset_all_except_audio_transcripts'
-      library.reset!('contact_sheet', 'script', 'summary')
+      library.reset!('contact_sheet', 'summary')
       library.remove_visual_transcripts!
     when 'remove_visual_transcripts'
       library.remove_visual_transcripts!

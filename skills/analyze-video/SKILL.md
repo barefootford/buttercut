@@ -1,11 +1,11 @@
 ---
 name: analyze-video
-description: Full footage analysis pipeline — audio transcripts, contact sheets, clean scripts, and Sonnet-written summaries. Produces every artifact the cut skill reads. Orchestrated from the main thread.
+description: Full footage analysis pipeline — audio transcripts, contact sheets, and Sonnet-written summaries. Produces every artifact the cut skill reads. Orchestrated from the main thread.
 ---
 
 # Skill: Analyze Video (parent brief)
 
-This is the main thread's playbook for the **Analyze Video** workflow step. Run it after library setup, before any cut work. It covers all four artifacts produced per clip: audio `transcript`, `contact_sheet`, clean `script`, and markdown `summary`.
+This is the main thread's playbook for the **Analyze Video** workflow step. Run it after library setup, before any cut work. It covers the three artifacts produced per clip: audio `transcript`, `contact_sheet`, and markdown `summary`. The roughcut agent reads dialogue on demand by running `script_extractor.rb` over the transcript JSON — no separate script artifact.
 
 `SKILL.md` is the parent's dispatch brief. The sub-agent working prompt lives in `agent_prompt.md` — inline its contents when launching a Task agent. Don't pass `SKILL.md`.
 
@@ -46,17 +46,7 @@ ruby skills/analyze-video/contact_sheet_job.rb <library-name> <clip> [<clip> ...
 
 Takes an explicit list of clip filenames (including extension, e.g. `P1055016.MP4`). Runs single-threaded — launch multiple invocations in parallel from the main thread when machine headroom allows (a 3-4 way split across cores is usually safe on an M-series Mac). Always rebuilds every sheet for the clips it's given; for clips longer than 10 minutes that includes per-segment sheets covering successive 10-minute slices. Updates library.yaml's `contact_sheet` field for every clip it processes. No LLM — pure ffmpeg.
 
-## Step 3 — Clean scripts (deterministic, no agent)
-
-Run from the project root:
-
-```bash
-ruby skills/analyze-video/build_scripts.rb <library-name> <clip> [<clip> ...]
-```
-
-Takes an explicit list of clip filenames (including extension). Wraps `script_extractor` over each clip's audio transcript and writes `scripts/script_<clipname>.txt`. Updates library.yaml's `script` field for every clip it processes. Pure JSON parsing — no LLM. Skips clips whose script already exists, so it's safe to re-run. Single-threaded; launch multiple invocations in parallel from the main thread if you want.
-
-## Step 4 — Summaries (Sonnet sub-agents, batched, rolling)
+## Step 3 — Summaries (Sonnet sub-agents, batched, rolling)
 
 Dispatch `analyze-video` sub-agents on the **Sonnet model**. Sonnet reads the contact sheet with noticeably more visual specificity than Haiku (catches clothing, architecture, camera framing) — worth it since the summaries feed every later cut decision.
 
@@ -67,7 +57,7 @@ For each sub-agent, pass a list of 10 clip records inline. Each clip record need
 - `video_filename` — basename of the video (used in the summary header and reply line)
 - `duration` — duration string from library.yaml (e.g. `00:01:19`); the agent renders it in the summary header
 - `contact_sheet_path` — absolute path to the `_full.jpg` (from step 2)
-- `script_path` — absolute path to the pre-built clean script (from step 3)
+- `transcript_path` — absolute path to the audio transcript JSON (from step 1); the sub-agent extracts dialogue on demand via `script_extractor.rb`
 - `summary_output_path` — absolute path where the agent should write the summary markdown
 
 As each sub-agent returns its batch, update library.yaml with `summary` for every clip in that batch:
@@ -76,13 +66,13 @@ As each sub-agent returns its batch, update library.yaml with `summary` for ever
 ruby skills/buttercut-lib/library.rb <name> complete summary <filename> [<filename>...]
 ```
 
-The `contact_sheet` and `script` fields were already populated in steps 2 and 3, so the sub-agent return only contributes summaries.
+The `contact_sheet` field was already populated in step 2, so the sub-agent return only contributes summaries.
 
 **If a sub-agent returns summaries inline instead of writing them to disk** (sometimes Sonnet hallucinates "the Write tool is blocked" and dumps the markdown into its reply), don't retry blindly — just extract each summary from the agent's response and `Write` it to the matching `summary_output_path` from the parent thread. Then run the `complete summary` command as usual. Faster than redispatching, and the content is already there.
 
 (Per-segment contact sheets generated for long clips live alongside the `_full` sheet on disk and are discoverable by convention — they aren't listed in library.yaml.)
 
-## Step 5 — Confirm footage understanding with the user
+## Step 4 — Confirm footage understanding with the user
 
 Once every summary is written, talk through what the footage actually shows — confirm character names, locations, the narrative through-line, any stray or off-thesis clips, and the user's creative intent for this library. Use plain conversation; only reach for `AskUserQuestion` when offering a discrete choice. As you learn things, update:
 
@@ -91,13 +81,13 @@ Once every summary is written, talk through what the footage actually shows — 
 
 This is the one place to do this thorough pass. Every later roughcut planning run inherits the resulting context rather than re-interrogating the library.
 
-## Step 6 — Backup
+## Step 5 — Backup
 
 After all analysis completes, automatically create a backup using the `backup-library` skill.
 
 ## Parallel sub-agent pattern (reference)
 
-Used in steps 1 and 4.
+Used in steps 1 and 3.
 
 **Parent agent responsibilities:**
 - Read `library.yaml` and `settings.yaml` once to gather all values needed by sub-agents.
@@ -107,7 +97,7 @@ Used in steps 1 and 4.
 
 **Child agent responsibilities:**
 - Process its assigned clip(s) using only the inputs passed inline by the parent.
-- Run WhisperX (transcribe-audio) or read the pre-generated contact sheet + clean script and write the summary markdown in one Write call (analyze-video).
+- Run WhisperX (transcribe-audio) or read the pre-generated contact sheet, extract dialogue from the transcript via `script_extractor.rb`, and write the summary markdown in one Write call (analyze-video).
 - Return a short structured response with file paths.
 
 Each skill's `agent_prompt.md` documents its own IO contract — including whether the sub-agent reads or writes library.yaml. (Spoiler: it never writes library.yaml. Only the parent writes, via the `Library` API.)

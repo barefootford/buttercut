@@ -25,7 +25,6 @@ RSpec.describe Library do
     dir = File.join(libraries_root, name)
     FileUtils.mkdir_p(File.join(dir, 'transcripts'))
     FileUtils.mkdir_p(File.join(dir, 'contact_sheets'))
-    FileUtils.mkdir_p(File.join(dir, 'scripts'))
     FileUtils.mkdir_p(File.join(dir, 'summaries'))
     payload = metadata.transform_keys(&:to_s).merge('videos' => videos)
     File.write(File.join(dir, 'library.yaml'), payload.to_yaml)
@@ -38,7 +37,6 @@ RSpec.describe Library do
       'duration' => '00:00:05',
       'transcript' => '',
       'contact_sheet' => '',
-      'script' => '',
       'summary' => ''
     }.merge(overrides.transform_keys(&:to_s))
   end
@@ -148,7 +146,7 @@ RSpec.describe Library do
       )
       expect(yaml['videos'].first).to include(
         'path' => video_path, 'duration' => '00:00:42',
-        'transcript' => '', 'script' => '', 'contact_sheet' => '', 'summary' => ''
+        'transcript' => '', 'contact_sheet' => '', 'summary' => ''
       )
     end
 
@@ -244,7 +242,7 @@ RSpec.describe Library do
       write_library(
         videos: [
           video_entry('a.mov', transcript: 'a.json', contact_sheet: 'a_full.jpg',
-                      script: 'script_a.txt', summary: 'summary_a.md'),
+                      summary: 'summary_a.md'),
           video_entry('b.mov', transcript: 'b.json', summary: 'summary_b.md'),
           video_entry('c.mov')
         ],
@@ -272,7 +270,7 @@ RSpec.describe Library do
         'incomplete_count' => 2
       )
       expect(result['incomplete'].map { |v| v['filename'] }).to eq(%w[b.mov c.mov])
-      expect(result['incomplete'].first['missing']).to eq(%w[contact_sheet script])
+      expect(result['incomplete'].first['missing']).to eq(%w[contact_sheet])
     end
 
     it 'returns zero counts and an empty incomplete list for a brand-new empty library' do
@@ -303,7 +301,6 @@ RSpec.describe Library do
       lib = Library.find(library_name)
       expect(lib.field_path('transcript', 'DJI_0123')).to eq(File.join(library_dir, 'transcripts', 'DJI_0123.json'))
       expect(lib.field_path('contact_sheet', 'DJI_0123')).to eq(File.join(library_dir, 'contact_sheets', 'DJI_0123_full.jpg'))
-      expect(lib.field_path('script', 'DJI_0123')).to eq(File.join(library_dir, 'scripts', 'script_DJI_0123.txt'))
       expect(lib.field_path('summary', 'DJI_0123')).to eq(File.join(library_dir, 'summaries', 'summary_DJI_0123.md'))
     end
 
@@ -386,10 +383,10 @@ RSpec.describe Library do
   end
 
   describe '#incomplete_videos' do
-    it 'returns an empty array when every video has all four fields set' do
+    it 'returns an empty array when every video has all three fields set' do
       write_library(videos: [
                       video_entry('a.mov', transcript: 'a.json', contact_sheet: 'a_full.jpg',
-                                  script: 'script_a.txt', summary: 'summary_a.md')
+                                  summary: 'summary_a.md')
                     ])
       expect(Library.find(library_name).incomplete_videos).to eq([])
     end
@@ -401,14 +398,14 @@ RSpec.describe Library do
                     ])
       result = Library.find(library_name).incomplete_videos
       expect(result.size).to eq(2)
-      expect(result[0]).to include('filename' => 'a.mov', 'missing' => %w[contact_sheet script summary])
-      expect(result[1]).to include('filename' => 'b.mov', 'missing' => %w[contact_sheet script])
+      expect(result[0]).to include('filename' => 'a.mov', 'missing' => %w[contact_sheet summary])
+      expect(result[1]).to include('filename' => 'b.mov', 'missing' => %w[contact_sheet])
     end
 
     it 'treats nil and whitespace-only values as missing' do
-      write_library(videos: [video_entry('a.mov', transcript: nil, script: '   ')])
+      write_library(videos: [video_entry('a.mov', transcript: nil, contact_sheet: '   ')])
       expect(Library.find(library_name).incomplete_videos.first['missing'])
-        .to include('transcript', 'script')
+        .to include('transcript', 'contact_sheet')
     end
 
     it 'ignores legacy visual_transcript when reporting missing fields' do
@@ -416,15 +413,15 @@ RSpec.describe Library do
                       video_entry('a.mov', summary: 'summary_a.md').merge('visual_transcript' => 'visual_a.json')
                     ])
       expect(Library.find(library_name).incomplete_videos.first['missing'])
-        .to eq(%w[transcript contact_sheet script])
+        .to eq(%w[transcript contact_sheet])
     end
   end
 
   describe '#ready?' do
-    it 'returns true when every video has script + summary (current pipeline)' do
+    it 'returns true when every video has transcript + summary (current pipeline)' do
       write_library(videos: [
-                      video_entry('a.mov', script: 'script_a.txt', summary: 'summary_a.md'),
-                      video_entry('b.mov', script: 'script_b.txt', summary: 'summary_b.md')
+                      video_entry('a.mov', transcript: 'a.json', summary: 'summary_a.md'),
+                      video_entry('b.mov', transcript: 'b.json', summary: 'summary_b.md')
                     ])
       expect(Library.find(library_name).ready?).to be(true)
     end
@@ -438,7 +435,7 @@ RSpec.describe Library do
 
     it 'accepts a mix of legacy and current videos' do
       write_library(videos: [
-                      video_entry('a.mov', script: 'script_a.txt', summary: 'summary_a.md'),
+                      video_entry('a.mov', transcript: 'a.json', summary: 'summary_a.md'),
                       video_entry('b.mov', summary: 'summary_b.md').merge('visual_transcript' => 'visual_b.json')
                     ])
       expect(Library.find(library_name).ready?).to be(true)
@@ -446,8 +443,8 @@ RSpec.describe Library do
 
     it 'returns false when any video is missing a summary' do
       write_library(videos: [
-                      video_entry('a.mov', script: 'script_a.txt', summary: 'summary_a.md'),
-                      video_entry('b.mov', script: 'script_b.txt')
+                      video_entry('a.mov', transcript: 'a.json', summary: 'summary_a.md'),
+                      video_entry('b.mov', transcript: 'b.json')
                     ])
       expect(Library.find(library_name).ready?).to be(false)
     end
@@ -531,18 +528,18 @@ RSpec.describe Library do
 
     it 'is variadic — wipes every named field in one call' do
       write_library(videos: [
-                      video_entry('a.mov', script: 'script_a.txt', summary: 'summary_a.md',
+                      video_entry('a.mov', transcript: 'a.json', summary: 'summary_a.md',
                                   contact_sheet: 'a_full.jpg')
                     ])
       touch(
-        File.join(library_dir, 'scripts',        'script_a.txt'),
+        File.join(library_dir, 'transcripts',    'a.json'),
         File.join(library_dir, 'summaries',      'summary_a.md'),
         File.join(library_dir, 'contact_sheets', 'a_full.jpg')
       )
-      Library.find(library_name).reset!('script', 'summary', 'contact_sheet')
+      Library.find(library_name).reset!('transcript', 'summary', 'contact_sheet')
       video = load_yaml['videos'].first
-      expect(video.values_at('script', 'summary', 'contact_sheet')).to eq(['', '', ''])
-      expect(Dir.children(File.join(library_dir, 'scripts'))).to eq([])
+      expect(video.values_at('transcript', 'summary', 'contact_sheet')).to eq(['', '', ''])
+      expect(Dir.children(File.join(library_dir, 'transcripts'))).to eq([])
       expect(Dir.children(File.join(library_dir, 'summaries'))).to eq([])
       expect(Dir.children(File.join(library_dir, 'contact_sheets'))).to eq([])
     end

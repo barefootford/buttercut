@@ -20,7 +20,7 @@ Within the task, work iteratively, not in one shot:
 ### 1. Read the library
 
 Open `libraries/[library-name]/library.yaml`. The library includes:
-- The full video inventory (filenames, paths, transcript/script/contact-sheet/summary filenames)
+- The full video inventory (filenames, paths, transcript/contact-sheet/summary filenames)
 - `footage_summary` — what the project is, the tone, the subjects
 - `user_context` — what you've learned about this user across sessions
 
@@ -37,13 +37,14 @@ Derive a slug from the plan's working title — the `# ` heading at the top of t
 **Clip artifacts** (all under `libraries/[library-name]/`):
 - **Summary** (`summaries/summary_*.md`) — short markdown overview: arc, key visuals, notable dialogue, b-roll. Read first to scan candidates cheaply.
 - **Contact sheet** (`contact_sheets/<clipname>_full.jpg`) — a single image with 16 evenly-spaced frames from the clip, each labeled with its `HH:MM:SS` timestamp. Read this to "see" the whole clip at once: locations, action, who's on camera, where the visual changes are. Clips longer than 10 minutes also have per-segment sheets (`<clipname>_HH-MM-SS_to_HH-MM-SS.jpg`) for finer-grain scrubbing.
-- **Script** (`scripts/script_*.txt`) — clean dialogue text, no timing. Cheap to read when you want the words without the JSON weight.
-- **Audio transcript** (`transcripts/*.json`) — segment-level `start`/`end` plus a per-segment `words` array with per-word `start`/`end`. Reach for it when you need word-level in/out points to set or trim a cut. Don't read the whole file — grep for the words you need.
+- **Audio transcript** (`transcripts/*.json`) — segment-level `start`/`end` plus a per-segment `words` array with per-word `start`/`end`. The source of truth for dialogue and timing. Two ways to use it:
+  - For browsing dialogue: `ruby skills/analyze-video/script_extractor.rb libraries/[library-name]/transcripts/<clip>.json` — stdout is clean text, one segment per line, no timing weight. Cheap to skim.
+  - For word-level in/out points at a cut boundary: grep the JSON directly for the words you need. Don't read the whole file.
 - **Visual transcript** (`transcripts/visual_*.json`, legacy / optional) — older libraries from the previous pipeline carry these. If present, treat them as extra planning context alongside the contact sheet. Newly-processed libraries won't have them, and you should never generate new ones.
 
 For each beat in the plan:
 - Skim summaries to shortlist candidate clips.
-- For shortlisted clips, read the contact sheet and the clean script.
+- For shortlisted clips, read the contact sheet and extract the dialogue (`script_extractor.rb`).
 - Set in/out points by grepping the audio transcript for the words at your cut boundaries.
 
 **Zoom in when timing matters.** Generate a tighter contact sheet for any clip and any range whenever the existing one leaves you guessing at a cut point:
@@ -58,7 +59,7 @@ One second of precision is the goal, not perfect-frame. We're building a roughcu
 
 **When a clip has dialogue, coherent dialogue wins over visual timing.** Set cuts to complete the sentence even if a tighter visual cut exists. A mid-sentence cut breaks audience attention; a slightly held visual doesn't.
 
-**Worked example — trimming inside a segment.** A wordy segment in `scripts/script_DJI_123.txt`:
+**Worked example — trimming inside a segment.** A wordy segment from the extracted dialogue of `DJI_123.mov`:
 
 ```
 We're also using AI on the back end to try to find issues as well as try to find more test issues.

@@ -14,13 +14,13 @@ Do NOT open `library.yaml` or search the filesystem for additional context — i
 
 ## Step 2 — Extract a compact script view
 
-Run the shared extractor to produce a plain-text view of the transcript (one segment per paragraph, no timing metadata). Pick a sibling `.txt` path next to the transcript and pass it explicitly:
+Run the shared extractor to produce a plain-text view of the transcript (one segment per paragraph, no timing metadata). The extractor writes to stdout:
 
 ```bash
-ruby skills/analyze-video/script_extractor.rb <transcript_path> <transcript_path_with_.txt_extension>
+ruby skills/analyze-video/script_extractor.rb <transcript_path>
 ```
 
-Read ONLY that `.txt` file for the analysis steps below. Do NOT `Read` the full transcript JSON yet — it's large and you don't need its word-level structure to identify corrections.
+Use the bash output as your dialogue view for the analysis steps below. Do NOT `Read` the full transcript JSON yet — it's large and you don't need its word-level structure to identify corrections.
 
 ## Step 3 — HARD RULE: preserve word count, never change timing
 
@@ -46,7 +46,7 @@ If even squashing won't work (genuinely requires splitting or merging tokens), d
 
 ## Step 4 — Identify corrections from the compact script
 
-Scan the `.txt` view against the confidence rubric. Every candidate must also satisfy Step 3's word-count rule.
+Scan the extracted dialogue against the confidence rubric. Every candidate must also satisfy Step 3's word-count rule.
 
 - **Context-named term match**: correct if the intended term appears in `user_context` or `footage_summary` and the transcript has a close mishearing. Example: `footage_summary` says "the couple got married at a small vineyard in Sonoma over Labor Day weekend." The transcript has `"We drove all the way up to Sanoma on Friday afternoon and the traffic was unbelievable."` "Sanoma" is a 1→1 mishearing of the context-named location — fix it.
 - **Nonsense-token match**: correct if the transcript token is a non-word nonsense string with a clear real-world spelling implied by context. Example: transcript says `"His mother grew up in Pleasantton and worked at the little cafe downtown for twenty years."` "Pleasantton" isn't a real place — but "Pleasanton" is a real East Bay city and nothing else is phonetically close. 1→1 spelling fix.
@@ -95,15 +95,7 @@ The transcript JSON is pretty-printed (`JSON.pretty_generate`), so each key sits
 - For an N→N phrase fix, update each token's word entry the same way, anchored by its own `start`.
 - For the squashing case (e.g. `Sanjose` → `SanJose`), the word count is unchanged, so there's still exactly one word entry to update per array.
 
-## Step 6 — Clean up the extracted script file
-
-Delete the `.txt` file created in Step 2. It's scaffolding, not a deliverable.
-
-```bash
-rm <transcript_path with .json replaced by .txt>
-```
-
-## Step 7 — Return summary to the parent
+## Step 6 — Return summary to the parent
 
 Append a refinement line to your SKILL.md Step 5 response. Format:
 
