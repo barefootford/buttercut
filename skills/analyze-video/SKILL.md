@@ -17,7 +17,7 @@ This is the main thread's playbook for the **Analyze Video** workflow step. Run 
 ## Prerequisites
 
 - Library setup is complete (`library.yaml` exists, schema is current — run migrations from AGENTS.md if not).
-- Read `libraries/settings.yaml` directly for `whisper_model`. For library fields, use `Library.find(name)` and the readers `.language`, `.transcript_refinement`, `.user_context`, `.footage_summary`, `.editor` — don't parse library.yaml inline.
+- Read `libraries/settings.yaml` directly for `whisper_model`. For library fields, read the snapshot via `ruby skills/buttercut-lib/library.rb <name> summary` and pull the values you need from the JSON — don't parse library.yaml inline.
 
 ## Step 1 — Audio transcripts (parallel sub-agents)
 
@@ -28,7 +28,11 @@ Launch `transcribe-audio` Task agents. Pass these values **inline** in each agen
 - `video_path`, `transcript_output_dir`, `language_code`, `whisper_model`
 - `transcript_refinement` (boolean). If `true`, also pass the current `user_context` and `footage_summary` strings (empty strings are fine — refinement still catches nonsense-token and self-witness fixes).
 
-As each agent completes, update library.yaml with `transcript` (filename only, not full path) via `Library.find(name).complete_transcript!([filenames])`.
+As each agent completes, update library.yaml with `transcript` (filename only, not full path):
+
+```bash
+ruby skills/buttercut-lib/library.rb <name> complete transcript <filename> [<filename>...]
+```
 
 **Refinement note:** When `transcript_refinement: true`, each `transcribe-audio` agent reviews and corrects its transcript in place before returning, using the `user_context` and `footage_summary` the parent passed in. Empty context strings are fine. The parent still only writes `transcript: <filename>.json` to library.yaml after the agent completes.
 
@@ -66,9 +70,15 @@ For each sub-agent, pass a list of 10 clip records inline. Each clip record need
 - `script_path` — absolute path to the pre-built clean script (from step 3)
 - `summary_output_path` — absolute path where the agent should write the summary markdown
 
-As each sub-agent returns its batch, update library.yaml with `summary` for every clip in that batch — `Library.find(name).complete_summary!([filenames])`. The `contact_sheet` and `script` fields were already populated in steps 2 and 3, so the sub-agent return only contributes summaries.
+As each sub-agent returns its batch, update library.yaml with `summary` for every clip in that batch:
 
-**If a sub-agent returns summaries inline instead of writing them to disk** (sometimes Sonnet hallucinates "the Write tool is blocked" and dumps the markdown into its reply), don't retry blindly — just extract each summary from the agent's response and `Write` it to the matching `summary_output_path` from the parent thread. Then run `complete_summary!` as usual. Faster than redispatching, and the content is already there.
+```bash
+ruby skills/buttercut-lib/library.rb <name> complete summary <filename> [<filename>...]
+```
+
+The `contact_sheet` and `script` fields were already populated in steps 2 and 3, so the sub-agent return only contributes summaries.
+
+**If a sub-agent returns summaries inline instead of writing them to disk** (sometimes Sonnet hallucinates "the Write tool is blocked" and dumps the markdown into its reply), don't retry blindly — just extract each summary from the agent's response and `Write` it to the matching `summary_output_path` from the parent thread. Then run the `complete summary` command as usual. Faster than redispatching, and the content is already there.
 
 (Per-segment contact sheets generated for long clips live alongside the `_full` sheet on disk and are discoverable by convention — they aren't listed in library.yaml.)
 
@@ -76,7 +86,7 @@ As each sub-agent returns its batch, update library.yaml with `summary` for ever
 
 Once every summary is written, talk through what the footage actually shows — confirm character names, locations, the narrative through-line, any stray or off-thesis clips, and the user's creative intent for this library. Use plain conversation; only reach for `AskUserQuestion` when offering a discrete choice. As you learn things, update:
 
-- `footage_summary` and `user_context` via `Library.find(name).update_metadata!(footage_summary: ..., user_context: ...)`
+- `footage_summary` and `user_context` via `ruby skills/buttercut-lib/library.rb <name> update_metadata footage_summary "..."` (and the same with `user_context`)
 - individual `summary_*.md` files when a summary mislabels someone or misses a key detail (e.g., "a man in a tan jacket" → the user's name)
 
 This is the one place to do this thorough pass. Every later `roughcut` planning run inherits the resulting context rather than re-interrogating the library.

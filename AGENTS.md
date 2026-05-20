@@ -19,7 +19,7 @@ In addition to the primary thread, many times subagents are initiated to work on
 ### Workflow Steps
 
 1. **Process Library** → `process-library` skill — set up a new project, resume an existing one, or add new footage.
-2. **Edit** → `roughcut` skill — plan and build a timeline from the processed library. Check readiness with `Library.find(name).summary` — when its `incomplete_count` is `0`, every video has all four artifacts and the library is ready.
+2. **Edit** → `roughcut` skill — plan and build a timeline from the processed library. Check readiness with `ruby skills/buttercut-lib/library.rb <name> summary` — when its `incomplete_count` is `0`, every video has all four fields set and the library is ready.
 3. **Backup** → `backup-library` skill — compressed archives in `/backups/`. `process-library` triggers this automatically after analysis.
 
 Libraries are the primary abstraction — each is a video series/project self-contained under `/libraries/[library-name]/`. Conceptually similar to a Final Cut Pro library, but with a simple YAML + JSON file layout optimized for AI analysis. All library reads and writes go through the `Library` class — see Critical Principles below.
@@ -43,22 +43,20 @@ Known migration triggers (match each to a `scripts/NNN_migrate_*.rb` script via 
 
 A missing field is not the same as a field set to the template default — the template default only applies to freshly created libraries. If you see a schema issue not on this list, still check CHANGELOG.md; the list may be behind. After running migrations, re-read the library.yaml and continue with whatever the user asked for.
 
-**`visual_transcript` is deprecated.** Older libraries may still carry it (and the matching `transcripts/visual_*.json` files). Don't generate new ones, don't read them when planning roughcuts, and don't migrate them — the existing files are harmless and represent compute the user already paid for. New analysis produces `contact_sheet` + `script` instead.
+**`visual_transcript` is deprecated for new analysis.** Don't generate them on new libraries — `contact_sheet` + `script` + `summary` is the current pipeline. Older libraries may still carry `visual_transcript` entries with matching `transcripts/visual_*.json` files; those are fine to use as additional planning context where they exist.
 
 **Keep main-thread context minimal.** The main thread orchestrates; sub-agents do the heavy work and return concise summaries. Don't read full transcript JSON or contact sheet images into the main thread as part of routine workflow — across a large library this bloats context fast. Trust sub-agent return messages when updating library.yaml. Direct user requests ("show me transcript X") are fine; the rule is about automatic workflow behavior.
 
 **Use actual filenames.** Never use generic labels like "Video 1" or "Clip A" - always reference actual filenames like "DJI_20250423171212_0210_D.mov" for clear traceability.
 
-**Library.yaml mutations go through `Library` — only from the main thread.** `skills/analyze-video/library.rb` is the one place that reads and writes library.yaml. Sub-agents must NEVER call it (race conditions on the shared file); the orchestrator is the only writer.
+**Library.yaml mutations go through `Library` — only from the main thread.** `skills/buttercut-lib/library.rb` is the one place that reads and writes library.yaml. Sub-agents must NEVER call it (race conditions on the shared file); the orchestrator is the only writer. Never read or write library.yaml directly — go through `Library`. If you need a field the class doesn't expose, add a reader rather than parsing the YAML inline.
 
-Use it from Ruby (`Library.find('name').complete_summary!([filenames])`) or shell (`ruby skills/analyze-video/library.rb <name> <action> [filenames]`). The file header in `skills/analyze-video/library.rb` is the API reference — read it for full method signatures. Quick map of what's there:
+Two habits when working with `Library`:
 
-- **Lifecycle:** `Library.exists?` / `.list` / `.create` / `.find`, and `lib.add_videos`.
-- **Status (call first):** `lib.summary` returns a hash with top-level metadata plus a clip-completion breakdown (`video_count`, `incomplete_count`, and the list of incomplete clips). This is the first thing to call when picking up a library.
-- **Other readers:** `lib.videos` for the full inventory; `lib.incomplete_videos` and `lib.processed?` if you need just one slice of the status; `lib.language` / `.editor` / `.user_context` / `.footage_summary` / `.transcript_refinement` for individual metadata fields; `lib.dir` and `lib.artifact_path(field, clipname)` for on-disk paths.
-- **Writers:** `lib.complete_<artifact>!([filenames])` after a batch (validates files exist on disk first); `lib.complete_all_<artifacts>!` to mark every video done at once; `lib.reset_<artifacts>!` to wipe a phase; `lib.update_metadata!` for the free-text fields.
+- **Status first.** `lib.summary` is the snapshot hash to call when picking up a library. `incomplete_count == 0` means ready for roughcut.
+- **Mark progress incrementally.** Run `ruby skills/buttercut-lib/library.rb <name> complete <field> <files>` after each batch lands, not in one big final sweep — that way progress persists if a later batch fails.
 
-Never read or write library.yaml directly — go through `Library`. If you need a field the class doesn't expose, add a reader rather than parsing the YAML inline.
+Full Ruby and shell API reference: `skills/buttercut-lib/README.md`.
 
 **Contact sheets, clean scripts, and summaries are mandatory.** Before creating any rough cut or sequence, verify ALL videos have `transcript`, `script`, `contact_sheet`, and `summary` set in `library.yaml` (not empty, null, or ""). Artifacts live under `libraries/[library-name]/`: audio transcripts in `transcripts/`, clean scripts in `scripts/`, contact sheets in `contact_sheets/`, summaries in `summaries/`. The contact sheet (visual overview) plus the clean script (cheap dialogue) are what the roughcut agent reads to pick clips; the audio transcript JSON remains the source of truth for word-level in/out timing.
 

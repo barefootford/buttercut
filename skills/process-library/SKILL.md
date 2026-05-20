@@ -39,21 +39,32 @@ Note: `transcript_refinement` is a **per-library** setting, not global. Ask abou
 
 ## Step 2 — Resume or create
 
-Check if a library already exists with `Library.exists?(name)`:
+Check if a library already exists:
 
-**If true:**
+```bash
+ruby skills/buttercut-lib/library.rb <name> exists   # exits 0 if it does, 1 if not
+```
+
+**If it exists:**
 - Skip setup entirely — the library is already configured.
-- Call `Library.find(name).summary` first — one read gives you all top-level metadata plus the clip-completion breakdown (`video_count`, `incomplete_count`, and the list of incomplete clips with their missing artifacts).
+- Read the snapshot first — one call gives you top-level metadata plus the clip-completion breakdown (`video_count`, `incomplete_count`, and the list of incomplete clips with their missing fields):
+  ```bash
+  ruby skills/buttercut-lib/library.rb <name> summary
+  ```
 - User is returning to existing work; continue from whatever step is incomplete.
 
-**If the directory exists but `Library.exists?` is false** (library.yaml missing):
+**If the directory exists but `exists` returns 1** (library.yaml missing):
 - Check what files are present (`transcripts/`, `roughcuts/`, etc.) and inform the user of the current state.
 - Proceed with creating library.yaml to restore consistency.
 
 **If no library directory exists:**
 - Proceed to Step 3 to gather project information and create a new library.
 
-To list libraries by recency (for "find a recent library to resume" prompts), call `Library.list`.
+To list libraries by recency (for "find a recent library to resume" prompts):
+
+```bash
+ruby skills/buttercut-lib/library.rb list
+```
 
 ## Step 3 — Gather project information (new libraries)
 
@@ -78,25 +89,30 @@ Ask the user these questions one at a time — never all at once.
    - Options: "Yes — Recommended (Use Claude to refine video understanding)" and "No".
    - Save the boolean to `transcript_refinement` in library.yaml (true for Yes, false for No). Default to `true` if the user skips.
 
-Read the `editor` from `libraries/settings.yaml` — you'll pass it into `Library.create` next.
+Read the `editor` from `libraries/settings.yaml` — you'll pass it into the create call next.
 
 ## Step 4 — Create the library
 
-Use `Library.create`. It creates the directory tree (transcripts/, scripts/, contact_sheets/, summaries/, roughcuts/, plans/), ffprobes each video for duration, and writes library.yaml in one call:
+`Library.create` is the one operation that doesn't have a plain CLI form (kwarg-heavy). Run it via `ruby -e`. It creates the directory tree (transcripts/, scripts/, contact_sheets/, summaries/, roughcuts/, plans/), ffprobes each video for duration, and writes library.yaml in one call:
 
-```ruby
-Library.create(
-  'my-library',
-  language: 'en',                       # language code from Step 3
-  editor: 'fcpx',                       # shortcode from settings.yaml (fcpx/premiere/resolve)
-  transcript_refinement: true,          # from Step 3
-  video_paths: ['/abs/foo.mov', '/abs/bar.mov']
-)
+```bash
+ruby -e "require_relative 'skills/buttercut-lib/library'; \
+  Library.create('my-library', \
+    language: 'en', \
+    editor: 'fcpx', \
+    transcript_refinement: true, \
+    video_paths: ['/abs/foo.mov', '/abs/bar.mov'])"
 ```
 
 Each video entry starts with empty `transcript`, `script`, `contact_sheet`, and `summary` — empty means "todo", a filename means "done."
 
-If the user later drags in more clips, call `lib.add_videos([new_paths])` to append them, then re-run the analyze steps for just the new clips.
+If the user later drags in more clips:
+
+```bash
+ruby skills/buttercut-lib/library.rb <name> add_videos /abs/new1.mov /abs/new2.mov
+```
+
+Then re-run the analyze steps for just the new clips.
 
 ## Step 5 — Analyze footage
 
@@ -104,7 +120,13 @@ Inform the user: "Library setup complete. Found [N] videos ([total size]). Start
 
 Follow `skills/analyze-video/SKILL.md` end-to-end. That skill covers audio transcripts (parallel sub-agents), contact sheets (deterministic), clean scripts (deterministic), summaries (Sonnet sub-agents, batched + rolling), and the post-analysis footage-understanding pass.
 
-Progressively update `footage_summary` via `lib.update_metadata!(footage_summary: ...)` as transcripts come in — 1-3 sentences covering subjects, locations, activities, visual style. The full understanding pass at the end of analyze-video is where this gets refined.
+Progressively update `footage_summary` as transcripts come in — 1-3 sentences covering subjects, locations, activities, visual style:
+
+```bash
+ruby skills/buttercut-lib/library.rb <name> update_metadata footage_summary "subjects/locations/activities/visual style"
+```
+
+The full understanding pass at the end of analyze-video is where this gets refined.
 
 Analyze ALL videos before offering to create rough cuts.
 

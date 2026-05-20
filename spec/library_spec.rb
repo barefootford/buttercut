@@ -1,7 +1,7 @@
 require 'spec_helper'
 require 'tmpdir'
 require 'yaml'
-require_relative '../skills/analyze-video/library'
+require_relative '../skills/buttercut-lib/library'
 
 RSpec.describe Library do
   let(:libraries_root) { @libraries_root }
@@ -156,7 +156,7 @@ RSpec.describe Library do
       write_library(videos: [video_entry('existing.mov', path: '/tmp/existing.mov')])
     end
 
-    it 'appends new entries with ffprobe duration and empty artifact fields' do
+    it 'appends new entries with ffprobe duration and empty per-clip fields' do
       Library.find(library_name).add_videos([video_a, video_b])
       videos = load_yaml['videos']
       expect(videos.map { |v| v['path'] }).to eq(['/tmp/existing.mov', video_a, video_b])
@@ -174,14 +174,9 @@ RSpec.describe Library do
         .to raise_error(ArgumentError, /video file not found/)
     end
 
-    it 'rejects a non-array argument' do
-      expect { Library.find(library_name).add_videos(video_a) }
-        .to raise_error(ArgumentError, /must be an array/)
-    end
-
-    it 'rejects an empty array' do
-      expect { Library.find(library_name).add_videos([]) }
-        .to raise_error(ArgumentError, /must not be empty/)
+    it 'coerces a single path into a one-element array' do
+      Library.find(library_name).add_videos(video_a)
+      expect(load_yaml['videos'].last['path']).to eq(video_a)
     end
 
     it 'returns self for chaining' do
@@ -270,20 +265,20 @@ RSpec.describe Library do
     end
   end
 
-  describe '#artifact_path' do
+  describe '#field_path' do
     before { write_library(videos: []) }
 
-    it 'returns the canonical on-disk path for each artifact field' do
+    it 'returns the canonical on-disk path for each field' do
       lib = Library.find(library_name)
-      expect(lib.artifact_path('transcript', 'DJI_0123')).to eq(File.join(library_dir, 'transcripts', 'DJI_0123.json'))
-      expect(lib.artifact_path('contact_sheet', 'DJI_0123')).to eq(File.join(library_dir, 'contact_sheets', 'DJI_0123_full.jpg'))
-      expect(lib.artifact_path('script', 'DJI_0123')).to eq(File.join(library_dir, 'scripts', 'script_DJI_0123.txt'))
-      expect(lib.artifact_path('summary', 'DJI_0123')).to eq(File.join(library_dir, 'summaries', 'summary_DJI_0123.md'))
+      expect(lib.field_path('transcript', 'DJI_0123')).to eq(File.join(library_dir, 'transcripts', 'DJI_0123.json'))
+      expect(lib.field_path('contact_sheet', 'DJI_0123')).to eq(File.join(library_dir, 'contact_sheets', 'DJI_0123_full.jpg'))
+      expect(lib.field_path('script', 'DJI_0123')).to eq(File.join(library_dir, 'scripts', 'script_DJI_0123.txt'))
+      expect(lib.field_path('summary', 'DJI_0123')).to eq(File.join(library_dir, 'summaries', 'summary_DJI_0123.md'))
     end
 
-    it 'raises for unknown artifact fields' do
-      expect { Library.find(library_name).artifact_path('bogus', 'x') }
-        .to raise_error(ArgumentError, /unknown artifact/)
+    it 'raises for unknown fields' do
+      expect { Library.find(library_name).field_path('bogus', 'x') }
+        .to raise_error(ArgumentError, /unknown field/)
     end
   end
 
@@ -360,7 +355,7 @@ RSpec.describe Library do
   end
 
   describe '#incomplete_videos' do
-    it 'returns an empty array when every video has all four artifacts' do
+    it 'returns an empty array when every video has all four fields set' do
       write_library(videos: [
                       video_entry('a.mov', transcript: 'a.json', contact_sheet: 'a_full.jpg',
                                   script: 'script_a.txt', summary: 'summary_a.md')
@@ -368,7 +363,7 @@ RSpec.describe Library do
       expect(Library.find(library_name).incomplete_videos).to eq([])
     end
 
-    it 'reports each missing artifact field' do
+    it 'reports each missing field' do
       write_library(videos: [
                       video_entry('a.mov', transcript: 'a.json'),
                       video_entry('b.mov', transcript: 'b.json', summary: 'summary_b.md')
@@ -432,7 +427,7 @@ RSpec.describe Library do
     end
   end
 
-  describe '#complete_summary! (and other per-batch completers)' do
+  describe '#complete!' do
     before do
       write_library(videos: [video_entry('a.mov'), video_entry('b.mov'), video_entry('c.mov')])
       touch(
@@ -443,7 +438,7 @@ RSpec.describe Library do
     end
 
     it 'sets the field on each named video' do
-      Library.find(library_name).complete_summary!(['a.mov', 'b.mov'])
+      Library.find(library_name).complete!('summary', ['a.mov', 'b.mov'])
       videos = load_yaml['videos']
       expect(videos[0]['summary']).to eq('summary_a.md')
       expect(videos[1]['summary']).to eq('summary_b.md')
@@ -452,62 +447,34 @@ RSpec.describe Library do
 
     it 'returns self for chaining' do
       lib = Library.find(library_name)
-      expect(lib.complete_summary!(['a.mov'])).to be(lib)
+      expect(lib.complete!('summary', ['a.mov'])).to be(lib)
     end
 
-    it 'raises if the artifact file does not exist on disk and leaves YAML untouched' do
+    it 'raises if the file does not exist on disk and leaves YAML untouched' do
       File.delete(File.join(library_dir, 'summaries', 'summary_b.md'))
-      expect { Library.find(library_name).complete_summary!(['a.mov', 'b.mov']) }
+      expect { Library.find(library_name).complete!('summary', ['a.mov', 'b.mov']) }
         .to raise_error(ArgumentError, /summary file does not exist/)
       expect(load_yaml['videos'][0]['summary']).to eq('')
     end
 
     it 'raises if a video is not present in library.yaml' do
       touch(File.join(library_dir, 'summaries', 'summary_missing.md'))
-      expect { Library.find(library_name).complete_summary!(['missing.mov']) }
+      expect { Library.find(library_name).complete!('summary', ['missing.mov']) }
         .to raise_error(ArgumentError, /video not found in library\.yaml/)
     end
 
-    it 'rejects a non-array argument' do
-      expect { Library.find(library_name).complete_summary!('a.mov') }
-        .to raise_error(ArgumentError, /must be an array/)
+    it 'raises for an unknown field name' do
+      expect { Library.find(library_name).complete!('bogus', ['a.mov']) }
+        .to raise_error(ArgumentError, /unknown field/)
     end
 
-    it 'rejects an empty array' do
-      expect { Library.find(library_name).complete_summary!([]) }
-        .to raise_error(ArgumentError, /must not be empty/)
-    end
-  end
-
-  describe '#complete_all_summaries! (and other whole-library variants)' do
-    before do
-      write_library(videos: [video_entry('a.mov'), video_entry('b.mov')])
-      touch(
-        File.join(library_dir, 'summaries', 'summary_a.md'),
-        File.join(library_dir, 'summaries', 'summary_b.md')
-      )
-    end
-
-    it 'sets the field on every video in the library' do
-      Library.find(library_name).complete_all_summaries!
-      summaries = load_yaml['videos'].map { |v| v['summary'] }
-      expect(summaries).to eq(['summary_a.md', 'summary_b.md'])
-    end
-
-    it 'raises if any artifact file is missing' do
-      File.delete(File.join(library_dir, 'summaries', 'summary_b.md'))
-      expect { Library.find(library_name).complete_all_summaries! }
-        .to raise_error(ArgumentError, /summary file does not exist/)
-    end
-
-    it 'raises when the library has no videos' do
-      write_library(videos: [])
-      expect { Library.find(library_name).complete_all_summaries! }
-        .to raise_error(ArgumentError, /has no videos/)
+    it 'coerces a single filename into a one-element batch' do
+      Library.find(library_name).complete!('summary', 'a.mov')
+      expect(load_yaml['videos'][0]['summary']).to eq('summary_a.md')
     end
   end
 
-  describe '#reset_summaries! (and other reset_* variants)' do
+  describe '#reset!' do
     before do
       write_library(videos: [
                       video_entry('a.mov', summary: 'summary_a.md'),
@@ -520,44 +487,109 @@ RSpec.describe Library do
     end
 
     it 'deletes referenced files and clears YAML fields' do
-      Library.find(library_name).reset_summaries!
+      Library.find(library_name).reset!('summary')
       expect(Dir.children(File.join(library_dir, 'summaries'))).to eq([])
       expect(load_yaml['videos'].map { |v| v['summary'] }).to eq(['', ''])
     end
 
     it 'sweeps orphan files in the directory' do
       touch(File.join(library_dir, 'summaries', 'summary_orphan.md'))
-      Library.find(library_name).reset_summaries!
+      Library.find(library_name).reset!('summary')
       expect(Dir.children(File.join(library_dir, 'summaries'))).to eq([])
     end
 
-    it 'preserves legacy visual_*.json files in transcripts/' do
-      write_library(videos: [video_entry('a.mov', transcript: 'a.json')])
+    it 'is variadic — wipes every named field in one call' do
+      write_library(videos: [
+                      video_entry('a.mov', script: 'script_a.txt', summary: 'summary_a.md',
+                                  contact_sheet: 'a_full.jpg')
+                    ])
+      touch(
+        File.join(library_dir, 'scripts',        'script_a.txt'),
+        File.join(library_dir, 'summaries',      'summary_a.md'),
+        File.join(library_dir, 'contact_sheets', 'a_full.jpg')
+      )
+      Library.find(library_name).reset!('script', 'summary', 'contact_sheet')
+      video = load_yaml['videos'].first
+      expect(video.values_at('script', 'summary', 'contact_sheet')).to eq(['', '', ''])
+      expect(Dir.children(File.join(library_dir, 'scripts'))).to eq([])
+      expect(Dir.children(File.join(library_dir, 'summaries'))).to eq([])
+      expect(Dir.children(File.join(library_dir, 'contact_sheets'))).to eq([])
+    end
+
+    it 'leaves legacy visual_*.json files alone when resetting transcripts' do
+      write_library(videos: [video_entry('a.mov', transcript: 'a.json').merge('visual_transcript' => 'visual_a.json')])
       touch(
         File.join(library_dir, 'transcripts', 'a.json'),
         File.join(library_dir, 'transcripts', 'visual_a.json')
       )
-      Library.find(library_name).reset_transcripts!
+      Library.find(library_name).reset!('transcript')
       expect(Dir.children(File.join(library_dir, 'transcripts'))).to eq(['visual_a.json'])
+      expect(load_yaml['videos'].first['visual_transcript']).to eq('visual_a.json')
+    end
+
+    it 'raises for an unknown field name' do
+      expect { Library.find(library_name).reset!('bogus') }
+        .to raise_error(ArgumentError, /unknown field/)
     end
 
     it 'returns self for chaining' do
       lib = Library.find(library_name)
-      expect(lib.reset_summaries!).to be(lib)
+      expect(lib.reset!('summary')).to be(lib)
     end
 
     it 'rescues per-file errors so one bad entry does not abort the batch' do
-      # A directory entry inside summaries/ will be skipped by File.file?, but
-      # if we make the *referenced* file un-deletable we want the rescue path.
       ref = File.join(library_dir, 'summaries', 'summary_a.md')
       allow(File).to receive(:delete).and_call_original
       allow(File).to receive(:delete).with(ref).and_raise(Errno::EACCES, 'denied')
 
       lib = Library.find(library_name)
-      expect { lib.reset_summaries! }.not_to raise_error
+      expect { lib.reset!('summary') }.not_to raise_error
       yaml = load_yaml['videos']
       expect(yaml[0]['summary']).to eq('summary_a.md') # not cleared — delete failed
       expect(yaml[1]['summary']).to eq('')             # cleared — delete succeeded
     end
   end
+
+  describe '#remove_visual_transcripts!' do
+    before do
+      write_library(videos: [
+                      video_entry('a.mov', transcript: 'a.json').merge('visual_transcript' => 'visual_a.json'),
+                      video_entry('b.mov', transcript: 'b.json').merge('visual_transcript' => 'visual_b.json')
+                    ])
+      touch(
+        File.join(library_dir, 'transcripts', 'a.json'),
+        File.join(library_dir, 'transcripts', 'b.json'),
+        File.join(library_dir, 'transcripts', 'visual_a.json'),
+        File.join(library_dir, 'transcripts', 'visual_b.json')
+      )
+    end
+
+    it 'deletes visual_*.json files in transcripts/ and clears the YAML field' do
+      Library.find(library_name).remove_visual_transcripts!
+      remaining = Dir.children(File.join(library_dir, 'transcripts')).sort
+      expect(remaining).to eq(%w[a.json b.json])
+      expect(load_yaml['videos'].map { |v| v['visual_transcript'] }).to eq(['', ''])
+    end
+
+    it 'leaves non-visual transcript files and other YAML fields intact' do
+      Library.find(library_name).remove_visual_transcripts!
+      yaml = load_yaml['videos']
+      expect(yaml.map { |v| v['transcript'] }).to eq(%w[a.json b.json])
+    end
+
+    it 'is a no-op when no visual transcripts are present' do
+      FileUtils.rm_rf(File.join(library_dir, 'transcripts'))
+      FileUtils.mkdir_p(File.join(library_dir, 'transcripts'))
+      write_library(videos: [video_entry('a.mov', transcript: 'a.json')])
+      touch(File.join(library_dir, 'transcripts', 'a.json'))
+      expect { Library.find(library_name).remove_visual_transcripts! }.not_to raise_error
+      expect(Dir.children(File.join(library_dir, 'transcripts'))).to eq(['a.json'])
+    end
+
+    it 'returns self for chaining' do
+      lib = Library.find(library_name)
+      expect(lib.remove_visual_transcripts!).to be(lib)
+    end
+  end
+
 end

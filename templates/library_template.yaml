@@ -16,7 +16,7 @@ footage_summary: "No footage analyzed yet."
 
 # Video files and analysis status
 #
-# Per clip, analysis produces three artifacts:
+# Per clip, analysis fills four fields:
 #   transcript     — audio transcript JSON (word-level timing, in transcripts/)
 #   script         — clean dialogue text, no timing (in scripts/)
 #   contact_sheet  — _full.jpg visual overview (in contact_sheets/); per-segment
@@ -24,7 +24,7 @@ footage_summary: "No footage analyzed yet."
 #   summary        — markdown overview (in summaries/)
 #
 # Note: visual_transcript is deprecated. Older libraries may still carry the
-# field; new libraries use the contact_sheet artifact instead.
+# field; new libraries use the contact_sheet field instead.
 videos:
   - path: /full/path/to/video_file.mp4
     duration: "00:05:32"
