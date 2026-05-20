@@ -130,7 +130,17 @@ The full understanding pass at the end of analyze-video is where this gets refin
 
 Analyze ALL videos before offering to create rough cuts.
 
-## Step 6 — Backup
+## Step 6 — Verify readiness
+
+Before reporting analysis complete, confirm the library passes the same gate the `cut` skill uses:
+
+```bash
+ruby skills/buttercut-lib/library.rb <name> ready
+```
+
+If it exits non-zero, run `ruby skills/buttercut-lib/library.rb <name> summary` to list the incomplete clips, finish the missing artifacts (loop back into whichever analyze-video step owns them), and re-run `ready` until it passes. Don't claim analysis is done while `Library.ready?` is false.
+
+## Step 7 — Backup
 
 After all analysis completes, automatically create a backup using the `backup-library` skill.
 
