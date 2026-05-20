@@ -31,8 +31,7 @@ whisperx "<video_path>" \
 ## 2. Prepare audio transcript
 
 ```bash
-# Prefer mise if available; fall back to bare ruby otherwise.
-mise exec -- ruby .claude/skills/transcribe-audio/prepare_audio_script.rb \
+ruby skills/transcribe-audio/prepare_audio_script.rb \
   <transcript_output_dir>/<video_basename>.json \
   <video_path>
 ```
@@ -41,7 +40,7 @@ This script adds the video source path as metadata, removes unnecessary fields, 
 
 ## 3. (Optional) Refine the transcript
 
-If `transcript_refinement: true`, follow `.claude/skills/transcribe-audio/refine_instructions.md`, using the `user_context` and `footage_summary` strings the parent supplied inline. Do NOT open `library.yaml`. Skip if `transcript_refinement` is missing or `false`.
+If `transcript_refinement: true`, follow `skills/transcribe-audio/refine_instructions.md`, using the `user_context` and `footage_summary` strings the parent supplied inline. Do NOT open `library.yaml`. Skip if `transcript_refinement` is missing or `false`.
 
 ## 4. Return success response
 

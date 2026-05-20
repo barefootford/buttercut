@@ -49,9 +49,9 @@ For each beat in the plan:
 **Zoom in when timing matters.** Generate a tighter contact sheet for any clip and any range whenever the existing one leaves you guessing at a cut point:
 
 ```bash
-mise exec -- ruby skills/contact-sheet/contact_sheet.rb <video_path> <start> <end> --library libraries/[library-name]
+ruby skills/contact-sheet/contact_sheet.rb <video_path> <start> <end> --library libraries/[library-name]
 # e.g. zoom into a 30-second window 2 minutes into a clip:
-mise exec -- ruby skills/contact-sheet/contact_sheet.rb <video_path> 02:00 02:30 --library libraries/[library-name]
+ruby skills/contact-sheet/contact_sheet.rb <video_path> 02:00 02:30 --library libraries/[library-name]
 ```
 
 One second of precision is the goal, not perfect-frame. We're building a roughcut, not finishing it — the editor will tighten in their NLE. Landing within ~1 second of the right moment (24-60 frames at typical frame rates) is plenty. Don't recursively zoom hunting for an exact frame: pick what looks right and move on.
