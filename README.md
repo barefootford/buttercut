@@ -76,7 +76,7 @@ Once your library is analyzed, Claude can create rough cuts through an interacti
 ```plaintext
 You: "Let's create a new roughcut"
 
-Claude: [Loads roughcut skill and analyzes footage]
+Claude: [Loads cut skill and analyzes footage]
         What should this roughcut focus on?
         - Full story
         - Just the meetup coverage
