@@ -15,6 +15,8 @@
 #   <library_name>  e.g. my-library
 #   <clip>          clip filename including extension, e.g. P1055016.MP4
 
+require 'fileutils'
+
 require_relative '../contact-sheet/contact_sheet'
 require_relative '../buttercut-lib/library'
 
@@ -37,6 +39,8 @@ class ContactSheetJob
   end
 
   def perform
+    FileUtils.mkdir_p(File.join(@library.dir, 'contact_sheets'))
+
     @videos.each_with_index do |video, idx|
       process_clip(video, idx + 1, @videos.size)
     end
