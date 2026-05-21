@@ -54,7 +54,7 @@ ruby skills/buttercut-lib/library.rb <name> exists   # exits 0 if it does, 1 if 
 - User is returning to existing work; continue from whatever step is incomplete.
 
 **If the directory exists but `exists` returns 1** (library.yaml missing):
-- Check what files are present (`transcripts/`, `roughcuts/`, etc.) and inform the user of the current state.
+- Check what files are present (`transcripts/`, `cuts/`, etc.) and inform the user of the current state.
 - Proceed with creating library.yaml to restore consistency.
 
 **If no library directory exists:**
@@ -93,7 +93,7 @@ Read the `editor` from `libraries/settings.yaml` — you'll pass it into the cre
 
 ## Step 4 — Create the library
 
-`Library.create` is the one operation that doesn't have a plain CLI form (kwarg-heavy). Run it via `ruby -e`. It creates the directory tree (transcripts/, contact_sheets/, summaries/, roughcuts/, plans/), ffprobes each video for duration, and writes library.yaml in one call:
+`Library.create` is the one operation that doesn't have a plain CLI form (kwarg-heavy). Run it via `ruby -e`. It creates the directory tree (transcripts/, contact_sheets/, summaries/, cuts/, plans/), ffprobes each video for duration, and writes library.yaml in one call:
 
 ```bash
 ruby -e "require_relative 'skills/buttercut-lib/library'; \

@@ -105,7 +105,7 @@ Your job ends at the YAML. The parent runs the export. Return a conversational m
 
 Example:
 
-> YAML: libraries/foo/roughcuts/my_cut_20260501_143022.yaml
+> YAML: libraries/foo/cuts/my_cut_20260501_143022.yaml
 >
 > A couple of alternates I had in mind:
 >

@@ -52,7 +52,7 @@ ruby skills/buttercut-lib/library.rb <name> incomplete_videos
 ruby skills/buttercut-lib/library.rb <name> ready        # exit 0 if every video is ready for roughcut, 1 if not
 ```
 
-`recent` is the right tool for "which library was the user most recently working on?" — it sees activity across `transcripts/`, `contact_sheets/`, `summaries/`, and `roughcuts/`, not just `library.yaml`. `list` is fine when you want the full set.
+`recent` is the right tool for "which library was the user most recently working on?" — it sees activity across `transcripts/`, `contact_sheets/`, `summaries/`, and `cuts/`, not just `library.yaml`. `list` is fine when you want the full set.
 
 `summary` is the snapshot to call when picking up a library — full metadata plus a clip-completion breakdown. `ready` is the one-shot pre-flight before building a cut: it's legacy-aware (a clip with `summary` + either `transcript` or `visual_transcript` counts as ready, even without a `contact_sheet`), so it doesn't block roughcut work on libraries that predate the contact-sheet pipeline. The roughcut sub-agent generates contact sheets on demand when it needs to see a clip.
 
