@@ -1,6 +1,6 @@
 # Direct Path (Scene / Selects / Custom)
 
-The Scene / Selects / Custom branch of `skills/cut/SKILL.md` step 4. Run this when the user picked Scene, Selects, or Custom in step 2. By the time you're here, the library is already confirmed and ready (SKILL.md step 1) and the editor is resolved (SKILL.md step 3).
+The Scene / Selects / Custom branch of `skills/cut/SKILL.md` step 3. Run this when the user picked Scene, Selects, or Custom in step 2. By the time you're here, the library is already confirmed and ready (SKILL.md step 1). Editor resolution happens after the YAML is built (SKILL.md step 4) — don't ask about it yet.
 
 These three task types share one flow because the build mechanism is the same — main thread, conversational YAML, no sub-agent. Only the content of the conversation differs (beats for a scene, criteria for selects, free-form for custom).
 

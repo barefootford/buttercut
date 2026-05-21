@@ -10,8 +10,6 @@ LIBRARY YAML: libraries/{library_name}/library.yaml
 APPROVED PLAN:
 {paste full plan markdown}
 
-EDITOR: {editor}
-
 TASK:
 1. Read `skills/cut/roughcut_agent_prompt.md`
 2. Follow the steps there in order (the plan is already approved — don't re-propose)
