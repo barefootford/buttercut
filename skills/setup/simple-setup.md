@@ -123,11 +123,31 @@ ruby --version    # Should show 3.3.6
 python3 --version # Should show 3.12.8
 ```
 
-## Step 5: FFmpeg
+## Step 5: FFmpeg (full build with drawtext)
+
+ButterCut's contact-sheet pipeline burns timestamps onto frames with the `drawtext` filter. The stock `brew install ffmpeg` formula often ships without `drawtext` enabled, so we install the full build from the `homebrew-ffmpeg/ffmpeg` tap and make it the only ffmpeg on the machine.
+
+If the stock formula is already installed, remove it first so the tap version links cleanly:
 
 ```bash
-which ffmpeg || brew install ffmpeg
+brew list ffmpeg >/dev/null 2>&1 && brew uninstall --ignore-dependencies ffmpeg || true
 ```
+
+Install the tap build:
+
+```bash
+brew tap homebrew-ffmpeg/ffmpeg
+brew install homebrew-ffmpeg/ffmpeg/ffmpeg
+brew link --overwrite homebrew-ffmpeg/ffmpeg/ffmpeg
+```
+
+Verify drawtext is present (must print a line containing `drawtext`):
+
+```bash
+ffmpeg -hide_banner -filters 2>/dev/null | grep ' drawtext '
+```
+
+If nothing prints, the install didn't pick up libfreetype — re-run the tap install and re-verify before continuing.
 
 ## Step 6: WhisperX Virtual Environment
 

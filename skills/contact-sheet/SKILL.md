@@ -7,6 +7,25 @@ description: Builds a contact sheet from a video clip — evenly spaced frames l
 
 Builds a contact sheet from a slice of a video clip: 16 evenly spaced frames laid out in a 4x4 grid, each annotated with its hh:mm:ss timestamp.
 
+## Prerequisite: ffmpeg with drawtext
+
+This skill burns timestamps onto frames with ffmpeg's `drawtext` filter. The stock Homebrew `ffmpeg` formula frequently ships without it — runs fail with `No such filter: 'drawtext'`. If you hit that error, or want to check up front:
+
+```bash
+ffmpeg -hide_banner -filters 2>/dev/null | grep ' drawtext '
+```
+
+If nothing prints, replace ffmpeg with the full build from the `homebrew-ffmpeg/ffmpeg` tap so it becomes the only ffmpeg on the machine through brew:
+
+```bash
+brew list ffmpeg >/dev/null 2>&1 && brew uninstall --ignore-dependencies ffmpeg || true
+brew tap homebrew-ffmpeg/ffmpeg
+brew install homebrew-ffmpeg/ffmpeg/ffmpeg
+brew link --overwrite homebrew-ffmpeg/ffmpeg/ffmpeg
+```
+
+Re-run the grep above to confirm `drawtext` is present, then retry the contact sheet.
+
 ## Run
 
 When the clip belongs to a library, always pass `--library` so the output lands in the standard place:
