@@ -16,7 +16,8 @@ Run each check below. Each command exits 0 when the dependency is present. Note 
 - [ ] **Ruby 3.3.x** — `ruby --version | grep -q 'ruby 3\.3'` (fix: install Ruby 3.3.6, see `.ruby-version`)
 - [ ] **Bundler** — `which bundle` (fix: `gem install bundler`)
 - [ ] **Python 3.12.x** — `python3 --version | grep -q 'Python 3\.12'` (fix: install Python 3.12.8, see `.python-version`)
-- [ ] **FFmpeg** — `which ffmpeg` (fix: `brew install ffmpeg`)
+- [ ] **FFmpeg** — `which ffmpeg` (fix: see FFmpeg install in the setup file below — must be the `homebrew-ffmpeg/ffmpeg` tap build)
+- [ ] **FFmpeg drawtext filter** — `ffmpeg -hide_banner -filters 2>/dev/null | grep -q ' drawtext '` (fix: the stock `brew install ffmpeg` formula often omits drawtext; replace it with the `homebrew-ffmpeg/ffmpeg` tap build — see setup file)
 - [ ] **WhisperX** — `which whisperx || test -x ~/.buttercut/whisperx || test -x ~/.buttercut/venv/bin/whisperx` (fix: see setup steps below)
 - [ ] **Bundle installed** — `test -f Gemfile.lock` (fix: `bundle install` in buttercut directory)
 

@@ -71,13 +71,28 @@ Verify:
 python3 --version  # Should show 3.12.8
 ```
 
-### 7. FFmpeg
+### 7. FFmpeg (full build with drawtext)
+
+The contact-sheet pipeline uses the `drawtext` filter to burn timestamps onto frames. The stock Homebrew `ffmpeg` formula often omits drawtext (requires libfreetype + libharfbuzz at build time). Install the `homebrew-ffmpeg/ffmpeg` tap build instead:
 
 ```bash
-brew install ffmpeg
+# Remove stock ffmpeg if present so the tap version links cleanly
+brew list ffmpeg >/dev/null 2>&1 && brew uninstall --ignore-dependencies ffmpeg || true
+
+brew tap homebrew-ffmpeg/ffmpeg
+brew install homebrew-ffmpeg/ffmpeg/ffmpeg
+brew link --overwrite homebrew-ffmpeg/ffmpeg/ffmpeg
 ```
 
-Or install via your preferred method.
+If you build ffmpeg yourself, ensure it's configured with `--enable-libfreetype` (and `--enable-libharfbuzz` on recent versions).
+
+Verify:
+
+```bash
+ffmpeg -hide_banner -filters 2>/dev/null | grep ' drawtext '
+```
+
+Must print a `drawtext` line. If nothing prints, contact-sheet generation will fail.
 
 ### 8. WhisperX
 
