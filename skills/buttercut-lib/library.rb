@@ -43,22 +43,27 @@ class Library
        .map(&:first)
   end
 
-  # The most recent libraries, ordered by the newest file mtime inside the
-  # library dir (recursive). Why deepest mtime, not just library.yaml: footage
-  # analysis writes transcripts/contact_sheets/scripts/summaries; library.yaml
-  # may not change for hours even while the library is being actively built.
-  # Libraries without a `library.yaml` are skipped. Hidden files are excluded
-  # so `.DS_Store` from a Finder browse doesn't promote an idle library.
+  # The most recent libraries, ordered by the newest mtime among library.yaml
+  # and the known artifact subdirs. Why those and not deep recursion: footage
+  # analysis adds/removes files in transcripts/contact_sheets/summaries/cuts/
+  # plans/, and a directory's mtime updates on every such add or remove — so
+  # one stat per subdir captures activity without a recursive glob. Scales
+  # flat with library count regardless of how many files each one holds.
   def self.recent(limit: 10)
     return [] unless File.directory?(LIBRARIES_ROOT)
 
     Dir.children(LIBRARIES_ROOT)
        .filter_map do |name|
          dir = File.join(LIBRARIES_ROOT, name)
-         next unless File.exist?(File.join(dir, 'library.yaml'))
+         yaml = File.join(dir, 'library.yaml')
+         next unless File.exist?(yaml)
 
-         mtimes = Dir.glob(File.join(dir, '**', '*')).filter_map { |p| File.mtime(p) if File.file?(p) }
-         [name, mtimes.max] unless mtimes.empty?
+         mtimes = [File.mtime(yaml)]
+         SUBDIRS.each do |sub|
+           path = File.join(dir, sub)
+           mtimes << File.mtime(path) if File.directory?(path)
+         end
+         [name, mtimes.max]
        end
        .sort_by { |_name, mtime| -mtime.to_f }
        .first(limit)
