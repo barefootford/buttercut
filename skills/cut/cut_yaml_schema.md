@@ -2,8 +2,6 @@
 
 The YAML format every `cut` path produces. Same shape for scenes, selects, custom tasks, and roughcuts — the path differs in *how* the YAML gets built, not *what* it looks like.
 
-Both `direct_path.md` and `roughcut_path.md` (and the roughcut sub-agent prompt) point at this file for the schema. Path-specific rules — slug derivation, who fills in `description` and how — live in those docs.
-
 ## Where it lives
 
 ```
@@ -58,5 +56,3 @@ Examples:
 - "RubyVeedums" → "Ruby Meetups"
 - "Cloud Code" → "Claude Code"
 - "Hot Wide Native" → "HotWire Native"
-
-Only correct when you're confident. If a phrase is genuinely ambiguous, leave it or pick a different take.
