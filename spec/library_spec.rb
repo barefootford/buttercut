@@ -212,6 +212,16 @@ RSpec.describe Library do
       lib = Library.find(library_name)
       expect(lib.add_videos([video_a])).to be(lib)
     end
+
+    it 'expands relative paths to absolute before storing' do
+      stored = Dir.chdir(File.dirname(video_a)) do
+        Library.find(library_name).add_videos(['./a.mov'])
+        load_yaml['videos'].last['path']
+      end
+      expect(stored).to start_with('/')
+      expect(stored).to end_with('/src/a.mov')
+      expect(File.identical?(stored, video_a)).to be(true)
+    end
   end
 
   describe '.find' do
