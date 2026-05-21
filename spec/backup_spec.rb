@@ -21,14 +21,14 @@ RSpec.describe LibraryBackup do
     %w[library1 library2].each do |lib_name|
       lib_path = File.join(libraries_dir, lib_name)
       FileUtils.mkdir_p(File.join(lib_path, 'transcripts'))
-      FileUtils.mkdir_p(File.join(lib_path, 'roughcuts'))
+      FileUtils.mkdir_p(File.join(lib_path, 'cuts'))
 
       File.write(
         File.join(lib_path, 'library.yaml'),
         YAML.dump({ 'library_name' => lib_name, 'videos' => [] })
       )
       File.write(File.join(lib_path, 'transcripts', 'video1_transcript.json'), '{"test": "data"}')
-      File.write(File.join(lib_path, 'roughcuts', 'roughcut1.yaml'), 'test: roughcut')
+      File.write(File.join(lib_path, 'cuts', 'cut1.yaml'), 'test: cut')
     end
   end
 
@@ -51,7 +51,7 @@ RSpec.describe LibraryBackup do
         expect(listing).to include('libraries/library1/library.yaml')
         expect(listing).to include('libraries/library2/library.yaml')
         expect(listing).to include('libraries/library1/transcripts/video1_transcript.json')
-        expect(listing).to include('libraries/library1/roughcuts/roughcut1.yaml')
+        expect(listing).to include('libraries/library1/cuts/cut1.yaml')
       end
     end
 
@@ -72,7 +72,7 @@ RSpec.describe LibraryBackup do
         expect(entries).to include('libraries/library1/library.yaml')
         expect(entries).to include('libraries/library2/library.yaml')
         expect(entries).to include('libraries/library1/transcripts/video1_transcript.json')
-        expect(entries).to include('libraries/library1/roughcuts/roughcut1.yaml')
+        expect(entries).to include('libraries/library1/cuts/cut1.yaml')
       end
     end
 

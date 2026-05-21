@@ -23,7 +23,7 @@ class Library
     'summary'       => { subdir: 'summaries',      namer: ->(c) { "summary_#{c}.md" } }.freeze
   }.freeze
 
-  SUBDIRS = %w[transcripts contact_sheets summaries roughcuts plans].freeze
+  SUBDIRS = %w[transcripts contact_sheets summaries cuts plans].freeze
 
   def self.find(library_name) = new(library_name)
 
@@ -230,7 +230,18 @@ class Library
   # `contact_sheet` is intentionally not required — new libraries always have
   # them, and the roughcut sub-agent can generate sheets on demand for legacy
   # libraries when it needs to "see" a clip.
+  #
+  # Raises if a legacy `roughcuts/` directory is still present — the cut skill
+  # writes to `cuts/`, so building anything before migration would scatter
+  # output across both directories. The error names the migration script
+  # explicitly so the agent reading the message knows what to run.
   def ready?
+    if File.directory?(File.join(@library_dir, 'roughcuts'))
+      raise "Library '#{@name}' has a legacy `roughcuts/` directory. " \
+            "Run `ruby scripts/004_migrate_roughcuts_to_cuts.rb #{@name}` " \
+            'before building any cuts.'
+    end
+
     vids = videos
     return false if vids.empty?
 

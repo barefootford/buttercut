@@ -59,7 +59,7 @@ class Export
   end
 
   def load_library(roughcut_path)
-    match = roughcut_path.match(%r{libraries/([^/]+)/roughcuts})
+    match = roughcut_path.match(%r{libraries/([^/]+)/cuts})
     raise "Could not extract library name from path: #{roughcut_path}" unless match
 
     library_yaml = "libraries/#{match[1]}/library.yaml"

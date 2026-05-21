@@ -137,7 +137,7 @@ RSpec.describe Library do
       )
       expect(lib).to be_a(Library)
       expect(File.directory?(File.join(libraries_root, 'fresh', 'transcripts'))).to be(true)
-      expect(File.directory?(File.join(libraries_root, 'fresh', 'roughcuts'))).to be(true)
+      expect(File.directory?(File.join(libraries_root, 'fresh', 'cuts'))).to be(true)
 
       yaml = YAML.safe_load_file(File.join(libraries_root, 'fresh', 'library.yaml'), permitted_classes: [Date, Time])
       expect(yaml).to include(
@@ -452,6 +452,14 @@ RSpec.describe Library do
     it 'returns false for an empty library' do
       write_library(videos: [])
       expect(Library.find(library_name).ready?).to be(false)
+    end
+
+    it 'raises a migration-required error when a legacy roughcuts/ directory is present' do
+      write_library(videos: [video_entry('a.mov', transcript: 'a.json', summary: 'summary_a.md')])
+      FileUtils.mkdir_p(File.join(library_dir, 'roughcuts'))
+
+      expect { Library.find(library_name).ready? }
+        .to raise_error(/legacy `roughcuts\/` directory.*004_migrate_roughcuts_to_cuts\.rb #{library_name}/m)
     end
   end
 

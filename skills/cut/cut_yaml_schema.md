@@ -7,17 +7,17 @@ Both `direct_path.md` and `roughcut_path.md` (and the roughcut sub-agent prompt)
 ## Where it lives
 
 ```
-libraries/[library-name]/roughcuts/[slug]_[YYYYMMDD_HHMMSS].yaml
+libraries/[library-name]/cuts/[slug]_[YYYYMMDD_HHMMSS].yaml
 ```
 
-Even non-roughcut cuts (scene / selects / custom) land in `roughcuts/` — it's the single output directory for every YAML this skill produces.
+Every cut path lands in `cuts/` — scenes, selects, custom tasks, and roughcuts all share the single output directory.
 
 ## Seeding the file
 
 Copy the template and overwrite the example clips:
 
 ```bash
-cp templates/roughcut_template.yaml "libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml"
+cp templates/roughcut_template.yaml "libraries/[library-name]/cuts/[slug]_[timestamp].yaml"
 ```
 
 Generate the timestamp with `date +%Y%m%d_%H%M%S`.

@@ -5,7 +5,7 @@ The Scene / Selects / Custom branch of `skills/cut/SKILL.md` step 4. Run this wh
 These three task types share one flow because the build mechanism is the same — main thread, conversational YAML, no sub-agent. Only the content of the conversation differs (beats for a scene, criteria for selects, free-form for custom).
 
 ## Build the YAML conversationally
-Stay in the main thread. Talk with the user about what they want — beats for a scene, criteria for selects, whatever shape the custom task has. Build the YAML iteratively at `libraries/[library-name]/roughcuts/[slug]_[YYYYMMDD_HHMMSS].yaml`, showing each revision back to the user as it grows. Keep revising until the user explicitly approves that it's ready to export.
+Stay in the main thread. Talk with the user about what they want — beats for a scene, criteria for selects, whatever shape the custom task has. Build the YAML iteratively at `libraries/[library-name]/cuts/[slug]_[YYYYMMDD_HHMMSS].yaml`, showing each revision back to the user as it grows. Keep revising until the user explicitly approves that it's ready to export.
 
 The YAML shape — output path, top-level fields, per-clip fields, timestamp format, dialogue-correction policy — is in `skills/cut/cut_yaml_schema.md`. Read it once, then build the file conversationally with the user.
 
