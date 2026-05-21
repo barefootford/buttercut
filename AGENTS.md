@@ -14,8 +14,6 @@ You help with video tasks by processing raw video footage by analyzing transcrip
 
 Work is organized into **libraries** (video series/projects), each self-contained under `/libraries/[library-name]/`. When a user refers to a library, you you'll want to load the library file in memory. If they talk about building a roughcut, extracting dialogue, etc, you'll need to first find and read the correct library file. If it's not clear what library they're talking about, find recently modified libraries and list them for the user using the AskUserQuestionTool or similiar to see what library they want to work with. If it's clear what library they're referring to, just start working with that library.
 
-In addition to the primary thread, many times subagents are initiated to work on smaller, more focused tasks. In these cases the main thread should give all of the arguments/information necessary to the sub agent.
-
 ### Workflow Steps
 
 1. **Process Library** → `process-library` skill — set up a new project, resume an existing one, or add new footage.
@@ -24,11 +22,9 @@ In addition to the primary thread, many times subagents are initiated to work on
 
 Libraries are the primary abstraction — each is a video series/project self-contained under `/libraries/[library-name]/`. Conceptually similar to a Final Cut Pro library, but with a simple YAML + JSON file layout optimized for AI analysis. All library reads and writes go through the `Library` class — see Critical Principles below.
 
+Each library has a `library.yaml` file that serves as persistent memory and the source of truth. This file contains all library metadata, footage descriptions, transcription status, and key learnings. The agent generally doesn't need to read this file directly, and instead can work through the Library ruby class.
+
 ## Critical Principles
-
-Each library has a `library.yaml` file that serves as persistent memory and the source of truth. This file contains all library metadata, footage descriptions, transcription status, and key learnings. 
-
-You generally won't need to read this file, and instead can work through the Library ruby class.
 
 **Migrate legacy library.yaml files before doing anything else.** Every time you read a library.yaml, check it against the canonical field list in `templates/library_template.yaml`. If any expected field is missing, or any field appears under an old name, the library predates a feature and MUST be migrated before you do any further work on it — no rough cuts, sequences, transcription, exports, or anything else until the schema is current. The migrations are fast, idempotent, and safe; don't ask the user for permission and don't describe them as optional "tidying." Just run them.
 
@@ -40,12 +36,13 @@ Known migration triggers (match each to a `scripts/NNN_migrate_*.rb` script via 
 - video entries with `summary` missing (added in 0.5.0; missing means "todo", default to empty string)
 - video entries with `transcript_path` / `visual_transcript_path` (renamed to `transcript` / `visual_transcript` in 0.3.0)
 - video entries with `file_size_mb` (removed in 0.3.0)
+- library has a `roughcuts/` directory (renamed to `cuts/` when the `roughcut` skill became `cut`; run `scripts/004_migrate_roughcuts_to_cuts.rb`). This trigger is layout, not YAML — check the directory listing, not the schema.
 
 A missing field is not the same as a field set to the template default — the template default only applies to freshly created libraries. If you see a schema issue not on this list, still check CHANGELOG.md; the list may be behind. After running migrations, re-read the library.yaml and continue with whatever the user asked for.
 
 **`visual_transcript` is deprecated for new analysis.** Don't generate them on new libraries — `transcript` + `contact_sheet` + `summary` is the current pipeline. Dialogue is extracted from the audio transcript JSON on demand via `ruby skills/analyze-video/script_extractor.rb <transcript>`; there is no separate script file on disk. Older libraries may still carry `visual_transcript` entries with matching `transcripts/visual_*.json` files; those are fine to use as additional planning context where they exist.
 
-**Keep main-thread context minimal.** The main thread orchestrates; sub-agents do the heavy work and return concise summaries. Don't read full transcript JSON or contact sheet images into the main thread as part of routine workflow — across a large library this bloats context fast. Trust sub-agent return messages when updating library.yaml. Direct user requests ("show me transcript X") are fine; the rule is about automatic workflow behavior.
+**Read smallest first; grep the rest.** When scanning a library for candidate clips, start with the per-clip summary files in `summaries/` — they're a few paragraphs each and safe to read whole, even across 90+ clips. Contact sheet images are similarly cheap and fine to read for clips you're considering. Transcripts are the heavy ones: a single interview transcript can outweigh every summary in the library combined. Grep into them (`rg "claude code" libraries/<name>/transcripts/`) instead of reading them whole. Direct user requests ("show me transcript X") are fine — the rule is about routine scanning.
 
 **Use actual filenames.** Never use generic labels like "Video 1" or "Clip A" - always reference actual filenames like "DJI_20250423171212_0210_D.mov" for clear traceability.
 
@@ -56,13 +53,26 @@ Two habits when working with `Library`:
 - **Status first.** `lib.summary` is the snapshot hash to call when picking up a library. `lib.ready?` is the legacy-aware yes/no gate to call before building a cut.
 - **Mark progress incrementally.** Run `ruby skills/buttercut-lib/library.rb <name> complete <field> <files>` after each batch lands, not in one big final sweep — that way progress persists if a later batch fails.
 
-Full Ruby and shell API reference: `skills/buttercut-lib/README.md`.
+### Common Library commands — discovery and status
 
-**Transcripts, contact sheets, and summaries are mandatory.** Before creating any rough cut or sequence, verify ALL videos have `transcript`, `contact_sheet`, and `summary` set in `library.yaml` (not empty, null, or ""). Artifacts live under `libraries/[library-name]/`: audio transcripts in `transcripts/`, contact sheets in `contact_sheets/`, summaries in `summaries/`. The roughcut agent reads the contact sheet (visual overview) to "see" a clip, the summary to scan candidates cheaply, and the audio transcript JSON for dialogue (extracted on demand via `script_extractor.rb`) and word-level in/out timing.
+```bash
+# Discover
+ruby skills/buttercut-lib/library.rb list                       # every library, newest first by library.yaml mtime
+ruby skills/buttercut-lib/library.rb recent [N]                 # N most-recently-touched libraries (default 10) — use this when the user means "the library I was just working on"
+ruby skills/buttercut-lib/library.rb <name> exists              # exit 0 if it exists, 1 if not
+
+# Status (call summary when picking up a library; ready as the pre-flight before any cut)
+ruby skills/buttercut-lib/library.rb <name> summary             # JSON: metadata + clip-completion breakdown
+ruby skills/buttercut-lib/library.rb <name> incomplete_videos   # JSON: clips still missing artifacts, with which fields are missing
+ruby skills/buttercut-lib/library.rb <name> ready               # exit 0 = ready to build a cut, 1 = not. Raises if a migration script should be run.
+
+# Understand
+ruby skills/analyze-video/script_extractor.rb libraries/<name>/transcripts/<clip>.json   # clean dialogue to stdout: one transcript segment per line, no timing — cheap to skim when you want to know what's said in a clip. Generally these are small, but if editing a podcast or a speech they can be longer.
+```
+
+Writes (`add_videos`, `complete`, `update_metadata`), destructive resets, legacy cleanup, and `Library.create` via `ruby -e`: see `skills/buttercut-lib/README.md` for full documentation.
 
 **Single-track timelines only.** ButterCut produces one sequential video track. Each clip's own audio plays during that clip — there is no second video track for cutaways layered over a continuing voiceover, and no separate audio track. When planning or pitching cuts, never propose "B-roll over VO," "story under meetup footage," picture-in-picture, or any structure that assumes a clip's audio continues while different visuals play on top. Cutaways are fine, but they're hard cuts: when you cut to the wide shot, you cut to that shot's audio too. Plan every cut as a strictly linear sequence of clips.
-
-**Be curious and ask questions.** Occasionally ask users questions about their libraries and footage to better understand context, creative intent, and preferences. When you receive answers, add this information to the `user_context` key in the library.yaml file. This builds institutional knowledge that improves future rough cut and sequence decisions and helps maintain continuity across editing sessions.
 
 ## Key Reminders
 
