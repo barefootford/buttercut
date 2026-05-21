@@ -5,12 +5,12 @@ description: Build a cut from a library — scene, selects, roughcut, or custom 
 
 # Skill: Cut
 
-Build a timeline from a library. Despite the singular name, this skill is the entry point for four kinds of work — the first decision is which one.
+Build a timeline from a library. This skill is the entry point for four kinds of work — the first decision is which one.
 
 ## 1. Confirm the library and pre-flight readiness
 You need a library before any cut work. If one is already in context from the current conversation, use it. Otherwise show recent libraries (`ruby skills/buttercut-lib/library.rb recent 5`) and let the user pick.
 
-Once the library name is known, gate on `Library.ready?`:
+Once the library name is known, check if the library is ready (video processing complete).
 
 ```bash
 ruby skills/buttercut-lib/library.rb <name> ready
@@ -19,25 +19,25 @@ ruby skills/buttercut-lib/library.rb <name> ready
 Exit code `0` means the library is ready for cut building (`Library.ready?` is the source of truth on what that means — don't re-derive the criteria here). If it exits non-zero, stop. Run `ruby skills/buttercut-lib/library.rb <name> summary` to surface the incomplete clips and tell the user the library needs to finish processing (point them at the `process-library` skill). Don't try to cut around missing clips.
 
 ## 2. Determine Task Type
-Ask the user with `AskUserQuestion` if available. Otherwise ask in text in this order:
+Ask the user with `AskUserQuestion` tool if available. Otherwise ask in text in this order.
+
+Ask plainly. "Roughcut" in the user's opening request is trained vocabulary, not a confirmed choice — present the four options and let them pick. Don't explain to the user why you're asking, and don't apologize for re-asking; the question stands on its own.
+
+You're going to be tempted here to just move forward and assume the user really wants a story shaped roughcut, but they're just using this term loosely. You **absolutely must** tell them the next statement and question before moving forward:
+
+If the library is processed, tell them that it's ready and the number of clips that are processed. Then ask them what kind of cut they want. Again, they probably said "roughcut", but we've just trained them on that word. **You must ask.**
+
+Example framing: "Library is ready. (93/93 clips fully processed.). What kind of cut do you want to build — scene, selects, roughcut, or custom?"
 
 1. **Scene** — one beat or moment, typically 30–60s.
 2. **Selects / Find clips** — a flat reel of clips matching some criteria (best takes, mentions of a topic, B-roll on a theme). Length follows the footage.
 3. **Roughcut** — a story-shaped cut, 2–8 minutes. Goes through full planning + a sub-agent build.
 4. **Custom task** — anything else the user describes.
 
-**Always ask, even when the user says "roughcut" in the request.** Users have been saying "create a new roughcut" for months — it's the trained vocabulary, not necessarily the output they want. Confirm task type every time before branching.
-
 The roughcut path runs a deeper flow because the agent needs to explore the library broadly, read many summaries, generate fresh contact sheets, and shape a narrative across many clips. The other three paths the main thread handles directly with the user.
 
-## 3. Determine the Editing Application
-Resolve one editor value for the export:
-1. If `library.yaml` has `editor` set, use it.
-2. Otherwise fall back to `libraries/settings.yaml`'s `editor` and write the value back to `library.yaml`.
-3. If neither has one, ask the user (Final Cut Pro X / Adobe Premiere Pro / DaVinci Resolve), then save the choice to both `library.yaml` and `libraries/settings.yaml`.
-
-## 4. Build the Cut (produces YAML)
-Both paths produce a YAML at `libraries/[library-name]/roughcuts/[slug]_[YYYYMMDD_HHMMSS].yaml`. The export in step 5 is the same regardless of which path you take.
+## 3. Build the Cut (produces YAML)
+Both paths produce a YAML at `libraries/[library-name]/cuts/[slug]_[YYYYMMDD_HHMMSS].yaml`. The export in step 5 is the same regardless of which path you take.
 
 ### Roughcut path
 Read `skills/cut/roughcut_path.md` and follow it.
@@ -45,18 +45,24 @@ Read `skills/cut/roughcut_path.md` and follow it.
 ### Scene / Selects / Custom path
 Read `skills/cut/direct_path.md` and follow it.
 
+## 4. Determine the Editing Application
+Now that the cut YAML exists, resolve one editor value for the export:
+1. If `library.yaml` has `editor` set, use it.
+2. Otherwise fall back to `libraries/settings.yaml`'s `editor` and write the value back to `library.yaml`.
+3. If neither has one, ask the user (Final Cut Pro X / Adobe Premiere Pro / DaVinci Resolve), then save the choice to both `library.yaml` and `libraries/settings.yaml`.
+
 ## 5. Export the YAML
-Run the export with the editor resolved in step 3 and the YAML produced in step 4:
+Run the export with the editor resolved in step 4 and the YAML produced in step 3:
 
 ```bash
 # Final Cut Pro X
-ruby -Ilib skills/cut/export.rb --editor fcpx libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].fcpxml
+ruby -Ilib skills/cut/export.rb --editor fcpx libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp].fcpxml
 
 # Premiere Pro
-ruby -Ilib skills/cut/export.rb --editor premiere libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].xml
+ruby -Ilib skills/cut/export.rb --editor premiere libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp].xml
 
 # DaVinci Resolve
-ruby -Ilib skills/cut/export.rb --editor resolve libraries/[library-name]/roughcuts/[slug]_[timestamp].yaml libraries/[library-name]/roughcuts/[slug]_[timestamp].xml
+ruby -Ilib skills/cut/export.rb --editor resolve libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp].xml
 ```
 
 ## 6. Copy XML to Desktop (if enabled)
