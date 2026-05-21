@@ -30,3 +30,5 @@
 !contact-sheet/**
 !process-library/
 !process-library/**
+!reprocess-with-contact-sheets/
+!reprocess-with-contact-sheets/**
