@@ -5,7 +5,7 @@ description: A skill to automatically download and install the latest ButterCut 
 
 # Skill: Update ButterCut
 
-Updates ButterCut to the latest version. Uses git pull if available, otherwise downloads from GitHub.
+Updates ButterCut to the latest version via `git pull`. Users of this project are video editors — Claude sometimes edits code on its own and may even leave the repo on a side branch. This skill resets that state cleanly: stash anything dirty, switch to `main`, pull, restore deps.
 
 ## Workflow
 
@@ -14,39 +14,27 @@ Updates ButterCut to the latest version. Uses git pull if available, otherwise d
 cat lib/buttercut/version.rb
 ```
 
-**2. Check if git repo:**
+**2. Stash any local changes (tracked + untracked), tagged so the user can find them later:**
 ```bash
-git rev-parse --git-dir 2>/dev/null
+git stash push --include-untracked -m "update-buttercut auto-stash $(date +%Y-%m-%d-%H%M%S)"
 ```
+Always run this — it's a no-op if the working tree is clean. `libraries/` is gitignored and is not touched by stash, pull, or checkout.
 
-**3a. If git repo exists:**
+**3. Switch to main and pull:**
 ```bash
-# Check for uncommitted changes
-git status --porcelain
-
-# If changes exist, STOP and inform user to commit/stash first
-
-# Pull latest
+git checkout main
 git pull origin main
-bundle install
 ```
 
-**3b. If not git repo:**
+**4. Reinstall dependencies:**
 ```bash
-# Download latest
-curl -L https://github.com/barefootford/buttercut/archive/refs/heads/main.zip -o /tmp/buttercut-latest.zip
-unzip -q /tmp/buttercut-latest.zip -d /tmp/
-
-# Update files (excludes libraries/)
-rsync -av --exclude 'libraries/' --exclude '.git/' /tmp/buttercut-main/ ./
 bundle install
-rm -rf /tmp/buttercut-latest.zip /tmp/buttercut-main
 ```
 
-**4. Verify:**
+**5. Verify:**
 ```bash
 cat lib/buttercut/version.rb
 bundle exec rspec
 ```
 
-If tests fail, STOP and report issue. Show old and new version numbers.
+Show old and new version numbers. If anything was stashed in step 2, tell the user it's saved in `git stash` (reference the stash message) so they can recover it if needed — don't try to reapply it automatically.
