@@ -18,7 +18,7 @@ Work is organized into **libraries** (video series/projects), each self-containe
 
 1. **Process Library** → `process-library` skill — set up a new project, resume an existing one, or add new footage.
 2. **Edit** → `cut` skill — build a scene, selects reel, roughcut, or custom task as a timeline from the processed library. Pre-flight with `ruby skills/buttercut-lib/library.rb <name> ready` (exit `0` means yes). The check is legacy-aware: a clip with `summary` + either `transcript` or `visual_transcript` counts as ready, so libraries that predate the contact-sheet pipeline still pass.
-3. **Backup** → `backup-library` skill — compressed archives in `/backups/`. `process-library` triggers this automatically after analysis.
+3. **Backup** → `backup-library` skill — compressed archives in `~/Documents/buttercut-video-editor-backups` by default (override via `backups_dir` in `libraries/settings.yaml`). `process-library` triggers this automatically after analysis. "Run a backup" means back up just the library you're working on (`--library <name>`); only back up every library when the user explicitly asks.
 
 Libraries are the primary abstraction — each is a video series/project self-contained under `/libraries/[library-name]/`. Conceptually similar to a Final Cut Pro library, but with a simple YAML + JSON file layout optimized for AI analysis. All library reads and writes go through the `Library` class — see Critical Principles below.
 
@@ -86,8 +86,8 @@ Writes (`add_videos`, `complete`, `update_metadata`), destructive resets, legacy
 - `spec/` - RSpec test suite
 - `templates/` - Library and project templates
 - `libraries/` - Working directory for user's video projects (gitignored)
-- `libraries/settings.yaml` - User settings (editor, whisper_model) — created from template on first library setup
-- `backups/` - Compressed library backups (gitignored)
+- `libraries/settings.yaml` - User settings (editor, whisper_model, backups_dir) — created from template on first library setup
+- Library backups default to `~/Documents/buttercut-video-editor-backups` (outside the repo, override with `backups_dir` in `libraries/settings.yaml`)
 
 ## Design Philosophy
 

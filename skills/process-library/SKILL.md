@@ -142,7 +142,7 @@ If it exits non-zero, run `ruby skills/buttercut-lib/library.rb <name> summary` 
 
 ## Step 7 — Backup
 
-After all analysis completes, automatically create a backup using the `backup-library` skill.
+After all analysis completes, automatically create a backup using the `backup-library` skill, scoped to just the library you processed: `ruby skills/backup-library/backup_libraries.rb --library <library-name>`. This writes a single archive under `~/Documents/buttercut-video-editor-backups/<library-name>/` (or wherever `backups_dir` in `libraries/settings.yaml` points). If `backups_dir` isn't set yet, the script silently uses the default — don't prompt during process-library.
 
 ## Notes
 
