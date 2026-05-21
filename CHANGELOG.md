@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-05-21
+
+This release replaces the LLM-driven visual transcripts with a contact-sheet pipeline, splits roughcut creation across task types under a renamed `cut` skill, and moves shipped skills to top-level `skills/` so non-Claude agentic CLIs find them too.
+
+### Added
+- **`reprocess-with-contact-sheets` skill.** Resets a library's visual analysis (contact sheets, summaries, legacy `visual_transcript` entries) and re-runs the current analyze-video pipeline. Keeps audio transcripts, cuts, plans, and library metadata so older libraries can be brought onto the new pipeline without re-transcribing.
+- **`Library` Ruby class** at `skills/buttercut-lib/library.rb`. Centralizes every read and write of `library.yaml` behind one API — `summary`, `ready?`, `recent`, `add_videos`, `complete`, `video_record`, and friends. Skills no longer parse the YAML inline; the orchestrator calls `Library` and sub-agents stay out of the file entirely, removing a class of race-condition bugs. Also exposes a CLI (`ruby skills/buttercut-lib/library.rb <name> <command>`) so skill prompts can ask for library state in one line.
+
 ### Changed
 - **`roughcut` skill renamed to `cut`.** The skill now branches across scene, selects, custom, and roughcut task types up front instead of treating every cut as a roughcut. Output directory follows suit: each library's `roughcuts/` is now `cuts/`. Existing libraries migrate with `ruby scripts/004_migrate_roughcuts_to_cuts.rb --all` (renames the folder; merges into an existing `cuts/` and refuses on filename conflicts).
 - **Footage analysis is dramatically faster.** Visual transcripts (LLM-driven, frame-by-frame) are gone. Each clip now gets a contact sheet (a single image grid covering the whole clip with timestamps burned in) and the existing markdown summary. Contact sheet generation is pure ffmpeg — no LLM in that step — so analysis runtime drops from roughly 1× footage length to a small fraction of it. The roughcut agent reads the contact sheet to "see" a clip at a glance, extracts dialogue from the audio transcript on demand via `script_extractor.rb`, and greps the transcript JSON for word-level cut timing.
@@ -17,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Library schema:** new `contact_sheet:` field per video; `visual_transcript:` is deprecated. Old libraries keep their `visual_*.json` files on disk — no migration runs. Re-run analysis on an old library to populate the new field.
 - **Skills moved to top-level `skills/`.** Shipped skills now live in `skills/` so Claude Code, Codex, and other agentic CLIs that read `skills/` natively all find the same files. `.claude/skills` is a git-tracked symlink pointing to `../skills`, so Claude Code keeps working unchanged. On a fresh clone this is automatic; if you're updating an old install via `update-buttercut`'s rsync path (no git), you may need to delete the old `.claude/skills/` directory once so the symlink can take its place.
 - **Project instructions moved to `AGENTS.md`.** `CLAUDE.md` is now a one-line `@AGENTS.md` import, so non-Claude agents that read `AGENTS.md` by convention pick up the same rules.
+- **Library backups now live outside ButterCut.** Default backup directory is `~/Documents/buttercut-video-editor-backups` instead of an inside ButterCut folder. Backups are now also saved by individual library.
+- **`backup-library` skill now uses Apple Archive (`aa`)** instead of `zip`, producing smaller archives and faster restores on macOS.
+- **Contact sheets require ffmpeg with `drawtext` support.** Setup verifies this; without it, timestamps can't be burned into the grid frames.
+- **License switched to PolyForm Noncommercial 1.0.0**, with a carve-out that explicitly permits commercial use of any video you produce with ButterCut. The tool itself is free for personal, evaluation, and noncommercial use; commercial use of the tool requires a separate license. Edit, sell, and distribute the videos you make with it freely.
+- **Setup uses precompiled Ruby and Python binaries via mise**, so first-run install no longer waits on local compilation. New machines reach a working ButterCut in minutes instead of the long compile cycle the previous setup required.
+- **B-roll clips with no dialogue are handled gracefully.** Earlier versions could trip when the cut included a clip whose transcript was empty; the cut skill now treats those clips as visual-only and slots them in without trying to time edits against missing words.
 
 ### Removed
 - `summarize-video` skill (folded into `analyze-video`).
