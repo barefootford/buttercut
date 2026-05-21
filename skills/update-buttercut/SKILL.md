@@ -7,8 +7,6 @@ description: A skill to automatically download and install the latest ButterCut 
 
 Updates ButterCut to the latest version. Uses git pull if available, otherwise downloads from GitHub.
 
-Before updating, always make a backup and encourage the user to save it to a location outside the ButterCut directory. Verify the most recent backup exists and offer to copy it to their Desktop or iCloud Drive.
-
 ## Workflow
 
 **1. Check current version:**
