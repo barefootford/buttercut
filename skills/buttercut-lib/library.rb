@@ -95,11 +95,13 @@ class Library
 
   def self.video_record(path)
     raise ArgumentError, 'video path is required' if path.to_s.strip.empty?
-    raise ArgumentError, "video file not found: #{path}" unless File.exist?(path)
+
+    expanded = File.expand_path(path)
+    raise ArgumentError, "video file not found: #{expanded}" unless File.exist?(expanded)
 
     {
-      'path' => path,
-      'duration' => probe_duration(path),
+      'path' => expanded,
+      'duration' => probe_duration(expanded),
       'transcript' => '',
       'contact_sheet' => '',
       'summary' => ''
