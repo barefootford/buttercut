@@ -1,0 +1,14 @@
+# Project-level Codex config for ButterCut.
+# Mirrors the Claude Code SessionStart hook in .claude/settings.json:
+# reads the root BC_USER file and injects its contents into the model context.
+#
+# Note: open bug openai/codex#17532 may prevent repo-local SessionStart hooks
+# from firing in interactive sessions on some Codex versions. AGENTS.md also
+# documents the BC_USER file as a fallback.
+
+[[hooks.SessionStart]]
+matcher = "startup"
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = "mode=$(cat BC_USER 2>/dev/null | tr -d '\\n'); if [ -z \"$mode\" ]; then mode=\"Video Editor (default — file missing)\"; fi; jq -nc --arg msg \"Current BC_USER mode: $mode\" '{hookSpecificOutput:{hookEventName:\"SessionStart\",additionalContext:$msg}}'"

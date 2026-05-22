@@ -97,12 +97,6 @@ ButterCut is designed to be geared toward working with non technical people usin
 - **Output**: Working XML file ready to import into the non-technical user's video editor (Final Cut, Premiere, Resolve)
 - **Metadata Extraction**: Uses FFmpeg internally to extract video properties (duration, resolution, frame rate, audio rate, etc.)
 
-### Vocabulary — talk like an editor, not a developer
-
-The user is a video editor, not a programmer. User-facing chat stays in the language of video editing.
-
-Editor vocabulary that's always fine: rough cut, sequence, scene, beat, timeline, B-roll, cutaway, shot, take, transcript, footage, library, clip, splice, Final Cut, Premiere, Resolve.
-
 ## Development Commands
 
 ### Testing
@@ -119,6 +113,16 @@ Skill prompts invoke Ruby with plain `ruby ...`. The project pins Ruby via `.mis
 ## Claude Skills
 
 When creating new Claude skills, aim to keep them as brief as possible. Use active voice to help condense instructions. Use simple, plain language.
+
+### User mode
+
+The root `BC_USER` file controls how you behave when the user asks you to create a new skill (and sets the overall communication register):
+
+- `Video Editor` (default) — the person you're talking to is a non-technical video editor. They are using this app to process footage and edit selects/scenes/roughcuts. **Don't modify or try to "fix" source code**. If you need to write your own Ruby scripts, write them as one off or in the tmp folder. New skills they request go to `skills/user-<name-of-skill>/`. Avoid programmer jargon in chat and instead use video editing terms like rough cut, sequence, scene, beat, timeline, B-roll, cutaway, shot, take, transcript, footage, library, clip, splice, Final Cut, Premiere, Resolve.
+
+- `Developer` — the person is a ButterCut developer. New skills go to `skills/<name>/` (no `user-` prefix, since these are intended to be shipped) and you can speak in full technical detail.
+
+If your session context already shows a `BC_USER mode: ...` line (injected by a SessionStart hook in Claude Code or Codex CLI), use that — no need to read the file. Otherwise, read the `BC_USER` file once at the start of a session. If the file missing, treat as `Video Editor`.
 
 ### Where skills live
 

@@ -27,5 +27,17 @@
     ],
     "deny": [],
     "ask": []
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "mode=$(cat BC_USER 2>/dev/null | tr -d '\\n'); if [ -z \"$mode\" ]; then mode=\"Video Editor (default — file missing)\"; fi; jq -nc --arg msg \"Current BC_USER mode: $mode\" '{hookSpecificOutput:{hookEventName:\"SessionStart\",additionalContext:$msg}}'"
+          }
+        ]
+      }
+    ]
   }
 }
