@@ -5,6 +5,8 @@ description: Build a cut from a library — scene, selects, roughcut, or custom 
 
 # Skill: Cut
 
+Run `ruby skills/buttercut-lib/check_update.rb` first; if it prints an update notice, show it to the user and offer to run the `update-buttercut` skill before continuing.
+
 Build a timeline from a library. This skill is the entry point for four kinds of work — the first decision is which one.
 
 ## 1. Confirm the library and pre-flight readiness

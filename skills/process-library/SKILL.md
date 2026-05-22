@@ -5,6 +5,8 @@ description: Skill for processing footage (video clips, sounds, photos, etc). Us
 
 # Skill: Process Library (parent brief)
 
+Run `ruby skills/buttercut-lib/check_update.rb` first; if it prints an update notice, show it to the user and offer to run the `update-buttercut` skill before continuing.
+
 This skill is the main thread's playbook for the **Setup** and **Analyze Video** workflow steps. Use it whenever the user wants to:
 
 - Start a new project (creates a library, gathers project info, runs analysis end-to-end).
