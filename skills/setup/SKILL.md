@@ -19,7 +19,7 @@ Run each check below. Each command exits 0 when the dependency is present. Note 
 - [ ] **FFmpeg** — `which ffmpeg` (fix: see FFmpeg install in the setup file below — must be the `homebrew-ffmpeg/ffmpeg` tap build)
 - [ ] **FFmpeg drawtext filter** — `ffmpeg -hide_banner -filters 2>/dev/null | grep -q ' drawtext '` (fix: the stock `brew install ffmpeg` formula often omits drawtext; replace it with the `homebrew-ffmpeg/ffmpeg` tap build — see setup file)
 - [ ] **WhisperX** — `which whisperx || test -x ~/.buttercut/whisperx || test -x ~/.buttercut/venv/bin/whisperx` (fix: see setup steps below)
-- [ ] **Bundle installed** — `test -f Gemfile.lock` (fix: `bundle install` in buttercut directory)
+- [ ] **Gems installed** — `bundle check` (fix: `bundle install` in buttercut directory)
 
 If everything passes, tell the user they're ready to go and stop.
 

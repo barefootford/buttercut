@@ -1,7 +1,9 @@
 # Basic XML Generation
 
+From a script at the root of your ButterCut clone:
+
 ```ruby
-require 'buttercut'
+require_relative 'lib/buttercut'
 
 # Create a 3-clip timeline with 3 seconds from each video
 videos = [

@@ -1,10 +1,10 @@
 # ButterCut - Video Rough Cut Generator
 ButterCut is a special folder that video editors open to get help with generating roughcuts, finding broll, and other assorted video editing tasks. It runs through Claude Code, Codex, and other agentic tools.
 
-The ButtterCut folder includes two main components:
+The ButterCut folder is one project with two pieces of Ruby code:
 
-1. **Ruby Gem** - XML generation library supporting Final Cut Pro X and FCP7/Premiere (and any other editing app that supports these formats)
-2. **Agent Skill Integration** - AI-powered video editing workflow with video processing (audio transcription and visual understanding) and rough cut creation, dialogue extraction, etc.
+1. **Agent skills** at `skills/` — the AI-powered workflow that processes footage (audio transcription, visual analysis, summaries) and works with the user to build cuts.
+2. **XML generator** at `lib/buttercut.rb` + `lib/buttercut/` — converts cut YAML files into timelines that import into Final Cut Pro X, Premiere, or DaVinci Resolve. The skills call into this library at export time.
 
 ## Core Workflow
 
