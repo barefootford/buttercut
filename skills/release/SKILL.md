@@ -1,17 +1,18 @@
 ---
 name: release
-description: Creates a new ButterCut release with version bump, changelog, git tag, gem build, and GitHub release. Use when publishing a new version.
+description: Creates a new ButterCut release with version bump, changelog, git tag, and GitHub release. Use when publishing a new version.
 ---
 
 # Skill: Release ButterCut
 
-Guides through the complete release process: version bump, changelog, git operations, gem publishing, and GitHub release creation.
+Guides through the complete release process: version bump, changelog, git operations, and GitHub release creation.
+
+ButterCut is distributed via `git clone` only. The `buttercut` gem on RubyGems was deprecated in 0.7.1 and is no longer published. Do not run `gem build` or `gem push` from this skill — those steps were removed.
 
 ## When to Use
 
 - Publishing a new version of ButterCut
 - After merging features or fixes that should be released
-- Creating the first v0.1.0 release
 
 ## Workflow
 
@@ -55,7 +56,7 @@ Edit `lib/buttercut/version.rb` with the new version:
 
 ```ruby
 class ButterCut
-  VERSION = "0.2.0"  # Update this
+  VERSION = "0.8.0"  # Update this
 end
 ```
 
@@ -77,16 +78,12 @@ Ask user for release notes. Prompt with:
 - Any bug fixes?
 - Any breaking changes?
 
-### 7. Update or Create CHANGELOG.md
+### 7. Update CHANGELOG.md
 
-If `CHANGELOG.md` exists, prepend new entry. Otherwise create it:
+Prepend the new entry under `## [Unreleased]`:
 
 ```markdown
-# Changelog
-
-All notable changes to ButterCut will be documented in this file.
-
-## [0.2.0] - 2025-01-21
+## [0.8.0] - 2026-MM-DD
 
 ### Added
 - Feature X
@@ -103,112 +100,67 @@ All notable changes to ButterCut will be documented in this file.
 
 ```bash
 git add lib/buttercut/version.rb Gemfile.lock CHANGELOG.md
-git commit -m "Bump version to 0.2.0"
+git commit -m "Bump version to 0.8.0"
 ```
 
 ### 9. Create and Push Git Tag
 
 ```bash
-git tag v0.2.0
+git tag v0.8.0
 git push origin main
-git push origin v0.2.0
+git push origin v0.8.0
 ```
 
-### 10. Build Gem
-
-```bash
-gem build buttercut.gemspec
-```
-
-This creates `buttercut-0.2.0.gem` file.
-
-### 11. Publish to RubyGems
-
-**First time setup check:**
-
-If this is the first release, verify RubyGems authentication:
-```bash
-gem signin
-```
-
-If not authenticated, provide instructions:
-1. Sign up at https://rubygems.org
-2. Run `gem signin` and follow prompts
-3. Store credentials for future releases
-
-**Publish the gem:**
-```bash
-gem push buttercut-0.2.0.gem
-```
-
-This makes the gem available for `gem install buttercut` worldwide.
-
-### 12. Create GitHub Release
+### 10. Create GitHub Release
 
 **Using GitHub CLI:**
 ```bash
-gh release create v0.2.0 \
-  --title "v0.2.0" \
-  --notes "[Release notes from changelog]" \
-  buttercut-0.2.0.gem
+gh release create v0.8.0 \
+  --title "v0.8.0" \
+  --notes "[Release notes from changelog]"
 ```
 
 **If `gh` CLI not available:**
 
 Guide user through manual release creation:
-1. Go to https://github.com/andrewford/buttercut/releases/new
-2. Choose tag: v0.2.0
-3. Set title: v0.2.0
+1. Go to https://github.com/barefootford/buttercut/releases/new
+2. Choose tag: v0.8.0
+3. Set title: v0.8.0
 4. Paste changelog notes in description
-5. Attach buttercut-0.2.0.gem file
-6. Click "Publish release"
+5. Click "Publish release"
 
-Then wait for user confirmation that release is created before proceeding to cleanup.
-
-### 13. Cleanup
-
-```bash
-# Remove local gem file (it's on RubyGems and GitHub now)
-rm buttercut-0.2.0.gem
-```
-
-### 14. Verify Release
+### 11. Verify Release
 
 Check that everything worked:
-- RubyGems page: https://rubygems.org/gems/buttercut
-- GitHub releases: https://github.com/andrewford/buttercut/releases
+- GitHub releases: https://github.com/barefootford/buttercut/releases
 - Git tags: `git tag -l`
 
-### 15. Return Success Response
+### 12. Return Success Response
 
 Provide summary:
 ```
-✓ ButterCut 0.2.0 released successfully
+✓ ButterCut 0.8.0 released successfully
 
-  Version: 0.2.0
-  Git tag: v0.2.0
-  RubyGems: Published at https://rubygems.org/gems/buttercut
-  GitHub Release: https://github.com/andrewford/buttercut/releases/tag/v0.2.0
+  Version: 0.8.0
+  Git tag: v0.8.0
+  GitHub Release: https://github.com/barefootford/buttercut/releases/tag/v0.8.0
 
-Installation:
-  gem install buttercut
-
-Upgrade:
-  gem update buttercut
+Update existing installs with the `update-buttercut` skill, or:
+  cd /path/to/buttercut && git pull
 ```
 
 ## Critical Principles
 
-**Always run tests first** - Never release if tests fail
-**Git must be clean** - No uncommitted changes before release
-**Push before publish** - Tags must be pushed before creating GitHub release
-**Semantic versioning** - Follow semver strictly for version numbers
-**Changelog required** - Every release needs documented changes
+**Always run tests first** — never release if tests fail.
+**Git must be clean** — no uncommitted changes before release.
+**Push before publish** — tags must be pushed before creating the GitHub release.
+**Semantic versioning** — follow semver strictly for version numbers.
+**Changelog required** — every release needs documented changes.
+**Do not publish to RubyGems** — the gem was deprecated in 0.7.1 and the gemspec has been removed from the repo. If you find yourself reaching for `gem build` or `gem push`, stop and re-read this skill.
 
 ## Common Issues
 
-**Tests failing:** Ask user to fix tests before proceeding
-**Git not clean:** Ask user to commit or stash changes first
-**Tag already exists:** Verify this isn't a duplicate release
-**RubyGems authentication:** Guide through `gem signin` process
-**GitHub CLI not installed:** Provide manual release instructions
+**Tests failing:** Ask user to fix tests before proceeding.
+**Git not clean:** Ask user to commit or stash changes first.
+**Tag already exists:** Verify this isn't a duplicate release.
+**GitHub CLI not installed:** Provide manual release instructions.

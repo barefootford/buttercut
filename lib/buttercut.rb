@@ -1,3 +1,7 @@
+if __FILE__.include?("/gems/buttercut-")
+  warn "[buttercut] The buttercut gem is deprecated. The XML generator now ships with the agent code at https://github.com/barefootford/buttercut — clone the repo instead. The 0.7.x gem will keep working but will not be updated."
+end
+
 require_relative 'buttercut/fcpx'
 require_relative 'buttercut/fcp7'
 

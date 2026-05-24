@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-05-23
+
+Final RubyGems release of ButterCut xml generator. Having the ButterCut (agent) codebase live across skill scripts, shared scripts, and traditional lib code has gotten messy to work on and to explain to agents. I want to do a refactor where we pull all 'business' code into a single directory and it doesn't make sense to have the agent ruby code live with the xml generation code. Using the agent is by far the most popular use of this repository so it makes sense to make it be as easy as possible to work on and use that code. The agent + xml generation project will continue at the same location https://github.com/barefootford/buttercut;
+
+### Changed
+- Loading the `buttercut` gem from an installed location now emits a deprecation warning pointing at the GitHub repo. The warning does not fire when ButterCut is run from a source clone, so the agent's own `export.rb` path is unaffected.
+- Gemspec summary, description, and homepage updated to reflect deprecation. A `post_install_message` directs new installs to the GitHub repo.
+
+### Notes
+- The 0.7.0 and 0.7.1 gems remain published on RubyGems indefinitely; existing installs keep working.
+- No functional changes to the XML generator, skills, or agent workflow.
+
 ## [0.7.0] - 2026-05-21
 
 This release replaces the LLM-driven visual transcripts with a contact-sheet pipeline, splits roughcut creation across task types under a renamed `cut` skill, and moves shipped skills to top-level `skills/` so non-Claude agentic CLIs find them too.

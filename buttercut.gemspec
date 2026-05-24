@@ -6,11 +6,18 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Andrew Ford"]
   spec.email         = ["ford.andrewid@gmail.com"]
 
-  spec.summary       = "Video Editor XML generator with Agent skills for analyzing video, creating rough cuts and sequences."
-  spec.description   = "ButterCut generates video projects for Final Cut Pro and Adobe Premiere. It includes Claude Skills to perform metadata extraction through FFmpeg, audio extraction with WhisperX and visual analysis to create rough cuts and sequences."
-  spec.homepage      = "https://github.com/andrewford/buttercut"
+  spec.summary       = "[DEPRECATED] ButterCut is no longer distributed as a gem."
+  spec.description   = "ButterCut's XML generator has been merged into the main agent code. See https://github.com/barefootford/buttercut. The 0.7.x gem continues to function but will not be updated."
+  spec.homepage      = "https://github.com/barefootford/buttercut"
   spec.license       = "Nonstandard"
   spec.required_ruby_version = ">= 2.7.0"
+
+  spec.post_install_message = <<~MSG
+    buttercut is no longer published as a gem.
+    The XML generator now ships with the agent code at:
+      https://github.com/barefootford/buttercut
+    The 0.7.x line continues to function but will not be updated.
+  MSG
 
   spec.files = Dir[
     "lib/**/*",
