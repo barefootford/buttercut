@@ -21,7 +21,7 @@ Do NOT read `library.yaml` or `settings.yaml`.
 ## For each clip in the batch
 
 1. Read `<contact_sheet_path>` — the visual overview.
-2. Run `ruby skills/analyze-video/script_extractor.rb <transcript_path>` — the stdout is the clean dialogue (one segment per line, no timing). Don't `Read` the transcript JSON directly; the extractor is cheaper and gives you only what you need.
+2. Run `ruby lib/buttercut/script_extractor.rb <transcript_path>` — the stdout is the clean dialogue (one segment per line, no timing). Don't `Read` the transcript JSON directly; the extractor is cheaper and gives you only what you need.
 3. **Write** the full summary to `<summary_output_path>` in one call, using this exact structure:
 
 ```markdown

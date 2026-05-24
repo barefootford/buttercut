@@ -1,9 +1,9 @@
 require 'spec_helper'
 require 'tmpdir'
-require_relative '../skills/contact-sheet/contact_sheet'
+require_relative '../../lib/buttercut/contact_sheet'
 
 RSpec.describe ContactSheet, 'codec coverage', :fixtures do
-  assets_dir = File.expand_path('assets', __dir__)
+  assets_dir = File.expand_path('../assets', __dir__)
 
   # Fixtures live in spec/assets/ (gitignored). The h264/hevc/prores clips are sliced
   # from real source footage. The four below are transcoded from those real clips —

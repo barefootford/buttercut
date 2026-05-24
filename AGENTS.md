@@ -1,10 +1,10 @@
 # ButterCut - Video Rough Cut Generator
 ButterCut is a special folder that video editors open to get help with generating roughcuts, finding broll, and other assorted video editing tasks. It runs through Claude Code, Codex, and other agentic tools.
 
-The ButterCut folder is one project with two pieces of Ruby code:
+The ButterCut folder is one project with two parts:
 
-1. **Agent skills** at `skills/` — the AI-powered workflow that processes footage (audio transcription, visual analysis, summaries) and works with the user to build cuts.
-2. **XML generator** at `lib/buttercut.rb` + `lib/buttercut/` — converts cut YAML files into timelines that import into Final Cut Pro X, Premiere, or DaVinci Resolve. The skills call into this library at export time.
+1. **Agent skills** at `skills/` — the prompts (`SKILL.md` + supporting markdown) that drive the AI workflow: processing footage, refining transcripts, planning cuts, exporting timelines.
+2. **Ruby app** at `lib/buttercut/` — every script the skills shell out to: the `Library` class, contact-sheet builder, transcript helpers, exporter, backup tool, and the XML generator (Final Cut Pro X, Premiere, DaVinci Resolve). Skill prompts invoke these directly (`ruby lib/buttercut/library.rb …`).
 
 ## Core Workflow
 
@@ -17,7 +17,7 @@ Work is organized into **libraries** (video series/projects), each self-containe
 ### Workflow Steps
 
 1. **Process Library** → `process-library` skill — set up a new project, resume an existing one, or add new footage.
-2. **Edit** → `cut` skill — build a scene, selects reel, roughcut, or custom task as a timeline from the processed library. Pre-flight with `ruby skills/buttercut-lib/library.rb <name> ready` (exit `0` means yes). The check is legacy-aware: a clip with `summary` + either `transcript` or `visual_transcript` counts as ready, so libraries that predate the contact-sheet pipeline still pass.
+2. **Edit** → `cut` skill — build a scene, selects reel, roughcut, or custom task as a timeline from the processed library. Pre-flight with `ruby lib/buttercut/library.rb <name> ready` (exit `0` means yes). The check is legacy-aware: a clip with `summary` + either `transcript` or `visual_transcript` counts as ready, so libraries that predate the contact-sheet pipeline still pass.
 3. **Backup** → `backup-library` skill — compressed archives in `~/Documents/buttercut-video-editor-backups` by default (override via `backups_dir` in `libraries/settings.yaml`). `process-library` triggers this automatically after analysis. "Run a backup" means back up just the library you're working on (`--library <name>`); only back up every library when the user explicitly asks.
 
 Libraries are the primary abstraction — each is a video series/project self-contained under `/libraries/[library-name]/`. Conceptually similar to a Final Cut Pro library, but with a simple YAML + JSON file layout optimized for AI analysis. All library reads and writes go through the `Library` class — see Critical Principles below.
@@ -40,37 +40,37 @@ Known migration triggers (match each to a `scripts/NNN_migrate_*.rb` script via 
 
 A missing field is not the same as a field set to the template default — the template default only applies to freshly created libraries. If you see a schema issue not on this list, still check CHANGELOG.md; the list may be behind. After running migrations, re-read the library.yaml and continue with whatever the user asked for.
 
-**`visual_transcript` is deprecated for new analysis.** Don't generate them on new libraries — `transcript` + `contact_sheet` + `summary` is the current pipeline. Dialogue is extracted from the audio transcript JSON on demand via `ruby skills/analyze-video/script_extractor.rb <transcript>`; there is no separate script file on disk. Older libraries may still carry `visual_transcript` entries with matching `transcripts/visual_*.json` files; those are fine to use as additional planning context where they exist.
+**`visual_transcript` is deprecated for new analysis.** Don't generate them on new libraries — `transcript` + `contact_sheet` + `summary` is the current pipeline. Dialogue is extracted from the audio transcript JSON on demand via `ruby lib/buttercut/script_extractor.rb <transcript>`; there is no separate script file on disk. Older libraries may still carry `visual_transcript` entries with matching `transcripts/visual_*.json` files; those are fine to use as additional planning context where they exist.
 
 **Read smallest first; grep the rest.** When scanning a library for candidate clips, start with the per-clip summary files in `summaries/` — they're a few paragraphs each and safe to read whole, even across 90+ clips. Contact sheet images are similarly cheap and fine to read for clips you're considering. Transcripts are the heavy ones: a single interview transcript can outweigh every summary in the library combined. Grep into them (`rg "claude code" libraries/<name>/transcripts/`) instead of reading them whole. Direct user requests ("show me transcript X") are fine — the rule is about routine scanning.
 
 **Use actual filenames.** Never use generic labels like "Video 1" or "Clip A" - always reference actual filenames like "DJI_20250423171212_0210_D.mov" for clear traceability.
 
-**Library.yaml mutations go through `Library` — only from the main thread.** `skills/buttercut-lib/library.rb` is the one place that reads and writes library.yaml. Sub-agents must NEVER call it (race conditions on the shared file); the orchestrator is the only writer. Never read or write library.yaml directly — go through `Library`. If you need a field the class doesn't expose, add a reader rather than parsing the YAML inline.
+**Library.yaml mutations go through `Library` — only from the main thread.** `lib/buttercut/library.rb` is the one place that reads and writes library.yaml. Sub-agents must NEVER call it (race conditions on the shared file); the orchestrator is the only writer. Never read or write library.yaml directly — go through `Library`. If you need a field the class doesn't expose, add a reader rather than parsing the YAML inline.
 
 Two habits when working with `Library`:
 
 - **Status first.** `lib.summary` is the snapshot hash to call when picking up a library. `lib.ready?` is the legacy-aware yes/no gate to call before building a cut.
-- **Mark progress incrementally.** Run `ruby skills/buttercut-lib/library.rb <name> complete <field> <files>` after each batch lands, not in one big final sweep — that way progress persists if a later batch fails.
+- **Mark progress incrementally.** Run `ruby lib/buttercut/library.rb <name> complete <field> <files>` after each batch lands, not in one big final sweep — that way progress persists if a later batch fails.
 
 ### Common Library commands — discovery and status
 
 ```bash
 # Discover
-ruby skills/buttercut-lib/library.rb list                       # every library, newest first by library.yaml mtime
-ruby skills/buttercut-lib/library.rb recent [N]                 # N most-recently-touched libraries (default 10) — use this when the user means "the library I was just working on"
-ruby skills/buttercut-lib/library.rb <name> exists              # exit 0 if it exists, 1 if not
+ruby lib/buttercut/library.rb list                       # every library, newest first by library.yaml mtime
+ruby lib/buttercut/library.rb recent [N]                 # N most-recently-touched libraries (default 10) — use this when the user means "the library I was just working on"
+ruby lib/buttercut/library.rb <name> exists              # exit 0 if it exists, 1 if not
 
 # Status (call summary when picking up a library; ready as the pre-flight before any cut)
-ruby skills/buttercut-lib/library.rb <name> summary             # JSON: metadata + clip-completion breakdown
-ruby skills/buttercut-lib/library.rb <name> incomplete_videos   # JSON: clips still missing artifacts, with which fields are missing
-ruby skills/buttercut-lib/library.rb <name> ready               # exit 0 = ready to build a cut, 1 = not. Raises if a migration script should be run.
+ruby lib/buttercut/library.rb <name> summary             # JSON: metadata + clip-completion breakdown
+ruby lib/buttercut/library.rb <name> incomplete_videos   # JSON: clips still missing artifacts, with which fields are missing
+ruby lib/buttercut/library.rb <name> ready               # exit 0 = ready to build a cut, 1 = not. Raises if a migration script should be run.
 
 # Understand
-ruby skills/analyze-video/script_extractor.rb libraries/<name>/transcripts/<clip>.json   # clean dialogue to stdout: one transcript segment per line, no timing — cheap to skim when you want to know what's said in a clip. Generally these are small, but if editing a podcast or a speech they can be longer.
+ruby lib/buttercut/script_extractor.rb libraries/<name>/transcripts/<clip>.json   # clean dialogue to stdout: one transcript segment per line, no timing — cheap to skim when you want to know what's said in a clip. Generally these are small, but if editing a podcast or a speech they can be longer.
 ```
 
-Writes (`add_videos`, `complete`, `update_metadata`), destructive resets, legacy cleanup, and `Library.create` via `ruby -e`: see `skills/buttercut-lib/README.md` for full documentation.
+Writes (`add_videos`, `complete`, `update_metadata`), destructive resets, legacy cleanup, and `Library.create` via `ruby -e`: see `lib/buttercut/library.md` for full documentation.
 
 **Single-track timelines only.** ButterCut produces one sequential video track. Each clip's own audio plays during that clip — there is no second video track for cutaways layered over a continuing voiceover, and no separate audio track. When planning or pitching cuts, never propose "B-roll over VO," "story under meetup footage," picture-in-picture, or any structure that assumes a clip's audio continues while different visuals play on top. Cutaways are fine, but they're hard cuts: when you cut to the wide shot, you cut to that shot's audio too. Plan every cut as a strictly linear sequence of clips.
 
@@ -114,7 +114,7 @@ bundle exec rspec
 ```
 
 ### Running Ruby scripts
-Skill prompts invoke Ruby with plain `ruby ...`. The project pins Ruby via `.mise.toml`; once mise is activated in your shell (the default setup), plain `ruby` resolves to it through mise shims. If your shell doesn't have mise activated — or you'd rather not install mise at all — prefix any `ruby ...` command with `mise exec -- ` (e.g. `mise exec -- ruby skills/buttercut-lib/library.rb my-lib summary`), or run the command from any shell where the right Ruby is already on `PATH`.
+Skill prompts invoke Ruby with plain `ruby ...`. The project pins Ruby via `.mise.toml`; once mise is activated in your shell (the default setup), plain `ruby` resolves to it through mise shims. If your shell doesn't have mise activated — or you'd rather not install mise at all — prefix any `ruby ...` command with `mise exec -- ` (e.g. `mise exec -- ruby lib/buttercut/library.rb my-lib summary`), or run the command from any shell where the right Ruby is already on `PATH`.
 
 ## Claude Skills
 

@@ -2,7 +2,7 @@
 require 'json'
 
 if ARGV.length < 2
-  puts "Usage: ruby prepare_audio_script.rb <json_file> <video_filepath>"
+  puts "Usage: ruby lib/buttercut/audio_prep.rb <json_file> <video_filepath>"
   exit 1
 end
 

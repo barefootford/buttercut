@@ -38,7 +38,7 @@ Derive a slug from the plan's working title — the `# ` heading at the top of t
 - **Summary** (`summaries/summary_*.md`) — short markdown overview: arc, key visuals, notable dialogue, b-roll. Read first to scan candidates cheaply.
 - **Contact sheet** (`contact_sheets/<clipname>_full.jpg`) — a single image with 16 evenly-spaced frames from the clip, each labeled with its `HH:MM:SS` timestamp. Read this to "see" the whole clip at once: locations, action, who's on camera, where the visual changes are. Clips longer than 10 minutes also have per-segment sheets (`<clipname>_HH-MM-SS_to_HH-MM-SS.jpg`) for finer-grain scrubbing.
 - **Audio transcript** (`transcripts/*.json`) — segment-level `start`/`end` plus a per-segment `words` array with per-word `start`/`end`. The source of truth for dialogue and timing. Two ways to use it:
-  - For browsing dialogue: `ruby skills/analyze-video/script_extractor.rb libraries/[library-name]/transcripts/<clip>.json` — stdout is clean text, one segment per line, no timing weight. Cheap to skim.
+  - For browsing dialogue: `ruby lib/buttercut/script_extractor.rb libraries/[library-name]/transcripts/<clip>.json` — stdout is clean text, one segment per line, no timing weight. Cheap to skim.
   - For word-level in/out points at a cut boundary: grep the JSON directly for the words you need. Don't read the whole file.
 - **Visual transcript** (`transcripts/visual_*.json`, legacy / optional) — older libraries from the previous pipeline carry these. If present, treat them as extra planning context alongside the contact sheet. Newly-processed libraries won't have them, and you should never generate new ones.
 
@@ -50,9 +50,9 @@ For each beat in the plan:
 **Zoom in when timing matters.** Generate a tighter contact sheet for any clip and any range whenever the existing one leaves you guessing at a cut point:
 
 ```bash
-ruby skills/contact-sheet/contact_sheet.rb <video_path> <start> <end> --library libraries/[library-name]
+ruby lib/buttercut/contact_sheet.rb <video_path> <start> <end> --library libraries/[library-name]
 # e.g. zoom into a 30-second window 2 minutes into a clip:
-ruby skills/contact-sheet/contact_sheet.rb <video_path> 02:00 02:30 --library libraries/[library-name]
+ruby lib/buttercut/contact_sheet.rb <video_path> 02:00 02:30 --library libraries/[library-name]
 ```
 
 One second of precision is the goal, not perfect-frame. We're building a roughcut, not finishing it — the editor will tighten in their NLE. Landing within ~1 second of the right moment (24-60 frames at typical frame rates) is plenty. Don't recursively zoom hunting for an exact frame: pick what looks right and move on.

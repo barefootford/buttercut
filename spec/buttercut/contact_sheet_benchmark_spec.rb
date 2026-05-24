@@ -1,14 +1,14 @@
 require 'spec_helper'
 require 'benchmark'
 require 'tmpdir'
-require_relative '../skills/contact-sheet/contact_sheet'
+require_relative '../../lib/buttercut/contact_sheet'
 
 # Wall-time regression checks. Opt-in: `rspec --tag benchmark`. Each clip is run 3x
 # and the best wall time is compared against the inlined baseline. Tolerance is generous
 # (2x) because wall times are decode-bound and noisy; the regressions we care about
 # (single-pass on heavy long-GOP) are 5-100x.
 RSpec.describe ContactSheet, 'wall-time regression', :benchmark do
-  assets_dir = File.expand_path('assets', __dir__)
+  assets_dir = File.expand_path('../assets', __dir__)
   tolerance = 2.0
   runs_per_case = 3
 

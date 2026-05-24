@@ -10,7 +10,7 @@ This planning flow runs in the main thread, not in a sub-agent.
 
 Whenever you need the user to pick from a discrete set of options use the `AskUserQuestion` tool (or similar option-chip tool the host agent provides) instead of writing a bullet list in chat.
 
-When the options are libraries (or anything else with a natural "last touched" signal), order them by recency — most recently modified first. For libraries, use `ruby skills/buttercut-lib/library.rb recent [N]` — it scans every file inside each library dir, which is the right signal for "what was the user working on" (footage analysis writes transcripts/sheets/summaries; `library.yaml` alone is stale).
+When the options are libraries (or anything else with a natural "last touched" signal), order them by recency — most recently modified first. For libraries, use `ruby lib/buttercut/library.rb recent [N]` — it scans every file inside each library dir, which is the right signal for "what was the user working on" (footage analysis writes transcripts/sheets/summaries; `library.yaml` alone is stale).
 
 ## What to figure out
 

@@ -400,7 +400,7 @@ if __FILE__ == $PROGRAM_NAME
     <key>:   footage_summary | user_context
 
     Library.create is not exposed via the CLI (kwarg-heavy). From bash:
-      ruby -e "require_relative 'skills/buttercut-lib/library'; \\
+      ruby -e "require_relative 'lib/buttercut/library'; \\
         Library.create('my-lib', language: 'en', editor: 'fcpx', \\
                        transcript_refinement: true, video_paths: ['/abs/a.mov'])"
   USAGE

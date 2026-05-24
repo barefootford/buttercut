@@ -4,7 +4,7 @@
 require 'date'
 require 'optparse'
 require 'yaml'
-require 'buttercut'
+require_relative '../buttercut'
 
 class Export
   EDITOR_ALIASES = {

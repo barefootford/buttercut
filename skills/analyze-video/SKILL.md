@@ -17,7 +17,7 @@ This is the main thread's playbook for the **Analyze Video** workflow step. Run 
 ## Prerequisites
 
 - Library setup is complete (`library.yaml` exists, schema is current — run migrations from AGENTS.md if not).
-- Read `libraries/settings.yaml` directly for `whisper_model`. For library fields, read the snapshot via `ruby skills/buttercut-lib/library.rb <name> summary` and pull the values you need from the JSON — don't parse library.yaml inline.
+- Read `libraries/settings.yaml` directly for `whisper_model`. For library fields, read the snapshot via `ruby lib/buttercut/library.rb <name> summary` and pull the values you need from the JSON — don't parse library.yaml inline.
 
 ## Step 1 — Audio transcripts (parallel sub-agents)
 
@@ -31,7 +31,7 @@ Launch `transcribe-audio` Task agents. Pass these values **inline** in each agen
 As each agent completes, update library.yaml with `transcript` (filename only, not full path):
 
 ```bash
-ruby skills/buttercut-lib/library.rb <name> complete transcript <filename> [<filename>...]
+ruby lib/buttercut/library.rb <name> complete transcript <filename> [<filename>...]
 ```
 
 **Refinement note:** When `transcript_refinement: true`, each `transcribe-audio` agent reviews and corrects its transcript in place before returning, using the `user_context` and `footage_summary` the parent passed in. Empty context strings are fine. The parent still only writes `transcript: <filename>.json` to library.yaml after the agent completes.
@@ -41,7 +41,7 @@ ruby skills/buttercut-lib/library.rb <name> complete transcript <filename> [<fil
 Run from the project root:
 
 ```bash
-ruby skills/analyze-video/contact_sheet_job.rb <library-name> <clip> [<clip> ...]
+ruby lib/buttercut/contact_sheet_job.rb <library-name> <clip> [<clip> ...]
 ```
 
 Takes an explicit list of clip filenames (including extension, e.g. `P1055016.MP4`). Runs single-threaded — launch multiple invocations in parallel from the main thread when machine headroom allows (a 2-3 split across cores is usually safe on an M-series Mac). Always rebuilds every sheet for the clips it's given; for clips longer than 10 minutes that includes per-segment sheets covering successive 10-minute slices. Updates library.yaml's `contact_sheet` field for every clip it processes. No LLM — pure ffmpeg.
@@ -63,7 +63,7 @@ For each sub-agent, pass a list of 10 clip records inline. Each clip record need
 As each sub-agent returns its batch, update library.yaml with `summary` for every clip in that batch:
 
 ```bash
-ruby skills/buttercut-lib/library.rb <name> complete summary <filename> [<filename>...]
+ruby lib/buttercut/library.rb <name> complete summary <filename> [<filename>...]
 ```
 
 The `contact_sheet` field was already populated in step 2, so the sub-agent return only contributes summaries.
@@ -76,7 +76,7 @@ The `contact_sheet` field was already populated in step 2, so the sub-agent retu
 
 Once every summary is written, talk through what the footage actually shows — confirm character names, locations, the narrative through-line, any stray or off-thesis clips, and the user's creative intent for this library. Use plain conversation; only reach for `AskUserQuestion` when offering a discrete choice. As you learn things, update:
 
-- `footage_summary` and `user_context` via `ruby skills/buttercut-lib/library.rb <name> update_metadata footage_summary "..."` (and the same with `user_context`)
+- `footage_summary` and `user_context` via `ruby lib/buttercut/library.rb <name> update_metadata footage_summary "..."` (and the same with `user_context`)
 - individual `summary_*.md` files when a summary mislabels someone or misses a key detail (e.g., "a man in a tan jacket" → the user's name)
 
 This is the one place to do this thorough pass. Every later roughcut planning run inherits the resulting context rather than re-interrogating the library.

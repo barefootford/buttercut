@@ -8,15 +8,15 @@ description: Build a cut from a library — scene, selects, roughcut, or custom 
 Build a timeline from a library. This skill is the entry point for four kinds of work — the first decision is which one.
 
 ## 1. Confirm the library and pre-flight readiness
-You need a library before any cut work. If one is already in context from the current conversation, use it. Otherwise show recent libraries (`ruby skills/buttercut-lib/library.rb recent 5`) and let the user pick.
+You need a library before any cut work. If one is already in context from the current conversation, use it. Otherwise show recent libraries (`ruby lib/buttercut/library.rb recent 5`) and let the user pick.
 
 Once the library name is known, check if the library is ready (video processing complete).
 
 ```bash
-ruby skills/buttercut-lib/library.rb <name> ready
+ruby lib/buttercut/library.rb <name> ready
 ```
 
-Exit code `0` means the library is ready for cut building (`Library.ready?` is the source of truth on what that means — don't re-derive the criteria here). If it exits non-zero, stop. Run `ruby skills/buttercut-lib/library.rb <name> summary` to surface the incomplete clips and tell the user the library needs to finish processing (point them at the `process-library` skill). Don't try to cut around missing clips.
+Exit code `0` means the library is ready for cut building (`Library.ready?` is the source of truth on what that means — don't re-derive the criteria here). If it exits non-zero, stop. Run `ruby lib/buttercut/library.rb <name> summary` to surface the incomplete clips and tell the user the library needs to finish processing (point them at the `process-library` skill). Don't try to cut around missing clips.
 
 ## 2. Determine Task Type
 Ask the user with `AskUserQuestion` tool if available. Otherwise ask in text in this order.
@@ -56,13 +56,13 @@ Run the export with the editor resolved in step 4 and the YAML produced in step 
 
 ```bash
 # Final Cut Pro X
-ruby -Ilib skills/cut/export.rb --editor fcpx libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp].fcpxml
+ruby lib/buttercut/export.rb --editor fcpx libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp].fcpxml
 
 # Premiere Pro
-ruby -Ilib skills/cut/export.rb --editor premiere libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp].xml
+ruby lib/buttercut/export.rb --editor premiere libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp].xml
 
 # DaVinci Resolve
-ruby -Ilib skills/cut/export.rb --editor resolve libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp].xml
+ruby lib/buttercut/export.rb --editor resolve libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp].xml
 ```
 
 ## 6. Copy XML to Desktop (if enabled)

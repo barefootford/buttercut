@@ -17,8 +17,8 @@
 
 require 'fileutils'
 
-require_relative '../contact-sheet/contact_sheet'
-require_relative '../buttercut-lib/library'
+require_relative 'contact_sheet'
+require_relative 'library'
 
 class ContactSheetJob
   CHUNK_LENGTH_SECONDS = 600.0
