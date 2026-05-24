@@ -1,13 +1,9 @@
-# buttercut-lib
+# Library
 
-Cross-skill support code for ButterCut. Not a skill itself — has no `SKILL.md`
-and won't be discovered by Claude Code, Codex, or other agentic tools as one.
-
-Currently contains a single file: `library.rb`, the `Library` handle for
-reading and writing `library.yaml`. The agent drives it through bash:
+The `Library` class is the one place that reads and writes `library.yaml`. The agent drives it through bash:
 
 ```bash
-ruby skills/buttercut-lib/library.rb <library_name> <action> [args...]
+ruby lib/buttercut/library.rb <library_name> <action> [args...]
 ```
 
 ## Load-bearing rules
@@ -37,19 +33,18 @@ If any check fails the call raises and the YAML is left untouched.
 
 Dialogue isn't a tracked field — the audio transcript JSON is the source of
 truth, and agents that want clean dialogue text run
-`ruby skills/analyze-video/script_extractor.rb <transcript>` on demand
-(stdout).
+`ruby lib/buttercut/script_extractor.rb <transcript>` on demand (stdout).
 
 ## CLI
 
 ### Discover and check
 ```bash
-ruby skills/buttercut-lib/library.rb list                # every library, newest first by library.yaml mtime
-ruby skills/buttercut-lib/library.rb recent [N]          # N most recent libraries by deepest file mtime (default 10)
-ruby skills/buttercut-lib/library.rb <name> exists       # exit 0 if it exists, 1 if not
-ruby skills/buttercut-lib/library.rb <name> summary      # JSON: metadata + clip-completion breakdown
-ruby skills/buttercut-lib/library.rb <name> incomplete_videos
-ruby skills/buttercut-lib/library.rb <name> ready        # exit 0 if every video is ready for roughcut, 1 if not
+ruby lib/buttercut/library.rb list                # every library, newest first by library.yaml mtime
+ruby lib/buttercut/library.rb recent [N]          # N most recent libraries by deepest file mtime (default 10)
+ruby lib/buttercut/library.rb <name> exists       # exit 0 if it exists, 1 if not
+ruby lib/buttercut/library.rb <name> summary      # JSON: metadata + clip-completion breakdown
+ruby lib/buttercut/library.rb <name> incomplete_videos
+ruby lib/buttercut/library.rb <name> ready        # exit 0 if every video is ready for roughcut, 1 if not
 ```
 
 `recent` is the right tool for "which library was the user most recently working on?" — it sees activity across `transcripts/`, `contact_sheets/`, `summaries/`, and `cuts/`, not just `library.yaml`. `list` is fine when you want the full set.
@@ -60,20 +55,20 @@ Use `summary` when you want to look at *what's* missing; use `ready` when you on
 
 ### Add and update
 ```bash
-ruby skills/buttercut-lib/library.rb <name> add_videos /abs/a.mov /abs/b.mov
-ruby skills/buttercut-lib/library.rb <name> update_metadata footage_summary "subjects, locations, activities"
-ruby skills/buttercut-lib/library.rb <name> update_metadata user_context   "creative intent, characters"
+ruby lib/buttercut/library.rb <name> add_videos /abs/a.mov /abs/b.mov
+ruby lib/buttercut/library.rb <name> update_metadata footage_summary "subjects, locations, activities"
+ruby lib/buttercut/library.rb <name> update_metadata user_context   "creative intent, characters"
 ```
 
 ### Mark files done
 ```bash
-ruby skills/buttercut-lib/library.rb <name> complete <field> <files...>
+ruby lib/buttercut/library.rb <name> complete <field> <files...>
 ```
 
 Examples:
 ```bash
-ruby skills/buttercut-lib/library.rb my-lib complete transcript DJI_0123.mov DJI_0124.mov
-ruby skills/buttercut-lib/library.rb my-lib complete summary    DJI_0123.mov,DJI_0124.mov
+ruby lib/buttercut/library.rb my-lib complete transcript DJI_0123.mov DJI_0124.mov
+ruby lib/buttercut/library.rb my-lib complete summary    DJI_0123.mov,DJI_0124.mov
 ```
 
 `<files>` is space- and/or comma-separated. Call `complete` incrementally
@@ -82,10 +77,10 @@ later batch fails.
 
 ### Destructive resets
 ```bash
-ruby skills/buttercut-lib/library.rb <name> reset <field> [<field>...]
-ruby skills/buttercut-lib/library.rb <name> reset_all
-ruby skills/buttercut-lib/library.rb <name> reset_all_except_audio_transcripts
-ruby skills/buttercut-lib/library.rb <name> remove_visual_transcripts   # legacy cleanup
+ruby lib/buttercut/library.rb <name> reset <field> [<field>...]
+ruby lib/buttercut/library.rb <name> reset_all
+ruby lib/buttercut/library.rb <name> reset_all_except_audio_transcripts
+ruby lib/buttercut/library.rb <name> remove_visual_transcripts   # legacy cleanup
 ```
 
 `reset` deletes every file in each named field's subdir and clears the
@@ -98,7 +93,7 @@ alone — that's what `remove_visual_transcripts` is for.
 cleanly to a positional CLI. Invoke it via `ruby -e`:
 
 ```bash
-ruby -e "require_relative 'skills/buttercut-lib/library'; \
+ruby -e "require_relative 'lib/buttercut/library'; \
   Library.create('my-lib', \
     language: 'en', \
     editor: 'fcpx', \

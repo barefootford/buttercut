@@ -17,7 +17,7 @@ Do NOT open `library.yaml` or search the filesystem for additional context — i
 Run the shared extractor to produce a plain-text view of the transcript (one segment per paragraph, no timing metadata). The extractor writes to stdout:
 
 ```bash
-ruby skills/analyze-video/script_extractor.rb <transcript_path>
+ruby lib/buttercut/script_extractor.rb <transcript_path>
 ```
 
 Use the bash output as your dialogue view for the analysis steps below. Do NOT `Read` the full transcript JSON yet — it's large and you don't need its word-level structure to identify corrections.

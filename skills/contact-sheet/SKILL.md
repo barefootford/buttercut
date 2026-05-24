@@ -32,13 +32,13 @@ When the clip belongs to a library, always pass `--library` so the output lands 
 
 ```bash
 # Whole clip
-ruby skills/contact-sheet/contact_sheet.rb <video-path> --library libraries/<lib>
+ruby lib/buttercut/contact_sheet.rb <video-path> --library libraries/<lib>
 
 # From <start> to the end of the clip
-ruby skills/contact-sheet/contact_sheet.rb <video-path> <start> --library libraries/<lib>
+ruby lib/buttercut/contact_sheet.rb <video-path> <start> --library libraries/<lib>
 
 # Explicit range
-ruby skills/contact-sheet/contact_sheet.rb <video-path> <start> <end> --library libraries/<lib>
+ruby lib/buttercut/contact_sheet.rb <video-path> <start> <end> --library libraries/<lib>
 ```
 
 `<start>` and `<end>` accept seconds (e.g. `12.5`) or `HH:MM:SS` / `MM:SS`.

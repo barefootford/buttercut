@@ -10,7 +10,7 @@ Exports all spoken dialogue from a library's audio transcripts into a single `fu
 ## Run
 
 ```bash
-ruby skills/full-transcript/full_transcript.rb <library-name>
+ruby lib/buttercut/full_transcript.rb <library-name>
 ```
 
 ## Output

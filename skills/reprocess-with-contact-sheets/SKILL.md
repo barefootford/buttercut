@@ -9,13 +9,13 @@ Bring a library that was analyzed under the old pipeline (visual_transcripts, no
 
 ## Step 1 — Pick the library
 
-If the user named a library, use it. If not, list candidates with `ruby skills/buttercut-lib/library.rb recent` and use `AskUserQuestion` to pick one.
+If the user named a library, use it. If not, list candidates with `ruby lib/buttercut/library.rb recent` and use `AskUserQuestion` to pick one.
 
 Verify it exists and read the snapshot:
 
 ```bash
-ruby skills/buttercut-lib/library.rb <name> exists
-ruby skills/buttercut-lib/library.rb <name> summary
+ruby lib/buttercut/library.rb <name> exists
+ruby lib/buttercut/library.rb <name> summary
 ```
 
 Run any schema migrations from AGENTS.md → Critical Principles before touching anything else.
@@ -39,7 +39,7 @@ Always back up before the reset — this step is mildly risky and a fresh archiv
 One command wipes contact sheets, summaries, and legacy visual transcripts and clears the matching fields on every clip:
 
 ```bash
-ruby skills/buttercut-lib/library.rb <name> reset_all_except_audio_transcripts
+ruby lib/buttercut/library.rb <name> reset_all_except_audio_transcripts
 ```
 
 If a clip is missing its audio transcript (some libraries predate even that), the analyze-video skill's step 1 will fill it in on the next step — no special handling here.
@@ -51,6 +51,6 @@ Hand off to `skills/analyze-video/SKILL.md` end-to-end. Skip step 1 (audio trans
 Verify readiness before reporting done:
 
 ```bash
-ruby skills/buttercut-lib/library.rb <name> ready
+ruby lib/buttercut/library.rb <name> ready
 ```
 

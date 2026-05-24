@@ -1,7 +1,7 @@
 require 'spec_helper'
 require 'tmpdir'
 require 'yaml'
-require_relative '../skills/buttercut-lib/library'
+require_relative '../../lib/buttercut/library'
 
 RSpec.describe Library do
   let(:libraries_root) { @libraries_root }

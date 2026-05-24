@@ -42,14 +42,14 @@ Note: `transcript_refinement` is a **per-library** setting, not global. Ask abou
 Check if a library already exists:
 
 ```bash
-ruby skills/buttercut-lib/library.rb <name> exists   # exits 0 if it does, 1 if not
+ruby lib/buttercut/library.rb <name> exists   # exits 0 if it does, 1 if not
 ```
 
 **If it exists:**
 - Skip setup entirely — the library is already configured.
 - Read the snapshot first — one call gives you top-level metadata plus the clip-completion breakdown (`video_count`, `incomplete_count`, and the list of incomplete clips with their missing fields):
   ```bash
-  ruby skills/buttercut-lib/library.rb <name> summary
+  ruby lib/buttercut/library.rb <name> summary
   ```
 - User is returning to existing work; continue from whatever step is incomplete.
 
@@ -63,7 +63,7 @@ ruby skills/buttercut-lib/library.rb <name> exists   # exits 0 if it does, 1 if 
 To list libraries by recency (for "find a recent library to resume" prompts):
 
 ```bash
-ruby skills/buttercut-lib/library.rb list
+ruby lib/buttercut/library.rb list
 ```
 
 ## Step 3 — Gather project information (new libraries)
@@ -96,7 +96,7 @@ Read the `editor` from `libraries/settings.yaml` — you'll pass it into the cre
 `Library.create` is the one operation that doesn't have a plain CLI form (kwarg-heavy). Run it via `ruby -e`. It creates the directory tree (transcripts/, contact_sheets/, summaries/, cuts/, plans/), ffprobes each video for duration, and writes library.yaml in one call:
 
 ```bash
-ruby -e "require_relative 'skills/buttercut-lib/library'; \
+ruby -e "require_relative 'lib/buttercut/library'; \
   Library.create('my-library', \
     language: 'en', \
     editor: 'fcpx', \
@@ -109,7 +109,7 @@ Each video entry starts with empty `transcript`, `contact_sheet`, and `summary` 
 If the user later drags in more clips:
 
 ```bash
-ruby skills/buttercut-lib/library.rb <name> add_videos /abs/new1.mov /abs/new2.mov
+ruby lib/buttercut/library.rb <name> add_videos /abs/new1.mov /abs/new2.mov
 ```
 
 Then re-run the analyze steps for just the new clips.
@@ -123,7 +123,7 @@ Follow `skills/analyze-video/SKILL.md` end-to-end. That skill covers audio trans
 Progressively update `footage_summary` as transcripts come in — 1-3 sentences covering subjects, locations, activities, visual style:
 
 ```bash
-ruby skills/buttercut-lib/library.rb <name> update_metadata footage_summary "subjects/locations/activities/visual style"
+ruby lib/buttercut/library.rb <name> update_metadata footage_summary "subjects/locations/activities/visual style"
 ```
 
 The full understanding pass at the end of analyze-video is where this gets refined.
@@ -135,14 +135,14 @@ Analyze ALL videos before offering to create rough cuts.
 Before reporting analysis complete, confirm the library passes the same gate the `cut` skill uses:
 
 ```bash
-ruby skills/buttercut-lib/library.rb <name> ready
+ruby lib/buttercut/library.rb <name> ready
 ```
 
-If it exits non-zero, run `ruby skills/buttercut-lib/library.rb <name> summary` to list the incomplete clips, finish the missing artifacts (loop back into whichever analyze-video step owns them), and re-run `ready` until it passes. Don't claim analysis is done while `Library.ready?` is false.
+If it exits non-zero, run `ruby lib/buttercut/library.rb <name> summary` to list the incomplete clips, finish the missing artifacts (loop back into whichever analyze-video step owns them), and re-run `ready` until it passes. Don't claim analysis is done while `Library.ready?` is false.
 
 ## Step 7 — Backup
 
-After all analysis completes, automatically create a backup using the `backup-library` skill, scoped to just the library you processed: `ruby skills/backup-library/backup_libraries.rb --library <library-name>`. This writes a single archive under `~/Documents/buttercut-video-editor-backups/<library-name>/` (or wherever `backups_dir` in `libraries/settings.yaml` points). If `backups_dir` isn't set yet, the script silently uses the default — don't prompt during process-library.
+After all analysis completes, automatically create a backup using the `backup-library` skill, scoped to just the library you processed: `ruby lib/buttercut/backup.rb --library <library-name>`. This writes a single archive under `~/Documents/buttercut-video-editor-backups/<library-name>/` (or wherever `backups_dir` in `libraries/settings.yaml` points). If `backups_dir` isn't set yet, the script silently uses the default — don't prompt during process-library.
 
 ## Notes
 
