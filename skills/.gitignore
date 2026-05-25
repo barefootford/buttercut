@@ -30,3 +30,5 @@
 !process-library/**
 !reprocess-with-contact-sheets/
 !reprocess-with-contact-sheets/**
+!detect-scenes/
+!detect-scenes/**
