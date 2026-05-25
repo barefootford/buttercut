@@ -479,7 +479,7 @@ RSpec.describe ButterCut::FCPX do
     end
   end
 
-  describe 'full project exports' do
+  describe 'full project exports', :fixtures do
     let(:media_paths) do
       %w[
         MVI_0309_720p.mov
