@@ -12,7 +12,8 @@ class ButterCut
     DEFAULT_VOLUME_ADJUSTMENT = "-13.100000000000001db"
 
     attr_reader :clips, :initial_offset, :volume_adjustment, :sequence_frame_rate,
-                :sequence_width, :sequence_height, :windows_file_paths, :audio_track
+                :sequence_width, :sequence_height, :windows_file_paths, :audio_track,
+                :audio_start
 
     def initialize(clips, options = {})
       raise ArgumentError, "No clips provided" if clips.nil? || clips.empty?
@@ -40,6 +41,7 @@ class ButterCut
       @sequence_height = options[:sequence_height]
       @windows_file_paths = options.fetch(:windows_file_paths, false)
       @audio_track = options[:audio_track]
+      @audio_start = options[:audio_start]
 
       @metadata_cache = {}
       @clips.each do |clip|

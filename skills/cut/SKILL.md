@@ -72,6 +72,8 @@ ruby lib/buttercut/export.rb --editor resolve libraries/[library-name]/cuts/[slu
 - `--windows-file-paths` — convert WSL/Linux `/mnt/<drive>/…` paths to Windows `<DRIVE>:/…` paths in the FCP7 XML. Use when running ButterCut in WSL and importing into Premiere/Resolve on Windows.
 - `--audio FILE` — add an audio/music track to the sequence (automatically trimmed to fit the sequence duration).
 
+`audio_start: <seconds>` can also be set in the cut YAML to skip into the music track (e.g. skip an intro); it's applied automatically at export.
+
 Detect WSL inside an agent run:
 ```bash
 if [[ -f /proc/version ]] && grep -qi microsoft /proc/version; then

@@ -31,7 +31,7 @@ class Export
 
   def initialize(roughcut_path:, output_path:, editor:, sequence_frame_rate: nil,
                  sequence_width: nil, sequence_height: nil, windows_file_paths: false,
-                 audio_track: nil)
+                 audio_track: nil, audio_start: nil)
     raise ArgumentError, 'roughcut_path is required' if roughcut_path.nil? || roughcut_path.empty?
     raise ArgumentError, 'output_path is required'   if output_path.nil?   || output_path.empty?
     raise ArgumentError, 'editor is required'        if editor.nil?        || editor.to_s.empty?
@@ -48,6 +48,7 @@ class Export
     @sequence_height     = sequence_height
     @windows_file_paths  = windows_file_paths
     @audio_track         = audio_track
+    @audio_start         = audio_start
   end
 
   def perform
@@ -55,6 +56,9 @@ class Export
     library     = load_library(@roughcut_path)
     video_paths = index_video_paths(library)
     clips       = build_clips(roughcut, video_paths)
+
+    # audio_start can come from the roughcut YAML (e.g. to skip an intro on a music track).
+    @audio_start ||= roughcut['audio_start']
 
     write_xml(clips, @editor)
     validate_fcpxml(@output_path) if @editor == :fcpx
@@ -122,6 +126,7 @@ class Export
     bc_options[:sequence_height]     = @sequence_height     if @sequence_height
     bc_options[:windows_file_paths]  = @windows_file_paths
     bc_options[:audio_track]         = @audio_track         if @audio_track
+    bc_options[:audio_start]         = @audio_start         if @audio_start
 
     ButterCut.new(clips, **bc_options).save(@output_path)
     puts "\n✓ Rough cut exported to: #{@output_path}"

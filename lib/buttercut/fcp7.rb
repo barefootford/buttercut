@@ -119,10 +119,14 @@ class ButterCut
         timeline_start_frames = frames_for_fraction(clip[:timeline_offset], timeline_frame_duration)
         timeline_end_frames = timeline_start_frames + timeline_duration_frames
 
-        source_in_frames = frames_for_fraction(clip[:source_in], asset[:frame_duration])
-        source_duration_frames = frames_for_fraction(clip[:source_duration], asset[:frame_duration])
+        # FCP7/Premiere: clipitem <in>/<out> are in the SEQUENCE timebase per the Apple
+        # FCP7 XML spec — not the file's native timebase. This matters with mixed frame rates;
+        # using asset[:frame_duration] causes Premiere to render blank frames at clip boundaries.
+        source_in_frames = frames_for_fraction(clip[:source_in], timeline_frame_duration)
+        source_duration_frames = frames_for_fraction(clip[:source_duration], timeline_frame_duration)
         source_out_frames = source_in_frames + source_duration_frames
 
+        # File-level duration/timecode stay in the file's native timebase.
         asset_duration_frames = frames_for_fraction(asset[:asset_duration], asset[:frame_duration])
         asset_timecode_start = frames_for_fraction(asset[:timecode], asset[:frame_duration])
 
@@ -350,7 +354,8 @@ class ButterCut
       music_duration_fraction = audio_duration_to_fraction(music_path, timeline_frame_duration)
       music_duration_frames = frames_for_fraction(music_duration_fraction, timeline_frame_duration)
 
-      effective_duration = [music_duration_frames, sequence_duration_frames].min
+      audio_start_frames = audio_start ? (audio_start.to_f * timebase).round : 0
+      effective_duration = [music_duration_frames - audio_start_frames, sequence_duration_frames].min
       music_file_id = "file-music-#{deterministic_asset_id(get_absolute_path(music_path))}"
 
       xml.clipitem(id: 'clipitem-music-1') do
@@ -359,8 +364,8 @@ class ButterCut
         xml.duration effective_duration
         xml.start 0
         xml.end_ effective_duration
-        xml.in_ 0
-        xml.out effective_duration
+        xml.in_ audio_start_frames
+        xml.out audio_start_frames + effective_duration
         xml.file(id: music_file_id) do
           xml.name music_filename
           xml.pathurl music_file_url
