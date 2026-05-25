@@ -30,10 +30,15 @@ class Export
   end
 
   def initialize(roughcut_path:, output_path:, editor:, sequence_frame_rate: nil,
-                 sequence_width: nil, sequence_height: nil, windows_file_paths: false)
+                 sequence_width: nil, sequence_height: nil, windows_file_paths: false,
+                 audio_track: nil)
     raise ArgumentError, 'roughcut_path is required' if roughcut_path.nil? || roughcut_path.empty?
     raise ArgumentError, 'output_path is required'   if output_path.nil?   || output_path.empty?
     raise ArgumentError, 'editor is required'        if editor.nil?        || editor.to_s.empty?
+
+    if audio_track && !File.exist?(audio_track)
+      raise ArgumentError, "Audio file not found: #{audio_track}"
+    end
 
     @roughcut_path       = roughcut_path
     @output_path         = output_path
@@ -42,6 +47,7 @@ class Export
     @sequence_width      = sequence_width
     @sequence_height     = sequence_height
     @windows_file_paths  = windows_file_paths
+    @audio_track         = audio_track
   end
 
   def perform
@@ -115,6 +121,7 @@ class Export
     bc_options[:sequence_width]      = @sequence_width      if @sequence_width
     bc_options[:sequence_height]     = @sequence_height     if @sequence_height
     bc_options[:windows_file_paths]  = @windows_file_paths
+    bc_options[:audio_track]         = @audio_track         if @audio_track
 
     ButterCut.new(clips, **bc_options).save(@output_path)
     puts "\n✓ Rough cut exported to: #{@output_path}"
@@ -146,6 +153,7 @@ if __FILE__ == $PROGRAM_NAME
     opts.on('--sequence-width W', Integer, 'Custom sequence width (e.g. 1080 for portrait)') { |v| options[:sequence_width] = v }
     opts.on('--sequence-height H', Integer, 'Custom sequence height (e.g. 1920 for portrait)') { |v| options[:sequence_height] = v }
     opts.on('--windows-file-paths', 'Convert WSL /mnt/<drive>/ paths to Windows paths (Premiere on Windows)') { options[:windows_file_paths] = true }
+    opts.on('--audio FILE', 'Add audio/music track to sequence (trimmed to fit)') { |v| options[:audio_track] = v }
     opts.on('-h', '--help', 'Show usage') { puts opts; exit }
   end
   parser.parse!

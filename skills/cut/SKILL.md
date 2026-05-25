@@ -70,6 +70,7 @@ ruby lib/buttercut/export.rb --editor resolve libraries/[library-name]/cuts/[slu
 - `--sequence-fps FPS` — override sequence frame rate (e.g. `50` for 50fps).
 - `--sequence-width W` / `--sequence-height H` — custom sequence dimensions (e.g. `1080` × `1920` for portrait/vertical video).
 - `--windows-file-paths` — convert WSL/Linux `/mnt/<drive>/…` paths to Windows `<DRIVE>:/…` paths in the FCP7 XML. Use when running ButterCut in WSL and importing into Premiere/Resolve on Windows.
+- `--audio FILE` — add an audio/music track to the sequence (automatically trimmed to fit the sequence duration).
 
 Detect WSL inside an agent run:
 ```bash
