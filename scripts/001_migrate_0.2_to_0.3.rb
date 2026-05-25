@@ -65,27 +65,28 @@ def find_libraries
   Dir.glob("libraries/*/library.yaml")
 end
 
-# Main
-if ARGV.empty?
-  puts "Usage: ruby scripts/migrate_library_yaml.rb [library_name]"
-  puts "       ruby scripts/migrate_library_yaml.rb --all"
-  exit 1
-end
-
-if ARGV[0] == '--all'
-  libraries = find_libraries
-  puts "Migrating #{libraries.length} libraries...\n\n"
-
-  libraries.each do |lib_path|
-    lib_name = lib_path.split('/')[1]
-    puts "#{lib_name}:"
-    migrate_library(lib_path)
+if __FILE__ == $PROGRAM_NAME
+  if ARGV.empty?
+    puts "Usage: ruby scripts/migrate_library_yaml.rb [library_name]"
+    puts "       ruby scripts/migrate_library_yaml.rb --all"
+    exit 1
   end
-else
-  library_name = ARGV[0]
-  library_path = "libraries/#{library_name}/library.yaml"
-  puts "#{library_name}:"
-  migrate_library(library_path)
-end
 
-puts "\nMigration complete."
+  if ARGV[0] == '--all'
+    libraries = find_libraries
+    puts "Migrating #{libraries.length} libraries...\n\n"
+
+    libraries.each do |lib_path|
+      lib_name = lib_path.split('/')[1]
+      puts "#{lib_name}:"
+      migrate_library(lib_path)
+    end
+  else
+    library_name = ARGV[0]
+    library_path = "libraries/#{library_name}/library.yaml"
+    puts "#{library_name}:"
+    migrate_library(library_path)
+  end
+
+  puts "\nMigration complete."
+end
