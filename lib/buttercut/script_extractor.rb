@@ -35,7 +35,7 @@ class ScriptExtractor
   attr_reader :transcript_path
 
   def data
-    @data ||= JSON.parse(File.read(transcript_path))
+    @data ||= JSON.parse(File.read(transcript_path, encoding: 'UTF-8'))
   end
 
   def segments

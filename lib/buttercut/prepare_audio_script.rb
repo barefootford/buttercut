@@ -15,7 +15,7 @@ unless File.exist?(input_file)
 end
 
 begin
-  json_data = JSON.parse(File.read(input_file))
+  json_data = JSON.parse(File.read(input_file, encoding: 'UTF-8'))
 
   # Add video source path as metadata at the top
   json_data['video_path'] = video_path

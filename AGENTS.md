@@ -30,6 +30,8 @@ Each library has a `library.yaml` file that serves as persistent memory and the 
 
 **When any library needs migration, migrate ALL libraries.** Run `ruby lib/buttercut/library.rb migrate` — this executes every migration script against every library in one pass. Each script is idempotent so already-current libraries are skipped. This keeps all libraries in sync rather than leaving some on older schemas.
 
+The migration scripts in `scripts/` are helpers, not hard dependencies. Each one makes a small change — renaming a YAML key, adding a missing field, renaming a directory. If a script fails, read it to see what it does and apply the change by hand. These are simple YAML files, not database tables with thousands of rows and complex relationships.
+
 Known migration triggers (match each to a `scripts/NNN_migrate_*.rb` script via CHANGELOG.md):
 
 - `editor` missing (added in 0.4.0)
@@ -65,6 +67,7 @@ ruby lib/buttercut/library.rb <name> exists              # exit 0 if it exists, 
 
 # Migrate (run this when ANY library needs migration — it migrates ALL of them)
 ruby lib/buttercut/library.rb migrate                    # runs every scripts/NNN_migrate_*.rb with --all; idempotent
+# If migrate fails, read the script to see what it does and apply the change by hand — they're small YAML/directory edits.
 
 # Status (call summary when picking up a library; ready as the pre-flight before any cut)
 ruby lib/buttercut/library.rb <name> summary             # JSON: metadata + clip-completion breakdown

@@ -57,7 +57,7 @@ class FullTranscript
     yaml_path = File.join(@library_dir, 'library.yaml')
     raise "Library not found: #{yaml_path}" unless File.exist?(yaml_path)
 
-    YAML.load(File.read(yaml_path), permitted_classes: [Date, Time, Symbol])
+    YAML.load(File.read(yaml_path, encoding: 'UTF-8'), permitted_classes: [Date, Time, Symbol])
   end
 
   def extract_overview(summary_file)
@@ -78,7 +78,7 @@ class FullTranscript
     path = File.join(@transcripts_dir, transcript_file)
     return "" unless File.exist?(path)
 
-    data = JSON.parse(File.read(path))
+    data = JSON.parse(File.read(path, encoding: 'UTF-8'))
     segments = data['segments'] || []
     segments.map { |s| s['text'].to_s.strip }.reject(&:empty?).join("\n")
   end

@@ -245,8 +245,8 @@ class Library
   def ready?
     if File.directory?(File.join(@library_dir, 'roughcuts'))
       raise "Library '#{@name}' has a legacy `roughcuts/` directory. " \
-            'Run `ruby lib/buttercut/library.rb migrate` ' \
-            'before building any cuts.'
+            'Run `ruby lib/buttercut/library.rb migrate` to fix, ' \
+            'or just rename roughcuts/ to cuts/ manually.'
     end
 
     vids = videos

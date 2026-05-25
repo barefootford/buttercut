@@ -20,6 +20,7 @@
 # Usage: ruby scripts/003_migrate_add_summary.rb [library_name]
 #        ruby scripts/003_migrate_add_summary.rb --all
 
+require 'date'
 require 'yaml'
 
 def migrate_library(library_path)
@@ -28,7 +29,7 @@ def migrate_library(library_path)
     return false
   end
 
-  content = File.read(library_path)
+  content = File.read(library_path, encoding: 'UTF-8')
   lines = content.lines
 
   inserts = []

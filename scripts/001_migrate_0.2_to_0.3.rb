@@ -12,6 +12,7 @@
 # Usage: ruby scripts/migrate_library_yaml.rb [library_name]
 #        ruby scripts/migrate_library_yaml.rb --all
 
+require 'date'
 require 'yaml'
 require 'fileutils'
 
@@ -21,7 +22,7 @@ def migrate_library(library_path)
     return false
   end
 
-  content = File.read(library_path)
+  content = File.read(library_path, encoding: 'UTF-8')
   data = YAML.load(content, permitted_classes: [Date, Time, Symbol])
 
   return false unless data['videos']

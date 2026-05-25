@@ -16,6 +16,7 @@
 # Usage: ruby scripts/002_migrate_add_transcript_refinement.rb [library_name]
 #        ruby scripts/002_migrate_add_transcript_refinement.rb --all
 
+require 'date'
 require 'yaml'
 
 def migrate_library(library_path)
@@ -24,7 +25,7 @@ def migrate_library(library_path)
     return false
   end
 
-  content = File.read(library_path)
+  content = File.read(library_path, encoding: 'UTF-8')
 
   if content.match?(/^transcript_refinement:/)
     existing = YAML.load(content, permitted_classes: [Date, Time, Symbol])['transcript_refinement']
