@@ -31,7 +31,7 @@ whisperx "<video_path>" \
 ## 2. Prepare audio transcript
 
 ```bash
-ruby lib/buttercut/audio_prep.rb \
+ruby lib/buttercut/prepare_audio_script.rb \
   <transcript_output_dir>/<video_basename>.json \
   <video_path>
 ```

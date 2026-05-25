@@ -27,10 +27,10 @@ Default to backing up just the library you've been working on — that's almost 
 
 ```bash
 # Back up the one library you just touched (the usual case)
-ruby lib/buttercut/backup.rb --library <library-name>
+ruby lib/buttercut/backup_libraries.rb --library <library-name>
 
 # Back up every library (only when the user explicitly asks)
-ruby lib/buttercut/backup.rb
+ruby lib/buttercut/backup_libraries.rb
 ```
 
 The script reads `backups_dir` from `libraries/settings.yaml` (falling back to the default). Pass `--backups-dir <path>` to override for one run.
