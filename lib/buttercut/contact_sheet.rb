@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require 'english'
+require 'English'
 require 'json'
 require 'optparse'
 require 'shellwords'
