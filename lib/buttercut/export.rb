@@ -102,7 +102,10 @@ class Export
       start_at = timecode_to_seconds(clip['in_point'])
       duration = timecode_to_seconds(clip['out_point']) - start_at
 
-      { path: path, start_at: start_at.to_f, duration: duration.to_f }
+      clip_hash = { path: path, start_at: start_at.to_f, duration: duration.to_f }
+      clip_hash[:speed]    = clip['speed'].to_f    if clip['speed']
+      clip_hash[:rotation] = clip['rotation'].to_i if clip['rotation']
+      clip_hash
     end
   end
 
