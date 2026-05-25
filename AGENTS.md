@@ -28,6 +28,8 @@ Each library has a `library.yaml` file that serves as persistent memory and the 
 
 **Migrate legacy library.yaml files before doing anything else.** Every time you read a library.yaml, check it against the canonical field list in `templates/library_template.yaml`. If any expected field is missing, or any field appears under an old name, the library predates a feature and MUST be migrated before you do any further work on it — no rough cuts, sequences, transcription, exports, or anything else until the schema is current. The migrations are fast, idempotent, and safe; don't ask the user for permission and don't describe them as optional "tidying." Just run them.
 
+**When any library needs migration, migrate ALL libraries.** Run `ruby lib/buttercut/library.rb migrate` — this executes every migration script against every library in one pass. Each script is idempotent so already-current libraries are skipped. This keeps all libraries in sync rather than leaving some on older schemas.
+
 Known migration triggers (match each to a `scripts/NNN_migrate_*.rb` script via CHANGELOG.md):
 
 - `editor` missing (added in 0.4.0)
@@ -36,7 +38,7 @@ Known migration triggers (match each to a `scripts/NNN_migrate_*.rb` script via 
 - video entries with `summary` missing (added in 0.5.0; missing means "todo", default to empty string)
 - video entries with `transcript_path` / `visual_transcript_path` (renamed to `transcript` / `visual_transcript` in 0.3.0)
 - video entries with `file_size_mb` (removed in 0.3.0)
-- library has a `roughcuts/` directory (renamed to `cuts/` when the `roughcut` skill became `cut`; run `scripts/004_migrate_roughcuts_to_cuts.rb`). This trigger is layout, not YAML — check the directory listing, not the schema.
+- library has a `roughcuts/` directory (renamed to `cuts/` when the `roughcut` skill became `cut`). This trigger is layout, not YAML — check the directory listing, not the schema.
 
 A missing field is not the same as a field set to the template default — the template default only applies to freshly created libraries. If you see a schema issue not on this list, still check CHANGELOG.md; the list may be behind. After running migrations, re-read the library.yaml and continue with whatever the user asked for.
 
@@ -60,6 +62,9 @@ Two habits when working with `Library`:
 ruby lib/buttercut/library.rb list                       # every library, newest first by library.yaml mtime
 ruby lib/buttercut/library.rb recent [N]                 # N most-recently-touched libraries (default 10) — use this when the user means "the library I was just working on"
 ruby lib/buttercut/library.rb <name> exists              # exit 0 if it exists, 1 if not
+
+# Migrate (run this when ANY library needs migration — it migrates ALL of them)
+ruby lib/buttercut/library.rb migrate                    # runs every scripts/NNN_migrate_*.rb with --all; idempotent
 
 # Status (call summary when picking up a library; ready as the pre-flight before any cut)
 ruby lib/buttercut/library.rb <name> summary             # JSON: metadata + clip-completion breakdown

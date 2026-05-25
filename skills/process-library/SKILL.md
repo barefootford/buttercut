@@ -168,5 +168,5 @@ kill $CAFFEINATE_PID 2>/dev/null
 ## Notes
 
 - A single `tmp/` directory inside the buttercut project root is used for all temporary files. Create subdirectories as needed and delete after use.
-- Migrations: every time you read a library.yaml, check its schema against `templates/library_template.yaml`. If anything's missing or renamed, run the appropriate `scripts/NNN_migrate_*.rb` before anything else. See AGENTS.md → Critical Principles for the migration trigger list.
+- Migrations: every time you read a library.yaml, check its schema against `templates/library_template.yaml`. If anything's missing or renamed, run `ruby lib/buttercut/library.rb migrate` to migrate all libraries at once. See AGENTS.md → Critical Principles for the migration trigger list.
 - Terminology: user-facing, call it "footage analysis" or "analyzing footage." Internally (library.yaml fields, file names), it's "transcription."

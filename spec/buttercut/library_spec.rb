@@ -469,7 +469,7 @@ RSpec.describe Library do
       FileUtils.mkdir_p(File.join(library_dir, 'roughcuts'))
 
       expect { Library.find(library_name).ready? }
-        .to raise_error(/legacy `roughcuts\/` directory.*004_migrate_roughcuts_to_cuts\.rb #{library_name}/m)
+        .to raise_error(/legacy `roughcuts\/` directory.*library\.rb migrate/m)
     end
   end
 

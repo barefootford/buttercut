@@ -41,6 +41,7 @@ truth, and agents that want clean dialogue text run
 ```bash
 ruby lib/buttercut/library.rb list                # every library, newest first by library.yaml mtime
 ruby lib/buttercut/library.rb recent [N]          # N most recent libraries by deepest file mtime (default 10)
+ruby lib/buttercut/library.rb migrate             # run all migrations across every library (idempotent)
 ruby lib/buttercut/library.rb <name> exists       # exit 0 if it exists, 1 if not
 ruby lib/buttercut/library.rb <name> summary      # JSON: metadata + clip-completion breakdown
 ruby lib/buttercut/library.rb <name> incomplete_videos

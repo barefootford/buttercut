@@ -245,7 +245,7 @@ class Library
   def ready?
     if File.directory?(File.join(@library_dir, 'roughcuts'))
       raise "Library '#{@name}' has a legacy `roughcuts/` directory. " \
-            "Run `ruby scripts/004_migrate_roughcuts_to_cuts.rb #{@name}` " \
+            'Run `ruby lib/buttercut/library.rb migrate` ' \
             'before building any cuts.'
     end
 
@@ -378,6 +378,7 @@ if __FILE__ == $PROGRAM_NAME
     Usage:
       ruby library.rb list                            — every library, newest first (library.yaml mtime)
       ruby library.rb recent [N]                      — N most recent libraries by deepest file mtime (default 10)
+      ruby library.rb migrate                         — run all migrations across every library
       ruby library.rb <library_name> <action> [args]
 
     Existence + status (no library load required for `exists`):
@@ -414,6 +415,12 @@ if __FILE__ == $PROGRAM_NAME
     limit = ARGV[1] ? Integer(ARGV[1]) : 10
     puts Library.recent(limit: limit)
     exit 0
+  end
+
+  if ARGV.first == 'migrate' && ARGV.size == 1
+    migrate_script = File.expand_path('../../scripts/migrate_all.rb', __dir__)
+    repo_root = File.expand_path('../..', __dir__)
+    exec('ruby', migrate_script, chdir: repo_root)
   end
 
   library_name, action, *rest = ARGV
