@@ -65,6 +65,26 @@ ruby lib/buttercut/export.rb --editor premiere libraries/[library-name]/cuts/[sl
 ruby lib/buttercut/export.rb --editor resolve libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp].xml
 ```
 
+### Sequence options
+
+- `--sequence-fps FPS` — override sequence frame rate (e.g. `50` for 50fps).
+- `--sequence-width W` / `--sequence-height H` — custom sequence dimensions (e.g. `1080` × `1920` for portrait/vertical video).
+- `--windows-file-paths` — convert WSL/Linux `/mnt/<drive>/…` paths to Windows `<DRIVE>:/…` paths in the FCP7 XML. Use when running ButterCut in WSL and importing into Premiere/Resolve on Windows.
+
+Detect WSL inside an agent run:
+```bash
+if [[ -f /proc/version ]] && grep -qi microsoft /proc/version; then
+  echo "Running in WSL — pass --windows-file-paths for Premiere/Resolve on Windows"
+fi
+```
+
+Portrait + WSL example:
+```bash
+ruby lib/buttercut/export.rb --editor premiere \
+  --sequence-fps 50 --sequence-width 1080 --sequence-height 1920 --windows-file-paths \
+  libraries/[library]/cuts/[name].yaml libraries/[library]/cuts/[name].xml
+```
+
 ## 6. Copy XML to Desktop (if enabled)
 Check `libraries/settings.yaml` for `save_to_desktop_after_export`:
 1. If the key is `true`, copy the exported XML to `~/Desktop/` so it's easy to grab and import into the editor.
