@@ -19,10 +19,15 @@ require_relative 'buttercut/fcp7'
 #   ]
 #   generator = ButterCut.new(clips, editor: :fcpx)
 #   generator.save('output.fcpxml')
+#
+# Options:
+#   - sequence_frame_rate: Override the sequence frame rate (e.g., 50 for 50fps)
+#   - sequence_width / sequence_height: Custom sequence dimensions (e.g., 1080x1920 for portrait)
+#   - windows_file_paths: Convert WSL/Linux paths to Windows format for Premiere on Windows
 class ButterCut
   SUPPORTED_EDITORS = [:fcpx, :fcp7].freeze
 
-  def self.new(clips, editor:)
+  def self.new(clips, editor:, **options)
     raise ArgumentError, "editor: parameter is required" if editor.nil?
 
     unless SUPPORTED_EDITORS.include?(editor)
@@ -31,9 +36,9 @@ class ButterCut
 
     case editor
     when :fcpx
-      ButterCut::FCPX.new(clips)
+      ButterCut::FCPX.new(clips, options)
     when :fcp7
-      ButterCut::FCP7.new(clips)
+      ButterCut::FCP7.new(clips, options)
     else
       raise ArgumentError, "Editor #{editor.inspect} is not yet implemented."
     end

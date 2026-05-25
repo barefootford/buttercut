@@ -25,18 +25,23 @@ class Export
     fcp7: 'Premiere / Resolve (FCP7 XML)'
   }.freeze
 
-  def self.perform(roughcut_path:, output_path:, editor: 'fcpx')
-    new(roughcut_path: roughcut_path, output_path: output_path, editor: editor).perform
+  def self.perform(roughcut_path:, output_path:, editor: 'fcpx', **sequence_options)
+    new(roughcut_path: roughcut_path, output_path: output_path, editor: editor, **sequence_options).perform
   end
 
-  def initialize(roughcut_path:, output_path:, editor:)
+  def initialize(roughcut_path:, output_path:, editor:, sequence_frame_rate: nil,
+                 sequence_width: nil, sequence_height: nil, windows_file_paths: false)
     raise ArgumentError, 'roughcut_path is required' if roughcut_path.nil? || roughcut_path.empty?
     raise ArgumentError, 'output_path is required'   if output_path.nil?   || output_path.empty?
     raise ArgumentError, 'editor is required'        if editor.nil?        || editor.to_s.empty?
 
-    @roughcut_path = roughcut_path
-    @output_path   = output_path
-    @editor        = resolve_editor(editor.to_s)
+    @roughcut_path       = roughcut_path
+    @output_path         = output_path
+    @editor              = resolve_editor(editor.to_s)
+    @sequence_frame_rate = sequence_frame_rate
+    @sequence_width      = sequence_width
+    @sequence_height     = sequence_height
+    @windows_file_paths  = windows_file_paths
   end
 
   def perform
@@ -104,7 +109,14 @@ class Export
 
   def write_xml(clips, editor)
     puts "Converting #{clips.length} clips to #{EDITOR_LABELS.fetch(editor)}..."
-    ButterCut.new(clips, editor: editor).save(@output_path)
+
+    bc_options = { editor: editor }
+    bc_options[:sequence_frame_rate] = @sequence_frame_rate if @sequence_frame_rate
+    bc_options[:sequence_width]      = @sequence_width      if @sequence_width
+    bc_options[:sequence_height]     = @sequence_height     if @sequence_height
+    bc_options[:windows_file_paths]  = @windows_file_paths
+
+    ButterCut.new(clips, **bc_options).save(@output_path)
     puts "\n✓ Rough cut exported to: #{@output_path}"
   end
 
@@ -130,6 +142,10 @@ if __FILE__ == $PROGRAM_NAME
   parser = OptionParser.new do |opts|
     opts.banner = "Usage: #{$0} [options] <roughcut.yaml> <output.xml>"
     opts.on('-e', '--editor EDITOR', 'fcpx (default), premiere, or resolve') { |v| options[:editor] = v }
+    opts.on('--sequence-fps FPS', Integer, 'Override sequence frame rate (e.g. 50)') { |v| options[:sequence_frame_rate] = v }
+    opts.on('--sequence-width W', Integer, 'Custom sequence width (e.g. 1080 for portrait)') { |v| options[:sequence_width] = v }
+    opts.on('--sequence-height H', Integer, 'Custom sequence height (e.g. 1920 for portrait)') { |v| options[:sequence_height] = v }
+    opts.on('--windows-file-paths', 'Convert WSL /mnt/<drive>/ paths to Windows paths (Premiere on Windows)') { options[:windows_file_paths] = true }
     opts.on('-h', '--help', 'Show usage') { puts opts; exit }
   end
   parser.parse!
@@ -140,7 +156,7 @@ if __FILE__ == $PROGRAM_NAME
   end
 
   begin
-    Export.perform(roughcut_path: ARGV[0], output_path: ARGV[1], editor: options[:editor])
+    Export.perform(roughcut_path: ARGV[0], output_path: ARGV[1], **options)
   rescue ArgumentError, RuntimeError => e
     warn "Error: #{e.message}"
     exit 1

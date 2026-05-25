@@ -196,7 +196,84 @@ class ButterCut
           xml.mediatype 'video'
           xml.trackindex 1
         end
+        build_motion_filter(xml, payload) if needs_motion_filter?(payload)
         build_link_entries(xml, payload)
+      end
+    end
+
+    def needs_motion_filter?(payload)
+      asset = payload[:asset]
+      rotation = asset[:rotation] || 0
+
+      return true if rotation != 0
+
+      seq_width = format_width
+      seq_height = format_height
+      clip_width = asset[:width]
+      clip_height = asset[:height]
+
+      seq_is_portrait = seq_height > seq_width
+      clip_is_landscape = clip_width > clip_height
+
+      seq_is_portrait && clip_is_landscape
+    end
+
+    def build_motion_filter(xml, payload)
+      asset = payload[:asset]
+      rotation = asset[:rotation] || 0
+      clip_width = asset[:width].to_f
+      clip_height = asset[:height].to_f
+      seq_width = format_width.to_f
+      seq_height = format_height.to_f
+
+      # Premiere auto-applies rotation from metadata, so we only compute effective
+      # dimensions for scaling — we don't emit a rotation parameter.
+      if rotation == 270 || rotation == -90 || rotation == 90
+        effective_width = clip_height
+        effective_height = clip_width
+      else
+        effective_width = clip_width
+        effective_height = clip_height
+      end
+
+      seq_is_portrait = seq_height > seq_width
+      clip_is_landscape = effective_width > effective_height
+
+      scale_x = seq_width / effective_width
+      scale_y = seq_height / effective_height
+
+      scale = if seq_is_portrait && clip_is_landscape
+                scale_y * 100  # fill height, center-crop sides
+              else
+                [scale_x, scale_y].min * 100  # letterbox
+              end
+
+      xml.filter do
+        xml.effect do
+          xml.name 'Basic Motion'
+          xml.effectid 'basic'
+          xml.effectcategory 'motion'
+          xml.effecttype 'motion'
+          xml.mediatype 'video'
+          xml.pproBypass 'false'
+
+          xml.parameter do
+            xml.parameterid 'scale'
+            xml.name 'Scale'
+            xml.valuemin 0
+            xml.valuemax 1000
+            xml.value scale.round(2)
+          end
+
+          xml.parameter do
+            xml.parameterid 'center'
+            xml.name 'Center'
+            xml.value do
+              xml.horiz 0
+              xml.vert 0
+            end
+          end
+        end
       end
     end
 
