@@ -226,14 +226,21 @@ class ButterCut
       seq_width = format_width.to_f
       seq_height = format_height.to_f
 
-      # Premiere auto-applies rotation from metadata, so we only compute effective
-      # dimensions for scaling — we don't emit a rotation parameter.
-      if rotation == 270 || rotation == -90 || rotation == 90
+      # Compute effective dimensions for scaling and the FCP7 rotation parameter.
+      # FCP7 convention: positive = counter-clockwise, negative = clockwise — opposite
+      # of the metadata convention (clockwise needed to display correctly), so we negate.
+      if rotation == 90
         effective_width = clip_height
         effective_height = clip_width
+        fcp_rotation = -90
+      elsif rotation == 270 || rotation == -90
+        effective_width = clip_height
+        effective_height = clip_width
+        fcp_rotation = 90
       else
         effective_width = clip_width
         effective_height = clip_height
+        fcp_rotation = 0
       end
 
       seq_is_portrait = seq_height > seq_width
@@ -263,6 +270,16 @@ class ButterCut
             xml.valuemin 0
             xml.valuemax 1000
             xml.value scale.round(2)
+          end
+
+          if fcp_rotation != 0
+            xml.parameter do
+              xml.parameterid 'rotation'
+              xml.name 'Rotation'
+              xml.valuemin(-8640)
+              xml.valuemax 8640
+              xml.value fcp_rotation
+            end
           end
 
           xml.parameter do
