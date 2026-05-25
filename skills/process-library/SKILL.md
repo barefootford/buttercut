@@ -114,7 +114,20 @@ ruby lib/buttercut/library.rb <name> add_videos /abs/new1.mov /abs/new2.mov
 
 Then re-run the analyze steps for just the new clips.
 
-## Step 5 — Analyze footage
+## Step 5 — Prevent sleep during processing
+
+Before starting analysis, ask the user (via `AskUserQuestion`): "Processing can take a while — want me to keep your computer awake until it's done?" Options: "Yes (Recommended)" and "No".
+
+If yes, start caffeinate in the background:
+
+```bash
+caffeinate -i -w $$ &
+CAFFEINATE_PID=$!
+```
+
+This prevents idle sleep for the lifetime of the shell. Store the PID — you'll kill it in Step 9 after processing and backup are finished.
+
+## Step 6 — Analyze footage
 
 Inform the user: "Library setup complete. Found [N] videos ([total size]). Starting footage analysis..."
 
@@ -130,7 +143,7 @@ The full understanding pass at the end of analyze-video is where this gets refin
 
 Analyze ALL videos before offering to create rough cuts.
 
-## Step 6 — Verify readiness
+## Step 7 — Verify readiness
 
 Before reporting analysis complete, confirm the library passes the same gate the `cut` skill uses:
 
@@ -140,9 +153,17 @@ ruby lib/buttercut/library.rb <name> ready
 
 If it exits non-zero, run `ruby lib/buttercut/library.rb <name> summary` to list the incomplete clips, finish the missing artifacts (loop back into whichever analyze-video step owns them), and re-run `ready` until it passes. Don't claim analysis is done while `Library.ready?` is false.
 
-## Step 7 — Backup
+## Step 8 — Backup
 
 After all analysis completes, automatically create a backup using the `backup-library` skill, scoped to just the library you processed: `ruby lib/buttercut/backup_libraries.rb --library <library-name>`. This writes a single archive under `~/Documents/buttercut-video-editor-backups/<library-name>/` (or wherever `backups_dir` in `libraries/settings.yaml` points). If `backups_dir` isn't set yet, the script silently uses the default — don't prompt during process-library.
+
+## Step 9 — Stop caffeinate
+
+If you started caffeinate in Step 5, kill it now:
+
+```bash
+kill $CAFFEINATE_PID 2>/dev/null
+```
 
 ## Notes
 
