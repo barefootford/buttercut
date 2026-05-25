@@ -2,7 +2,7 @@ require 'spec_helper'
 require 'open3'
 require 'tmpdir'
 require 'yaml'
-require_relative '../../lib/buttercut/backup'
+require_relative '../../lib/buttercut/backup_libraries'
 
 RSpec.describe LibraryBackup do
   let(:temp_dir) { Dir.mktmpdir('buttercut-backup-test') }
