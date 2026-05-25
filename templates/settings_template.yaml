@@ -12,6 +12,9 @@ whisper_model: small
 # After exporting a roughcut, also drop a copy of the XML on the Desktop for easy import
 save_to_desktop_after_export: true
 
+# Open the exported file directly in the editor after export
+# open_in_editor_after_export: true
+
 # Where to write library backup archives.
 # Defaults to ~/Documents/buttercut-video-editor-backups so backups live outside
 # the project directory and survive a fresh clone or `update-buttercut` run.

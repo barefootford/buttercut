@@ -88,3 +88,24 @@ Include the one-line import instruction for the editor used:
 - **Final Cut Pro X:** Open the cut in Final Cut Pro with File → Import → XML
 - **Adobe Premiere Pro:** Open the cut in Premiere with File → Import, then select the XML file
 - **DaVinci Resolve:** Open the cut in Resolve with File → Import → Timeline, then select the XML file
+
+## 9. Open in Editor (if enabled)
+Check `libraries/settings.yaml` for `open_in_editor_after_export`:
+1. If the key is `true`, open the exported file directly in the user's editor.
+2. If the key is `false`, skip this step.
+3. If the key is missing, ask the user whether exports should be opened automatically, save their answer (`true`/`false`) to `libraries/settings.yaml`, then act on it.
+
+Use `open -a` with the correct application name so macOS doesn't fall back to a text editor or Xcode:
+
+```bash
+# Final Cut Pro X
+open -a "Final Cut Pro" [xml path]
+
+# Adobe Premiere Pro
+open -a "Adobe Premiere Pro" [xml path]
+
+# DaVinci Resolve
+open -a "DaVinci Resolve" [xml path]
+```
+
+Use the desktop copy path if step 6 placed one there; otherwise use the library path.
