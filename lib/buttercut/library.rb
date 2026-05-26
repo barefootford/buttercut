@@ -145,6 +145,14 @@ class Library
       raise ArgumentError, "video already in library: #{record['path']}" if existing.include?(record['path'])
     end
 
+    all_paths = existing + records.map { |r| r['path'] }
+    basenames = all_paths.group_by { |p| File.basename(p, '.*') }
+    collision = basenames.find { |_, paths| paths.size > 1 }
+    if collision
+      raise ArgumentError,
+            "filename collision (differ only by extension): #{collision.last.map { |p| File.basename(p) }.join(', ')}"
+    end
+
     library['videos'].concat(records)
     write_library(library)
     self

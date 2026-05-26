@@ -198,6 +198,21 @@ RSpec.describe Library do
         .to raise_error(ArgumentError, /already in library/)
     end
 
+    it 'refuses to add a video whose basename collides with an existing video' do
+      video_mp4 = File.join(@libraries_root, 'src', 'a.mp4')
+      FileUtils.touch(video_mp4)
+      Library.find(library_name).add_videos([video_a])
+      expect { Library.find(library_name).add_videos([video_mp4]) }
+        .to raise_error(ArgumentError, /filename collision/)
+    end
+
+    it 'refuses to add two videos in the same batch whose basenames collide' do
+      video_mp4 = File.join(@libraries_root, 'src', 'b.mp4')
+      FileUtils.touch(video_mp4)
+      expect { Library.find(library_name).add_videos([video_b, video_mp4]) }
+        .to raise_error(ArgumentError, /filename collision.*b\.mov.*b\.mp4/)
+    end
+
     it 'raises if the video file does not exist on disk' do
       expect { Library.find(library_name).add_videos(['/nope.mov']) }
         .to raise_error(ArgumentError, /video file not found/)
