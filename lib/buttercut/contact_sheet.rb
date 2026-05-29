@@ -237,6 +237,12 @@ class ContactSheet
     (0...@frames).map { |i| @start_time + (i + 0.5) * range / @frames }
   end
 
+  # Shared tail for both strategies: write exactly one JPEG with these encode
+  # settings to the output path.
+  def encode_output_args
+    ['-fps_mode', 'vfr', '-pix_fmt', 'yuvj420p', '-q:v', '3', @output_path]
+  end
+
   def single_pass_args(timestamps)
     range = @end_time - @start_time
     fps_value = @frames.to_f / range
@@ -248,7 +254,7 @@ class ContactSheet
     args += ['-to', format('%.3f', @end_time)] if @end_time < @source_duration - 0.5
     args += ['-i', @video_path, '-an', '-sn']
     args += ['-vf', single_pass_filter(timestamps, fps_value)]
-    args += ['-frames:v', '1', '-fps_mode', 'vfr', '-pix_fmt', 'yuvj420p', '-q:v', '3', @output_path]
+    args += ['-frames:v', '1', *encode_output_args]
     args
   end
 
@@ -305,10 +311,7 @@ class ContactSheet
       '-filter_complex', seek_and_grab_filter_complex(timestamps),
       '-frames:v', '1',
       '-update', '1',
-      '-fps_mode', 'vfr',
-      '-pix_fmt', 'yuvj420p',
-      '-q:v', '3',
-      @output_path
+      *encode_output_args
     ]
   end
 
@@ -343,12 +346,15 @@ class ContactSheet
     stderr
   end
 
-  def format_hms(seconds)
+  # Shared with ContactSheetJob — exposed as a class method so callers without
+  # a ContactSheet instance can format timestamps the same way.
+  def self.format_hms(seconds)
     total = seconds.to_i
-    h = total / 3600
-    m = (total % 3600) / 60
-    s = total % 60
-    format('%02d:%02d:%02d', h, m, s)
+    format('%02d:%02d:%02d', total / 3600, (total % 3600) / 60, total % 60)
+  end
+
+  def format_hms(seconds)
+    self.class.format_hms(seconds)
   end
 
   def report(range)

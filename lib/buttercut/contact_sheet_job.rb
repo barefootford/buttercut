@@ -75,7 +75,7 @@ class ContactSheetJob
 
     ContactSheet.extract(path, library_dir: @library.dir)
     chunk_ranges(duration).each do |range_start, range_end|
-      puts "  + chunk #{format_hms(range_start)}–#{format_hms(range_end)}"
+      puts "  + chunk #{ContactSheet.format_hms(range_start)}–#{ContactSheet.format_hms(range_end)}"
       ContactSheet.extract(path, range_start, range_end, library_dir: @library.dir)
     end
   end
@@ -96,11 +96,6 @@ class ContactSheetJob
   def parse_duration(hms)
     h, m, s = hms.split(':').map(&:to_f)
     h * 3600 + m * 60 + s
-  end
-
-  def format_hms(seconds)
-    total = seconds.to_i
-    format('%02d:%02d:%02d', total / 3600, (total % 3600) / 60, total % 60)
   end
 end
 
