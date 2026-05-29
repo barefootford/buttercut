@@ -1,0 +1,41 @@
+name: Notify on external issue
+
+# Email the repo owner whenever someone *other than* the owner opens an issue.
+# No SMTP secrets: the job assigns the issue to the owner and @mentions them,
+# and GitHub's own notification system delivers the email (so the owner must
+# have email notifications on for assignments / @mentions — the defaults).
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  notify:
+    # Skip issues the owner opens themselves.
+    if: github.event.issue.user.login != github.repository_owner
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign owner and @mention so GitHub emails them
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const author = context.payload.issue.user.login;
+            const issue_number = context.payload.issue.number;
+
+            await github.rest.issues.addAssignees({
+              owner,
+              repo: context.repo.repo,
+              issue_number,
+              assignees: [owner],
+            });
+
+            await github.rest.issues.createComment({
+              owner,
+              repo: context.repo.repo,
+              issue_number,
+              body: `@${owner} — new issue opened by @${author}.`,
+            });
