@@ -50,9 +50,9 @@ This is the core (basic) version of ButterCut. ButterCut Pro is also on the way,
 
 ### Start with an issue, not a PR
 
-Thanks to LLMs, it's really easy to spike a quick change to ButterCut — add a feature, fix a bug, etc. But it's still quite difficult to keep it all cohesive and maintain working XML across three different editors. If you want to contribute, the best way to start is with a GitHub issue. Write a human-generated issue (I know!), and I'll work with you from there to get a commit in. I'm happy to pair, jump on a Google Meet, etc., to provide context and help.
+Thanks to LLMs, it's really easy to spike a quick change to ButterCut — add a feature, fix a bug, etc. But it's still quite difficult to keep code cohesive and maintain working XML across three different editors. If you want to contribute, the best way to start is with a GitHub issue. Write a human-generated issue (I know!), and I'll work with you from there to get a commit in. I'm happy to pair, jump on a Google Meet, etc., to provide context and help get it over the finish line.
 
-Alternatively, you can always *create your own custom skills* (or fork existing ones) for ButterCut and prefix them with `user-`, e.g. `user-quick-interview-summary`. That skill stays on your own Mac, gitignored automatically, so you can build your own workflows while still staying on the main branch. As I'm sure you know, you can include your own Ruby or Python scripts inside a skill folder to make this really powerful — no need to fork off on your own.
+Alternatively, you can always *create your own custom skills* (or fork existing ones) for ButterCut and prefix them with `user-`, e.g. `user-quick-interview-summary`. User skills stays on your own Mac, gitignored, so you can build custom workflows while staying on main. You can include your own Ruby or Python scripts inside the skill folder to make this really powerful without needing to fork off to an island.
 
 ## Thanks
 
