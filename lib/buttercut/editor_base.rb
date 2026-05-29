@@ -3,10 +3,13 @@ require 'pathname'
 require 'cgi'
 require 'json'
 require 'digest'
+require_relative 'rotation_metadata'
 
 class ButterCut
   # Shared functionality for editor-specific generators.
   class EditorBase
+    extend RotationMetadata
+
     DEFAULT_START_TIME = "0s"
     DEFAULT_INITIAL_OFFSET = "0s"
     DEFAULT_VOLUME_ADJUSTMENT = "-13.100000000000001db"
@@ -68,6 +71,12 @@ class ButterCut
 
     def video_height(video_path)
       video_stream(video_path)['height']
+    end
+
+    # Degrees clockwise (0/90/180/270) the source must be rotated to display upright,
+    # read from container rotation metadata via RotationMetadata.
+    def video_rotation(video_path)
+      self.class.extract_rotation(video_stream(video_path))
     end
 
     def video_duration(video_path)
@@ -368,6 +377,7 @@ class ButterCut
           frame_rate: frame_rate(video_file_path),
           width: video_width(video_file_path),
           height: video_height(video_file_path),
+          rotation: video_rotation(video_file_path),
           color_space: color_space(video_file_path)
         }
       end

@@ -188,6 +188,9 @@ class ButterCut
             end
           end
         end
+        # FCP7/xmeml orders <filter> after <file> and before <sourcetrack>;
+        # Premiere ignores filters that appear out of order.
+        add_video_filters(xml, payload)
         xml.sourcetrack do
           xml.mediatype 'video'
           xml.trackindex 1
@@ -195,6 +198,11 @@ class ButterCut
         build_link_entries(xml, payload)
       end
     end
+
+    # Hook for subclasses to inject <filter> elements into a video clipitem.
+    # No-op in the base FCP7 format (and therefore in Resolve, which reads the
+    # source rotation flag itself). Premiere overrides this to bake in rotation.
+    def add_video_filters(xml, payload); end
 
     def build_audio_clipitem(xml, payload)
       asset = payload[:asset]

@@ -5,8 +5,11 @@ require 'english'
 require 'json'
 require 'optparse'
 require 'shellwords'
+require_relative 'rotation_metadata'
 
 class ContactSheet
+  extend RotationMetadata
+
   DEFAULT_FRAMES = 16
   DEFAULT_COLS = 4
   SHORT_CLIP_THRESHOLD = 10.0
@@ -129,24 +132,6 @@ class ContactSheet
     @vfr = self.class.compute_vfr(stream['r_frame_rate'], stream['avg_frame_rate'])
   rescue JSON::ParserError
     raise "ffprobe failed for #{@video_path}"
-  end
-
-  # Exposed as a class method so tests can verify the parsing without touching ffmpeg.
-  # Returns degrees clockwise in 0..359. Old MP4/MOV containers store rotation in the
-  # stream `rotate` tag (clockwise). Modern files store a displaymatrix in
-  # `side_data_list[i].rotation` measured counter-clockwise — negate it.
-  def self.extract_rotation(stream)
-    tag = stream.dig('tags', 'rotate') || stream.dig('tags', 'ROTATE')
-    return normalize_rotation(tag.to_i) if tag
-
-    side = (stream['side_data_list'] || []).find { |sd| sd['rotation'] }
-    return normalize_rotation(-side['rotation'].to_i) if side
-
-    0
-  end
-
-  def self.normalize_rotation(degrees)
-    ((degrees.to_i % 360) + 360) % 360
   end
 
   # :all_intra → every frame is a keyframe; seek is essentially free.
