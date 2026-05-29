@@ -10,9 +10,14 @@ RSpec.describe ButterCut do
       expect(generator).to be_a(ButterCut::FCPX)
     end
 
-    it 'creates a ButterCut::FCP7 instance when editor is :fcp7' do
-      generator = ButterCut.new(clips, editor: :fcp7)
-      expect(generator).to be_a(ButterCut::FCP7)
+    it 'creates a ButterCut::Resolve instance when editor is :resolve' do
+      generator = ButterCut.new(clips, editor: :resolve)
+      expect(generator).to be_a(ButterCut::Resolve)
+    end
+
+    it 'creates a ButterCut::Premiere instance when editor is :premiere' do
+      generator = ButterCut.new(clips, editor: :premiere)
+      expect(generator).to be_a(ButterCut::Premiere)
     end
 
     it 'requires editor parameter' do
@@ -20,8 +25,8 @@ RSpec.describe ButterCut do
     end
 
     it 'raises error for unsupported editor' do
-      expect { ButterCut.new(clips, editor: :premiere) }.to raise_error(ArgumentError, /Unsupported editor: :premiere/)
-      expect { ButterCut.new(clips, editor: :resolve) }.to raise_error(ArgumentError, /Unsupported editor: :resolve/)
+      # :fcp7 is the shared format base, not a public editor symbol.
+      expect { ButterCut.new(clips, editor: :fcp7) }.to raise_error(ArgumentError, /Unsupported editor: :fcp7/)
       expect { ButterCut.new(clips, editor: :invalid) }.to raise_error(ArgumentError, /Unsupported editor: :invalid/)
     end
   end

@@ -86,7 +86,7 @@ Writes (`add_videos`, `complete`, `update_metadata`), destructive resets, legacy
 
 ## Key Reminders
 
-- After exporting an XML file, offer to open it directly in the user's editor with `open -a "Final Cut Pro"`, `open -a "Adobe Premiere Pro"`, or `open -a "DaVinci Resolve"` (matching the library's `editor` setting). Check `libraries/settings.yaml` for `open_in_editor_after_export` — if the key is missing, ask and save the preference.
+- After exporting an XML file, offer to open it directly in the user's editor with `open -a "Final Cut Pro"`, `open -a "Adobe Premiere Pro"`, or `open -a "DaVinci Resolve"` (matching the library's `editor` setting). Check `libraries/settings.yaml` for `open_in_editor_after_export` — if the key is missing, ask and save the preference. If `open -a` fails with "Unable to find application named ...", don't assume the editor is missing — the app may be installed under a slightly different name (e.g. a version suffix). Grep the installed apps for it (`ls /Applications | grep -i premiere`, or `mdfind "kMDItemKind == 'Application'" | grep -i resolve`) and retry `open -a` with the actual name before telling the user it isn't installed.
 - Never modify source video files - always preserve originals
 - Flag areas needing human judgment rather than making assumptions
 - When possible, use the existing Ruby files to get work done. Make scripts when the skill or step doesn't provide what you need.

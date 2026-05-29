@@ -1,13 +1,19 @@
 require_relative 'buttercut/distribution'
 require_relative 'buttercut/fcpx'
 require_relative 'buttercut/fcp7'
+require_relative 'buttercut/resolve'
+require_relative 'buttercut/premiere'
 
 # ButterCut - Video editor XML generator
 #
 # Factory class that creates editor-specific generators based on the editor parameter.
 # Currently supports:
 #   - :fcpx - Final Cut Pro X (FCPXML 1.8 format)
-#   - :fcp7 - Final Cut Pro 7 XML (xmeml version 5)
+#   - :resolve - DaVinci Resolve (plain FCP7 / xmeml v5 interchange format)
+#   - :premiere - FCP7 XML with explicit rotation for Adobe Premiere Pro
+#
+# FCP7 itself is the shared xmeml-v5 format base that Resolve and Premiere subclass;
+# it is not a public editor symbol.
 #
 # Example usage:
 #   clips = [
@@ -17,7 +23,7 @@ require_relative 'buttercut/fcp7'
 #   generator = ButterCut.new(clips, editor: :fcpx)
 #   generator.save('output.fcpxml')
 class ButterCut
-  SUPPORTED_EDITORS = [:fcpx, :fcp7].freeze
+  SUPPORTED_EDITORS = [:fcpx, :resolve, :premiere].freeze
 
   def self.new(clips, editor:)
     raise ArgumentError, "editor: parameter is required" if editor.nil?
@@ -29,8 +35,10 @@ class ButterCut
     case editor
     when :fcpx
       ButterCut::FCPX.new(clips)
-    when :fcp7
-      ButterCut::FCP7.new(clips)
+    when :resolve
+      ButterCut::Resolve.new(clips)
+    when :premiere
+      ButterCut::Premiere.new(clips)
     else
       raise ArgumentError, "Editor #{editor.inspect} is not yet implemented."
     end

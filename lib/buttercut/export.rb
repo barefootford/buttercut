@@ -7,22 +7,10 @@ require 'yaml'
 require_relative '../buttercut'
 
 class Export
-  EDITOR_ALIASES = {
-    'fcpx'             => :fcpx,
-    'finalcut'         => :fcpx,
-    'finalcutpro'      => :fcpx,
-    'fcp'              => :fcpx,
-    'premiere'         => :fcp7,
-    'premierepro'      => :fcp7,
-    'adobepremiere'    => :fcp7,
-    'resolve'          => :fcp7,
-    'davinci'          => :fcp7,
-    'davinciresolve'   => :fcp7
-  }.freeze
-
   EDITOR_LABELS = {
     fcpx: 'Final Cut Pro X',
-    fcp7: 'Premiere / Resolve (FCP7 XML)'
+    resolve: 'DaVinci Resolve (FCP7 XML)',
+    premiere: 'Adobe Premiere Pro (FCP7 XML + rotation)'
   }.freeze
 
   def self.perform(roughcut_path:, output_path:, editor: 'fcpx')
@@ -98,8 +86,10 @@ class Export
   end
 
   def resolve_editor(input)
-    EDITOR_ALIASES[input.downcase] ||
-      raise(ArgumentError, "Unknown editor '#{input}'. Use 'fcpx', 'premiere', or 'resolve'")
+    editor = input.downcase.to_sym
+    return editor if EDITOR_LABELS.key?(editor)
+
+    raise ArgumentError, "Unknown editor '#{input}'. Use 'fcpx', 'premiere', or 'resolve'"
   end
 
   def write_xml(clips, editor)
