@@ -485,7 +485,7 @@ RSpec.describe ButterCut::FCPX do
         MVI_0309_720p.mov
         MVI_0323_720p.mov
         P1044376_timecode_fixture.mov
-      ].map { |filename| File.expand_path("../../media/#{filename}", __dir__) }
+      ].map { |filename| File.expand_path("../fixtures/media/#{filename}", __dir__) }
     end
 
     let(:uuid_sequence) do

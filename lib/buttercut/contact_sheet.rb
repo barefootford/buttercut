@@ -12,6 +12,13 @@ class ContactSheet
   SHORT_CLIP_THRESHOLD = 10.0
   SHORT_CLIP_FRAMES = 8
   SHORT_CLIP_COLS = 4
+  # Portrait sources use a square grid (cols == rows) so the sheet inherits the footage's
+  # orientation. The only case this actually changes is SHORT portrait clips: the default
+  # short layout is 4x2, which with tall tiles comes out wider than tall (landscape). 3x3
+  # fixes that. Long portrait clips were already portrait (4x4 of tall tiles is taller than
+  # wide), so PORTRAIT_LONG_COLS == DEFAULT_COLS — it just makes the intent explicit.
+  PORTRAIT_SHORT_COLS = 3
+  PORTRAIT_LONG_COLS = 4
   GRID_WIDTH = 2500
   TILE_PADDING = 4
   TILE_MARGIN = 4
@@ -75,17 +82,32 @@ class ContactSheet
   private
 
   def resolve_layout(range)
-    if range <= SHORT_CLIP_THRESHOLD
-      @frames = SHORT_CLIP_FRAMES
-      @cols = SHORT_CLIP_COLS
+    short = range <= SHORT_CLIP_THRESHOLD
+    if portrait?
+      # Tiles from a vertical clip are taller than wide, so the usual 4-wide grid would
+      # still come out wider than tall. A square grid (cols == rows) makes the sheet
+      # itself portrait too, matching the footage.
+      @cols = short ? PORTRAIT_SHORT_COLS : PORTRAIT_LONG_COLS
+      @frames = @cols * @cols
     else
-      @frames = DEFAULT_FRAMES
-      @cols = DEFAULT_COLS
+      @cols = short ? SHORT_CLIP_COLS : DEFAULT_COLS
+      @frames = short ? SHORT_CLIP_FRAMES : DEFAULT_FRAMES
     end
     @rows = (@frames.to_f / @cols).ceil
     # Tile width chosen so the final grid is exactly GRID_WIDTH px wide after the tile
     # filter inserts (cols - 1) paddings between tiles and a margin on each side.
     @thumb_width = (GRID_WIDTH - (2 * TILE_MARGIN) - ((@cols - 1) * TILE_PADDING)) / @cols
+  end
+
+  # True when the clip displays taller than wide (after any container rotation) — either
+  # natively portrait dimensions (no rotation tag) or landscape dimensions with a 90/270
+  # rotation that rotation_filter applies. Drives the square portrait grid above.
+  def portrait?
+    return false unless @source_width.to_i.positive? && @source_height.to_i.positive?
+
+    w, h = @source_width, @source_height
+    w, h = h, w if [90, 270].include?(@rotation)
+    h > w
   end
 
   # One ffprobe call returns duration (from format) plus everything dispatch needs:
@@ -101,6 +123,8 @@ class ContactSheet
 
     @codec = stream['codec_name'].to_s
     @pix_fmt = stream['pix_fmt'].to_s
+    @source_width = stream['width'].to_i
+    @source_height = stream['height'].to_i
     @rotation = self.class.extract_rotation(stream)
     @vfr = self.class.compute_vfr(stream['r_frame_rate'], stream['avg_frame_rate'])
   rescue JSON::ParserError
