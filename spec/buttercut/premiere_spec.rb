@@ -98,6 +98,48 @@ RSpec.describe ButterCut::Premiere do
     end
   end
 
+  # Real cuts mix orientations — a single timeline can hold rotated and upright clips
+  # in any order. Rotation is per-clip, so each video clipitem must be judged on its own
+  # source flag; the sequence frame, by contrast, follows only the FIRST clip.
+  describe 'a timeline mixing rotated and upright clips' do
+    let(:xml) do
+      described_class.new([
+        { path: rotated_clip_path },    # -90 source -> +90 cw
+        { path: upright_clip_path },    # no rotation
+        { path: cw_rotated_clip_path }  # +90 source -> 270, written the short way as -90
+      ]).to_xml
+    end
+    let(:doc) { Nokogiri::XML(xml) }
+    # Only the sequence's video track carries clipitems with filters; audio clipitems
+    # (under media/audio) and the per-file <media><video> blocks have no <track>.
+    let(:video_clipitems) { doc.xpath('/xmeml/sequence/media/video/track/clipitem') }
+    let(:clipitem_by_name) do
+      video_clipitems.each_with_object({}) { |ci, h| h[ci.at_xpath('name').text] = ci }
+    end
+
+    def baked_rotation(clipitem)
+      clipitem.at_xpath(".//filter/effect[name='Basic Motion']/parameter[parameterid='rotation']/value")&.text
+    end
+
+    it 'judges each clip on its own source flag' do
+      expect(video_clipitems.length).to eq(3)
+      expect(baked_rotation(clipitem_by_name['premiere_rotated'])).to eq('90')
+      expect(baked_rotation(clipitem_by_name['premiere_upright'])).to be_nil
+      expect(baked_rotation(clipitem_by_name['premiere_cw_rotated'])).to eq('-90')
+    end
+
+    it 'writes exactly one Basic Motion filter per rotated clip' do
+      expect(xml.scan('<name>Basic Motion</name>').length).to eq(2)
+    end
+
+    it 'orients the sequence to the first clip regardless of later clips' do
+      format = xml[%r{<format>.*?</format>}m]
+
+      expect(format).to include('<width>2160</width>')
+      expect(format).to include('<height>3840</height>')
+    end
+  end
+
   # Regression guard: the Resolve path must NOT change — it already imports correctly
   # because Resolve reads the source rotation flag itself. If a future change starts
   # injecting rotation into the shared FCP7 output, this fails and warns us we have
