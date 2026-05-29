@@ -88,26 +88,26 @@ All audio transcription complete (word-level timing preserved)
 ```
 
 ### Step 3: Visual Analysis (Parallel Processing)
-Claude launches 10 more parallel agents to analyze frames:
+Claude launches more parallel agents to build a contact sheet for each clip (evenly spaced frames laid out in one grid image with burned-in timestamps) and write a short summary from it:
 
 ```
-Agent 1: Analyzing frames for MVI_0307.MP4...
-Agent 2: Analyzing frames for MVI_0316.MP4...
+Agent 1: Building contact sheet for MVI_0307.MP4...
+Agent 2: Building contact sheet for MVI_0316.MP4...
 [...extracting frames with ffmpeg]
-[...analyzing visual content with Claude]
+[...summarizing each contact sheet with Claude]
 
-✓ visual_MVI_0307.json - Wedding venue entrance, fairy lights
-✓ visual_MVI_0316.json - Decorated storefront with blue lighting
-✓ visual_MVI_0311.json - Outdoor pavilion with string lights
-✓ visual_MVI_0322.json - Night venue exterior, gold garland
-✓ visual_MVI_0326.json - Champagne glasses on pink table
-✓ visual_MVI_0304.json - Reception area with guests
-✓ visual_MVI_0306.json - Evening reception under light canopy
-✓ visual_MVI_0308.json - Formal dinner table, gold plates
-✓ visual_MVI_0302.json - Guest conversation area
-✓ visual_MVI_0313.json - First-person walking in snow
+✓ MVI_0307 - Wedding venue entrance, fairy lights
+✓ MVI_0316 - Decorated storefront with blue lighting
+✓ MVI_0311 - Outdoor pavilion with string lights
+✓ MVI_0322 - Night venue exterior, gold garland
+✓ MVI_0326 - Champagne glasses on pink table
+✓ MVI_0304 - Reception area with guests
+✓ MVI_0306 - Evening reception under light canopy
+✓ MVI_0308 - Formal dinner table, gold plates
+✓ MVI_0302 - Guest conversation area
+✓ MVI_0313 - First-person walking in snow
 
-All visual analysis complete
+All contact sheets and summaries complete
 ```
 
 ### Step 4: Summary Generated
@@ -139,7 +139,7 @@ Library setup complete! I've successfully processed all 10 wedding video clips:
 **Analysis Complete:**
 - **Total footage:** 1 minute 32 seconds (183MB)
 - **Audio transcription:** All 10 videos transcribed with word-level timing
-- **Visual analysis:** All 10 videos analyzed with frame descriptions
+- **Visual analysis:** Contact sheet and summary built for all 10 videos
 
 **Footage Summary:**
 This is wedding reception footage shot on camcorder at night. The venue features an elegant outdoor pavilion with string light canopies, formal dining tables with gold charger plates and burgundy tablecloths, and a decorated storefront entrance with fairy lights and gold garland. Footage captures casual conversations between guests, a champagne toast scene, and even includes one clip of snowy outdoor conditions. The overall atmosphere is intimate, formal, and celebratory.
@@ -159,11 +159,15 @@ All files are saved in:
 libraries/wedding/
 ├── library.yaml                          # Source of truth for library
 ├── transcripts/
-│   ├── MVI_0307.json                    # Audio transcript
-│   ├── visual_MVI_0307.json             # Visual transcript
+│   ├── MVI_0307.json                    # Audio transcript (word-level timing)
 │   ├── MVI_0316.json
-│   ├── visual_MVI_0316.json
-│   └── [...18 more transcript files]
+│   └── [...8 more transcript files]
+├── contact_sheets/
+│   ├── MVI_0307_full.jpg                # Frame grid with timestamps
+│   └── [...9 more contact sheets]
+├── summaries/
+│   ├── summary_MVI_0307.md              # Short per-clip summary
+│   └── [...9 more summaries]
 └── cuts/                                # Ready for cut creation
 ```
 
@@ -174,7 +178,7 @@ libraries/wedding/
 1. **Automatic Discovery** - Claude found and sorted videos by size
 2. **Parallel Processing** - 10 videos processed simultaneously (4 at a time)
 3. **WhisperX Integration** - Word-level audio transcription with precise timing
-4. **Visual Analysis** - FFmpeg frame extraction + AI visual description
+4. **Visual Analysis** - FFmpeg contact sheets + AI-written per-clip summaries
 5. **Smart Summarization** - Automatic footage summary generation
 6. **No Manual Configuration** - Zero config files to edit
 
@@ -187,9 +191,9 @@ libraries/wedding/
 You: "Create a rough cut showing the best moments from the reception"
 
 Claude: [Uses cut skill]
-  - Reads all visual and audio transcripts
+  - Reviews contact sheets, summaries, and audio transcripts
   - Selects best clips based on your direction
-  - Generates rough cut YAML
+  - Builds the cut YAML
   - Exports to FCPXML format
 
 Result: timeline_2025-11-10.fcpxml ready to import into Final Cut Pro

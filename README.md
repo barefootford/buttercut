@@ -1,136 +1,59 @@
 # ButterCut
 
-**Make Claude your Video Editor**
+This is the source code for the core ButterCut XML generator and video editing agent. If you love or hate Docker, have opinions on types, and have a favorite text editor, this is the spot for you. Otherwise, we recommend following the installation instructions on [ButterCut.io](https://buttercut.io).
 
-[buttercut.io](https://buttercut.io)
+## Videos
 
-Give Claude Code your video footage. Claude analyzes it, then builds roughcuts and sequences for Final Cut, Premiere, and Resolve.
-
-Behind the scenes Claude uses ButterCut Skills and a little Ruby library to generate timelines for your editor.
-
-## Watch the Demo
-
-[![I Taught Claude Code to Edit Movies](https://img.youtube.com/vi/FBkfr1yWf_s/maxresdefault.jpg)](https://www.youtube.com/watch?v=FBkfr1yWf_s)
-
-*Click to watch "I Taught Claude Code to Edit Movies" on YouTube*
+<table>
+  <tr>
+    <td align="center"><a href="https://www.youtube.com/watch?v=FBkfr1yWf_s"><img src="https://img.youtube.com/vi/FBkfr1yWf_s/maxresdefault.jpg" alt="I Taught Claude Code to Edit Movies" width="380"></a></td>
+    <td align="center"><a href="https://www.youtube.com/watch?v=BCMQzg-HiTw"><img src="https://img.youtube.com/vi/BCMQzg-HiTw/maxresdefault.jpg" alt="ButterCut Install Video" width="380"></a></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Watch the demo: "I Taught Claude Code to Edit Movies"</em></td>
+    <td align="center"><em>Watch the ButterCut install video</em></td>
+  </tr>
+</table>
 
 ## Getting Started
 
-[![ButterCut Install Video](https://img.youtube.com/vi/BCMQzg-HiTw/maxresdefault.jpg)](https://www.youtube.com/watch?v=BCMQzg-HiTw)
+ButterCut targets Macs with Apple Silicon (M-series chips). If you're technical and don't mind agent churn, you can likely get it working on Windows, Linux, etc. — but until revenue from ButterCut Pro is full time ish (🤞), broad Windows/Linux compatibility isn't a priority and isn't something I'll publicly support for non-technical users.
 
-*Click to watch the ButterCut install video on YouTube*
+Clone this repository and then set it as your active directory.
 
-**Clone ButterCut:**
 ```bash
 git clone https://github.com/barefootford/buttercut.git && cd buttercut
 ```
 
-**Open Claude Code:**
-```bash
-claude
-
-# or skip permission prompts (faster, but riskier):
-claude --dangerously-skip-permissions
-```
-
-**Tell Claude to install ButterCut:**
-```
-> Install ButterCut
-```
-
-Claude will check your system and install any missing dependencies (Ruby, Python, FFmpeg, WhisperX).
-
-For manual installation, see [docs/installation.md](docs/installation.md).
+Call the `/setup` skill to automatically install dependencies, or see [advanced-setup.md](skills/setup/advanced-setup.md) for a custom install. Primary requirements are Ruby, Python, FFmpeg, and WhisperX. Check `.python-version` and `.ruby-version` for specific language versions, and `Gemfile` and `requirements.txt` for their respective dependencies.
 
 ## Usage
 
-First tell Claude to create a **Library**. A library organizes your video footage along with the transcripts, contact sheets, and summaries Claude needs to edit it. Then tell Claude you want to create a **rough cut** or **sequence**.
+ButterCut has two primary abstractions: libraries (where footage goes) and cuts (the agent builds a select, scene, or roughcut with you).
 
-### Creating a Video Library
-
-```plaintext
-You: "I want to build a new library"
-
-Claude: [Guides you through library setup and asks for details]
-
-You:
-  - Library name: "wedding"
-  - Video location: "/path/to/videos"
-  - Language: "English"
-
-Claude: [Automatically processes all videos]
-  ✓ Creates library structure
-  ✓ Transcribes audio
-  ✓ Builds a contact sheet for every clip
-  ✓ Writes a short summary of each clip
-
-Result: Full footage analysis ready for rough cut creation
-```
-
-Claude handles the parallel processing, metadata extraction, and analysis. See the [full walkthrough](docs/example-library-setup.md) for a detailed example of me setting up a library from my wedding footage.
-
-### Creating a Roughcut or Sequence
-
-Once your library is analyzed, Claude can create rough cuts through an interactive conversation:
-
-```plaintext
-You: "Let's create a new roughcut"
-
-Claude: [Loads cut skill and analyzes footage]
-        What should this roughcut focus on?
-        - Full story
-        - Just the meetup coverage
-        - Short teaser sequence
-
-You: "Just the meetup coverage"
-
-Claude: [Asks 3 preference questions]
-        - Narrative structure? (chronological, thematic, hook-based)
-        - Target duration? (1-2 min, 3-5 min, 6-10 min)
-        - Pacing style? (fast & punchy, conversational, cinematic)
-
-You: "Start with presentations (5 sec clips), then interviews,
-      then my closing reflection. 3-5 minutes, conversational pacing."
-
-Claude: [Asks which video editor you want to use]
-        - Final Cut Pro X
-        - Adobe Premiere Pro
-        - DaVinci Resolve
-
-You: "Final Cut Pro X"
-
-Claude: [Creates roughcut with editorial decisions]
-        ✓ Reviewed contact sheets and transcripts
-        ✓ Selected 29 clips (4:32 total)
-        ✓ Exported to FCPXML
-
-Result: Ready-to-import timeline at:
-        libraries/[library]/roughcuts/[name]_[datetime].fcpxml
-```
-
-Claude makes editorial decisions based on transcript analysis and your preferences, then exports a timeline for your editor.
-
-### XML Generation
-
-For direct XML generation without Claude Code, see [docs/basic-xml-generation.md](docs/basic-xml-generation.md).
-
-## Thanks
-
-ButterCut was inspired by ambitious open source work from [Chris Hocking](https://github.com/CommandPost/CommandPost) and [Andrew Arrow](https://github.com/andrewarrow/cutlass/tree/main).
+See [docs/usage.md](docs/usage.md) for working with libraries and cuts.
 
 ## License
 
 ButterCut is open source under the [PolyForm Noncommercial License 1.0.0 with a Commercial Output exception](LICENSE).
 
-- **You can use ButterCut to make videos commercially.** Cut a YouTube video for ad revenue, edit a paid client project, deliver a sponsored brand piece — all fine. The videos are yours, and the licensor claims no rights to them.
+- **You absolutely can use ButterCut to make commercial videos.** Cut a YouTube video for ad revenue, edit a paid client project, deliver a sponsored brand piece — all fine. The videos are yours, and the licensor claims no rights to them.
 - **You can't repackage ButterCut as commercial software.** Selling, hosting, or bundling the tool itself (or a fork of it) into a commercial product, plugin, or SaaS requires a separate commercial license from TubeSalt LLC.
 
-Personal, hobby, research, and educational use of the software is also free under the underlying license. If you'd like a commercial software license, reach out.
+Personal, hobby, research, and educational use of the software is also free under the underlying license. If you'd like a commercial software license, reach out to [Andrew@TubeSalt.com](mailto:Andrew@TubeSalt.com).
+
+## Future features
+
+This is the core (basic) version of ButterCut. ButterCut Pro is also on the way, à la Sidekiq Pro. ButterCut will remain a single-track editing solution with WhisperX transcription. ButterCut Pro will support multiple tracks, faster transcription, and other "pro" features. If you're a developer interested in a reduced-cost Pro license in exchange for bug reports, DM me on the ButterCut Discord linked from [buttercut.io](https://buttercut.io).
 
 ## Contributing
 
-Bug reports and pull requests welcome, with that said...
+### Start with an issue, not a PR
 
-**Guidelines:**
-- Write the body of your pull request or GitHub issue yourself. Don't use an agent (Claude Code, etc) to generate it.
-- Keep pull requests small and limited to a single feature or bugfix at a time. It's a lot easier to write code, I feel like it's just as hard as before to review code.
+Thanks to LLMs, it's really easy to spike a quick change to ButterCut — add a feature, fix a bug, etc. But it's still quite difficult to keep it all cohesive and maintain working XML across three different editors. If you want to contribute, the best way to start is with a GitHub issue. Write a human-generated issue (I know!), and I'll work with you from there to get a commit in. I'm happy to pair, jump on a Google Meet, etc., to provide context and help.
+
+Alternatively, you can always *create your own custom skills* (or fork existing ones) for ButterCut and prefix them with `user-`, e.g. `user-quick-interview-summary`. That skill stays on your own Mac, gitignored automatically, so you can build your own workflows while still staying on the main branch. As I'm sure you know, you can include your own Ruby or Python scripts inside a skill folder to make this really powerful — no need to fork off on your own.
+
+## Thanks
+
+ButterCut was inspired by ambitious open source work from [Chris Hocking](https://github.com/CommandPost/CommandPost) and [Andrew Arrow](https://github.com/andrewarrow/cutlass/tree/main).
