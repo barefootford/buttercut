@@ -638,4 +638,43 @@ RSpec.describe Library do
     end
   end
 
+  describe '.check_for_update! / .record_update_check!' do
+    around do |example|
+      Dir.mktmpdir('update-check-') do |root|
+        @repo_root = root
+        example.run
+      end
+    end
+
+    let(:stamp) { File.join(@repo_root, Library::UPDATE_CHECK_FILE) }
+
+    def age_stamp(seconds_ago)
+      FileUtils.touch(stamp)
+      t = Time.now - seconds_ago
+      File.utime(t, t, stamp)
+    end
+
+    it 'seeds the stamp and stays quiet on a fresh checkout (no stamp yet)' do
+      expect(File.exist?(stamp)).to be(false)
+      expect { Library.check_for_update!(repo_root: @repo_root) }.not_to raise_error
+      expect(File.exist?(stamp)).to be(true)
+    end
+
+    it 'raises when the last check was more than a day ago' do
+      age_stamp(Library::UPDATE_CHECK_INTERVAL + 60)
+      expect { Library.check_for_update!(repo_root: @repo_root) }.to raise_error(Library::UpdateCheckNeeded)
+    end
+
+    it 'does not raise when a check was recorded within the last day' do
+      age_stamp(60)
+      expect { Library.check_for_update!(repo_root: @repo_root) }.not_to raise_error
+    end
+
+    it 'record_update_check! writes the stamp so the next check stays quiet' do
+      expect(File.exist?(stamp)).to be(false)
+      Library.record_update_check!(repo_root: @repo_root)
+      expect(File.exist?(stamp)).to be(true)
+      expect { Library.check_for_update!(repo_root: @repo_root) }.not_to raise_error
+    end
+  end
 end

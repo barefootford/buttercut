@@ -117,6 +117,38 @@ class Library
     raise ArgumentError, "ffprobe returned non-numeric duration for #{path}: #{e.message}"
   end
 
+  # Raised by check_for_update! to hand the actual update check to the agent.
+  class UpdateCheckNeeded < StandardError; end
+
+  REPO_ROOT = File.expand_path('../..', __dir__)
+  UPDATE_CHECK_FILE = 'last_buttercut_update_check' # repo-root mtime stamp; gitignored
+  UPDATE_CHECK_INTERVAL = 86_400 # seconds (24h)
+
+  def self.check_for_update!(repo_root: REPO_ROOT)
+    stamp = File.join(repo_root, UPDATE_CHECK_FILE)
+
+    # First run on a fresh checkout (clone, update-buttercut rsync, or setup):
+    # no stamp yet. The repo is current by definition, so seed the stamp and
+    # stay quiet — the first nudge comes a day later, not on the very first command.
+    unless File.exist?(stamp)
+      record_update_check!(repo_root: repo_root)
+      return
+    end
+
+    return if (Time.now - File.mtime(stamp)) < UPDATE_CHECK_INTERVAL
+
+    raise UpdateCheckNeeded,
+      "it's been over a day since ButterCut last checked for updates. " \
+      'Call `git fetch origin main` then `git log --oneline HEAD..origin/main`. ' \
+      'If `main` is ahead, use the update-buttercut skill. ' \
+      'Then run `ruby lib/buttercut/library.rb update_checked` to record the check ' \
+      'and re-run your command.'
+  end
+
+  def self.record_update_check!(repo_root: REPO_ROOT)
+    FileUtils.touch(File.join(repo_root, UPDATE_CHECK_FILE))
+  end
+
   attr_reader :name
 
   def initialize(library_name)
@@ -379,6 +411,7 @@ if __FILE__ == $PROGRAM_NAME
       ruby library.rb list                            — every library, newest first (library.yaml mtime)
       ruby library.rb recent [N]                      — N most recent libraries by deepest file mtime (default 10)
       ruby library.rb migrate                         — run all migrations across every library
+      ruby library.rb update_checked                  — record that you just checked GitHub for a newer ButterCut
       ruby library.rb <library_name> <action> [args]
 
     Existence + status (no library load required for `exists`):
@@ -406,6 +439,13 @@ if __FILE__ == $PROGRAM_NAME
                        transcript_refinement: true, video_paths: ['/abs/a.mov'])"
   USAGE
 
+  # Agent records that it just checked for updates (see check_for_update!). Kept
+  # ahead of the daily gate below so recording a check is never itself gated.
+  if ARGV.first == 'update_checked'
+    Library.record_update_check!
+    exit 0
+  end
+
   if ARGV.first == 'list'
     puts Library.list
     exit 0
@@ -419,7 +459,7 @@ if __FILE__ == $PROGRAM_NAME
 
   if ARGV.first == 'migrate' && ARGV.size == 1
     migrate_script = File.expand_path('../../scripts/migrate_all.rb', __dir__)
-    repo_root = File.expand_path('../..', __dir__)
+    repo_root = Library::REPO_ROOT
     exec('ruby', migrate_script, chdir: repo_root)
   end
 
@@ -443,6 +483,8 @@ if __FILE__ == $PROGRAM_NAME
   split_files = ->(args) { args.flat_map { |a| a.split(',').map(&:strip).reject(&:empty?) } }
 
   begin
+    Library.check_for_update!
+
     case action
     when 'summary'
       puts JSON.pretty_generate(library.summary)
