@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # ButterCut is a macOS tool: the spec suite exercises Apple Archive (`aa`) in
+    # spec/buttercut/backup_spec.rb, which only exists on macOS. One job runs both
+    # the default suite and the :fixtures specs so setup (checkout, Ruby, ffmpeg)
+    # happens once. :benchmark stays out — its wall-time baselines are tuned to dev
+    # hardware and don't transfer to shared runners.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'   # matches .ruby-version / .mise.toml
+          bundler-cache: true     # bundle install + cache gems from Gemfile.lock
+
+      - name: Install ffmpeg-full (provides the drawtext filter + ffprobe)
+        # The contact-sheet builder burns timestamps onto each tile with ffmpeg's
+        # `drawtext` filter, which since ffmpeg 6.1 needs libfreetype + libharfbuzz
+        # at build time. Homebrew's regular `ffmpeg` formula is built WITHOUT them,
+        # so it has no drawtext filter; the `ffmpeg-full` formula bundles
+        # fontconfig + freetype + harfbuzz (bottled, no source build) and still
+        # provides the ffprobe the metadata specs need. Remove the runner's stock
+        # ffmpeg first to avoid a link conflict, then hard-fail if drawtext is
+        # somehow still absent rather than surfacing it deep in a spec.
+        run: |
+          brew uninstall --ignore-dependencies --force ffmpeg || true
+          brew install ffmpeg-full
+          echo "Using $(command -v ffmpeg)"; ffmpeg -hide_banner -version | head -1
+          ffmpeg -hide_banner -filters | grep -q ' drawtext ' \
+            || { echo "::error::ffmpeg-full has no drawtext filter (need libfreetype+libharfbuzz)"; exit 1; }
+
+      - name: Cache fixture clips
+        # The :fixtures specs run real ffmpeg over large codec clips kept outside git
+        # (see spec/assets_manifest.yml). Restored/saved across runs; the helper only
+        # downloads on a cache miss (~140 MB), which happens only when the manifest
+        # (and thus the key) changes.
+        uses: actions/cache@v5
+        with:
+          path: spec/assets
+          key: fixtures-${{ hashFiles('spec/assets_manifest.yml') }}
+
+      - name: Run specs
+        env:
+          # Public R2 bucket URL for the :fixtures clips, injected from the repo
+          # Actions variable so it isn't committed to source. Set it once with:
+          #   gh variable set BUTTERCUT_FIXTURES_BASE_URL --body "https://pub-XXXX.r2.dev"
+          BUTTERCUT_FIXTURES_BASE_URL: ${{ vars.BUTTERCUT_FIXTURES_BASE_URL }}
+        # First the default suite (auto-excludes :fixtures and :benchmark), then the
+        # :fixtures specs on their own.
+        run: |
+          bundle exec rspec
+          bundle exec rspec --tag fixtures

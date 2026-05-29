@@ -3,8 +3,6 @@ require 'tmpdir'
 require_relative '../../lib/buttercut/contact_sheet'
 
 RSpec.describe ContactSheet, 'codec coverage', :fixtures do
-  assets_dir = File.expand_path('../assets', __dir__)
-
   # Fixtures live in spec/assets/ (gitignored). The h264/hevc/prores clips are sliced
   # from real source footage. The four below are transcoded from those real clips —
   # regenerable from anywhere inside spec/assets/ with:
@@ -45,7 +43,7 @@ RSpec.describe ContactSheet, 'codec coverage', :fixtures do
 
   define_method(:build_sheet) do |filename, label, **opts|
     ContactSheet.new(
-      File.join(assets_dir, filename),
+      Fixtures.path(filename),
       nil, nil,
       library_dir: nil, output_path: File.join(@tmp_dir, "#{label}.jpg"), **opts
     )

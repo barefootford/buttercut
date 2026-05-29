@@ -1,0 +1,55 @@
+# Large binary test fixtures that live OUTSIDE git.
+#
+# spec/assets/ is gitignored (these clips total ~760 MB). The :fixtures and
+# :benchmark specs resolve each clip through spec/support/fixtures.rb, which:
+#   1. uses a local copy at spec/assets/<name> if present (size match), otherwise
+#   2. downloads it from "<base_url>/<name>", verifies the sha256 below, and
+#      caches it into spec/assets/ for next time.
+#
+# The public bucket URL is NOT hardcoded here — it's supplied at runtime via the
+# BUTTERCUT_FIXTURES_BASE_URL env var. CI sets it from the repo Actions variable of
+# the same name; locally, export it (or just keep the clips in spec/assets/). The
+# ${...} reference below is expanded by spec/support/fixtures.rb. This keeps the
+# manifest identical across the open-source repo and forks (each points its own
+# bucket via the env var) and avoids publishing the bucket URL in source.
+base_url: "${BUTTERCUT_FIXTURES_BASE_URL}"
+
+files:
+  avchd_mts.mts:
+    sha256: "1fe06fc8515ae6e4c381813a9c38515835bf69c9bdb0e2cbfabc3bd0929a5808"
+    size: 1898612
+  dnxhr.mov:
+    sha256: "3c14305626a7ad7d6a9d6cd7fe3a3e0dd6bffd97f1f9dca0b7c96d9d5a6eb8c9"
+    size: 36374148
+  h264_screen_vfr.mp4:
+    sha256: "07adfe22a13f54b5b3cd8c86ea01d1a9f3472b84750af0c795d62d412b99f6e5"
+    size: 14873
+  h264_yuv420p.mp4:
+    sha256: "fd49c511dd802492570dc184dae6310063dc86cd4ef4692423318ef7d278c8ce"
+    size: 4558072
+  h264_yuv422p10le_2s.mp4:
+    sha256: "3cf78d15ae843e811e2f09665d302b47c18f283de9cc78672f6de5e172d0e5f3"
+    size: 37334844
+  # Used only by the :benchmark spec (654 MB). Not needed for the :fixtures run.
+  h264_yuv422p10le_35s.mp4:
+    sha256: "5aadf7ff38cb23778543da48ca2156a89dac7049e26747c9879fc1c3a15a9a26"
+    size: 654333114
+    benchmark_only: true
+  hevc_portrait_native.mov:
+    sha256: "a776dce850007184fa361d636df5680ecc243b455041e2e84e0561e0dac70977"
+    size: 2546851
+  hevc_portrait_rotated.mov:
+    sha256: "ace55c7e542736cbd198c3130a2d3e548f808366442e966d8a7bb543fa0d05cd"
+    size: 2272596
+  hevc_yuv420p10le.mov:
+    sha256: "8a388c1e0b52c3434e154bf67d57fc4562602dcc70208db00a505f218d92a852"
+    size: 15396263
+  hevc_yuv422p10le.mov:
+    sha256: "e3ea82f14ac41f9c372c1b226771dac15a9a59754d83c3d2379f268ef2481bba"
+    size: 1616483
+  mjpeg.mov:
+    sha256: "2d10bdaf4445d95f05d96fe9fe6d22cef31b147e9f328cb83f6e3600069ed758"
+    size: 7608489
+  prores.mov:
+    sha256: "253a84b9a275984b8c661845f55ddb3270998c4ba59bbb4bdceefca6466f31c1"
+    size: 34346754

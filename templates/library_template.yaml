@@ -19,7 +19,7 @@ footage_summary: "No footage analyzed yet."
 # Per clip, analysis fills three fields:
 #   transcript     — audio transcript JSON (word-level timing, in transcripts/);
 #                    also the source for on-demand dialogue extraction via
-#                    skills/analyze-video/script_extractor.rb
+#                    lib/buttercut/script_extractor.rb
 #   contact_sheet  — _full.jpg visual overview (in contact_sheets/); per-segment
 #                    sheets for clips >10 min live alongside on disk
 #   summary        — markdown overview (in summaries/)

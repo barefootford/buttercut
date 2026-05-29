@@ -1,5 +1,8 @@
 require_relative '../lib/buttercut'
 
+# Support helpers (fixture resolution, shared contexts, etc.).
+Dir[File.join(__dir__, 'support', '**', '*.rb')].sort.each { |file| require file }
+
 # The contact-sheet skill prints a per-run summary on stdout; specs that exercise it use
 # this to keep the rspec output clean unless something actually fails.
 module SilenceStdout

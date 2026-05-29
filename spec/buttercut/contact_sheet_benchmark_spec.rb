@@ -8,7 +8,6 @@ require_relative '../../lib/buttercut/contact_sheet'
 # (2x) because wall times are decode-bound and noisy; the regressions we care about
 # (single-pass on heavy long-GOP) are 5-100x.
 RSpec.describe ContactSheet, 'wall-time regression', :benchmark do
-  assets_dir = File.expand_path('../assets', __dir__)
   tolerance = 2.0
   runs_per_case = 3
 
@@ -41,7 +40,7 @@ RSpec.describe ContactSheet, 'wall-time regression', :benchmark do
   fixtures.each do |fixture|
     it fixture[:description] do |example|
       output = File.join(@tmp_dir, "#{File.basename(fixture[:file], '.*')}.jpg")
-      elapsed = measure(File.join(assets_dir, fixture[:file]), output)
+      elapsed = measure(Fixtures.path(fixture[:file]), output)
       example.metadata[:description] =
         format('%s (%.1fs, baseline %.1fs)', fixture[:description], elapsed, fixture[:baseline])
 
