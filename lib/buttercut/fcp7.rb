@@ -15,7 +15,7 @@ class ButterCut
       rate_num, rate_denom = format_frame_rate.split('/').map(&:to_i)
       timebase = format_nominal_frame_rate
       ntsc_flag = ntsc_flag_for(rate_denom)
-      drop_frame = drop_frame_rate?(rate_num, rate_denom)
+      drop_frame = ntsc_drop_frame_rate?(rate_num, rate_denom)
       display_format = drop_frame ? 'DF' : 'NDF'
 
       sequence_duration_frames = frames_for_fraction(sequence_duration_fraction, timeline_frame_duration)
@@ -98,17 +98,13 @@ class ButterCut
       rate_denom == 1 ? 'FALSE' : 'TRUE'
     end
 
-    def drop_frame_rate?(rate_num, rate_denom)
-      (rate_num == 30000 && rate_denom == 1001) || (rate_num == 60000 && rate_denom == 1001)
-    end
-
     def build_clip_payloads(timeline_clips, timeline_frame_duration)
       timeline_clips.each_with_index.map do |clip, index|
         asset = clip[:asset]
         asset_rate_num, asset_rate_denom = asset[:frame_rate].split('/').map(&:to_i)
         asset_timebase = (asset_rate_num.to_f / asset_rate_denom).round
         asset_ntsc = ntsc_flag_for(asset_rate_denom)
-        asset_display = drop_frame_rate?(asset_rate_num, asset_rate_denom) ? 'DF' : 'NDF'
+        asset_display = ntsc_drop_frame_rate?(asset_rate_num, asset_rate_denom) ? 'DF' : 'NDF'
 
         timeline_duration_frames = frames_for_fraction(clip[:duration], timeline_frame_duration)
         timeline_start_frames = frames_for_fraction(clip[:timeline_offset], timeline_frame_duration)

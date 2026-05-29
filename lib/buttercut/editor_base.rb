@@ -54,16 +54,20 @@ class ButterCut
       @metadata_cache[video_path]
     end
 
+    def video_stream(video_path)
+      extract_metadata(video_path)['streams'].find { |s| s['codec_type'] == 'video' }
+    end
+
+    def audio_stream(video_path)
+      extract_metadata(video_path)['streams'].find { |s| s['codec_type'] == 'audio' }
+    end
+
     def video_width(video_path)
-      metadata = extract_metadata(video_path)
-      video_stream = metadata['streams'].find { |s| s['codec_type'] == 'video' }
-      video_stream['width']
+      video_stream(video_path)['width']
     end
 
     def video_height(video_path)
-      metadata = extract_metadata(video_path)
-      video_stream = metadata['streams'].find { |s| s['codec_type'] == 'video' }
-      video_stream['height']
+      video_stream(video_path)['height']
     end
 
     def video_duration(video_path)
@@ -72,9 +76,7 @@ class ButterCut
     end
 
     def frame_rate(video_path)
-      metadata = extract_metadata(video_path)
-      video_stream = metadata['streams'].find { |s| s['codec_type'] == 'video' }
-      video_stream['r_frame_rate']
+      video_stream(video_path)['r_frame_rate']
     end
 
     def frame_duration(video_path)
@@ -84,9 +86,7 @@ class ButterCut
     end
 
     def audio_sample_rate(video_path)
-      metadata = extract_metadata(video_path)
-      audio_stream = metadata['streams'].find { |s| s['codec_type'] == 'audio' }
-      audio_stream['sample_rate']
+      audio_stream(video_path)['sample_rate']
     end
 
     def nominal_frame_rate(video_path)
@@ -160,6 +160,11 @@ class ButterCut
     def drop_frame_timecode?(timecode, rate_num, rate_denom, fps_nominal)
       return false unless timecode.include?(';')
       return false unless fps_nominal == 30 || fps_nominal == 60
+      ntsc_drop_frame_rate?(rate_num, rate_denom)
+    end
+
+    # NTSC fractional rates (29.97 / 59.94) that use drop-frame timecode.
+    def ntsc_drop_frame_rate?(rate_num, rate_denom)
       (rate_num == 30000 && rate_denom == 1001) || (rate_num == 60000 && rate_denom == 1001)
     end
 
@@ -171,19 +176,11 @@ class ButterCut
       end
     end
 
-    def color_space(video_path)
-      metadata = extract_metadata(video_path)
-      video_stream = metadata['streams'].find { |s| s['codec_type'] == 'video' }
-
-      cs = video_stream['color_space']
-      cp = video_stream['color_primaries']
-      ct = video_stream['color_transfer']
-
-      if cs == 'bt709' || cp == 'bt709' || ct == 'bt709'
-        "1-1-1 (Rec. 709)"
-      else
-        "1-1-1 (Rec. 709)"
-      end
+    # Color space is currently always emitted as Rec. 709; non-709 sources
+    # (HDR / Rec. 2020, P3) are not yet mapped. Takes a path for signature
+    # parity with the other per-clip metadata accessors.
+    def color_space(_video_path)
+      "1-1-1 (Rec. 709)"
     end
 
     def duration_to_fraction(video_path)
@@ -228,11 +225,15 @@ class ButterCut
       audio_sample_rate(@clips.first[:path])
     end
 
+    # Greatest Common Divisor (GCD): the largest whole number that divides two
+    # integers evenly — e.g. gcd(25000, 10000) is 5000. ButterCut tracks every
+    # timeline duration and offset as an exact `numerator/denominators` fraction
+    # (the format Final Cut's XML uses), and those numbers balloon as the math
+    # compounds. Dividing both halves of a fraction by their GCD puts it back in
+    # lowest terms — 25000/10000s becomes 5/2s — keeping the values small and the
+    # output clean. Ruby's built-in Integer#gcd does the arithmetic.
     def gcd(a, b)
-      while b != 0
-        a, b = b, a % b
-      end
-      a
+      a.gcd(b)
     end
 
     def add_fractions(frac1, frac2)
@@ -270,16 +271,20 @@ class ButterCut
       "#{numerator / divisor}/#{denominator / divisor}s"
     end
 
+    # Parse a duration fraction ("N/Ds" or bare "Ns") into [numerator, denominator].
+    def fraction_parts(value)
+      if (match = value.match(/^(\d+)s$/))
+        [match[1].to_i, 1]
+      else
+        value.match(/(\d+)\/(\d+)/).captures.map(&:to_i)
+      end
+    end
+
     def round_to_frame_boundary(time_value, frame_duration)
       return "0s" if time_value == "0s" || time_value == 0
       time_value = seconds_to_fraction(time_value) if time_value.is_a?(Numeric)
 
-      if time_value.match(/^(\d+)s$/)
-        time_num = Regexp.last_match(1).to_i
-        time_denom = 1
-      else
-        time_num, time_denom = time_value.match(/(\d+)\/(\d+)/).captures.map(&:to_i)
-      end
+      time_num, time_denom = fraction_parts(time_value)
 
       frame_num, frame_denom = frame_duration.match(/(\d+)\/(\d+)/).captures.map(&:to_i)
 
@@ -300,19 +305,8 @@ class ButterCut
       return frac1 if frac2 == "0s"
       return "0s" if frac1 == frac2
 
-      if frac1.match(/^(\d+)s$/)
-        num1 = Regexp.last_match(1).to_i
-        denom1 = 1
-      else
-        num1, denom1 = frac1.match(/(\d+)\/(\d+)/).captures.map(&:to_i)
-      end
-
-      if frac2.match(/^(\d+)s$/)
-        num2 = Regexp.last_match(1).to_i
-        denom2 = 1
-      else
-        num2, denom2 = frac2.match(/(\d+)\/(\d+)/).captures.map(&:to_i)
-      end
+      num1, denom1 = fraction_parts(frac1)
+      num2, denom2 = fraction_parts(frac2)
 
       result_num = num1 * denom2 - num2 * denom1
       result_denom = denom1 * denom2
@@ -431,10 +425,6 @@ class ButterCut
       duration_rational = fraction_to_rational(duration_fraction)
       frame_rational = fraction_to_rational(frame_duration_fraction)
       ((duration_rational / frame_rational).round).to_i
-    end
-
-    def frame_duration_rational_for(frame_duration_fraction)
-      fraction_to_rational(frame_duration_fraction)
     end
 
     protected
