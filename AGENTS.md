@@ -22,7 +22,7 @@ Work is organized into **libraries** (video series/projects), each self-containe
 
 Libraries are the primary abstraction — each is a video series/project self-contained under `/libraries/[library-name]/`. Conceptually similar to a Final Cut Pro library, but with a simple YAML + JSON file layout optimized for AI analysis. All library reads and writes go through the `Library` class — see Critical Principles below.
 
-Each library has a `library.yaml` file that serves as persistent memory and the source of truth. This file contains all library metadata, footage descriptions, transcription status, and key learnings. The agent generally doesn't need to read this file directly, and instead can work through the Library ruby class.
+Each library has a `library.yaml` file that serves as persistent memory and the source of truth. This file contains all library metadata, footage descriptions, transcription status, and key learnings. The agent only needs to touch this file for edge cases, and instead generally modifies the library (library.yaml) through the Library ruby class.
 
 ## Critical Principles
 
@@ -79,6 +79,8 @@ ruby lib/buttercut/script_extractor.rb libraries/<name>/transcripts/<clip>.json 
 ```
 
 Writes (`add_videos`, `complete`, `update_metadata`), destructive resets, legacy cleanup, and `Library.create` via `ruby -e`: see `lib/buttercut/library.md` for full documentation.
+
+**Daily update-check gate.** Once a day, the first real-work `library.rb` command exits with `library: it's been over a day since ButterCut last checked for updates…`. When you see that: check GitHub (`git fetch origin main` then `git log --oneline HEAD..origin/main`); if `main` is ahead and you're in auto mode, run the `update-buttercut` skill. If you're not in auto mode, ask the user permission to update buttercut using that skill. Either way, run `ruby lib/buttercut/library.rb update_checked` to record it, then re-run your command. Discovery commands (`list`, `recent`, `exists`) are never gated.
 
 **Single-track timelines only.** ButterCut produces one sequential video track. Each clip's own audio plays during that clip — there is no second video track for cutaways layered over a continuing voiceover, and no separate audio track. When planning or pitching cuts, never propose "B-roll over VO," "story under meetup footage," picture-in-picture, or any structure that assumes a clip's audio continues while different visuals play on top. Cutaways are fine, but they're hard cuts: when you cut to the wide shot, you cut to that shot's audio too. Plan every cut as a strictly linear sequence of clips.
 

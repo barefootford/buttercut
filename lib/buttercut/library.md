@@ -1,6 +1,6 @@
 # Library
 
-The `Library` class is the one place that reads and writes `library.yaml`. The agent drives it through bash:
+The `Library` class is the one Ruby class that reads and writes `library.yaml`. The agent drives it through bash:
 
 ```bash
 ruby lib/buttercut/library.rb <library_name> <action> [args...]
@@ -11,9 +11,9 @@ ruby lib/buttercut/library.rb <library_name> <action> [args...]
 - **Main thread only.** `Library` mutates the shared `library.yaml`;
   sub-agents must never call it (race conditions). Have a sub-agent return
   the data the orchestrator needs and let the orchestrator write.
-- **Never read or write `library.yaml` directly.** Go through the CLI.
-  If you need an operation it doesn't expose, extend the CLI rather than
-  parsing the YAML inline.
+- **Avoid writing to `library.yaml` directly.** Go through the CLI.
+  Only write to library when handling edge cases or failed migrations. 99
+  percent of the time the library class should provide what you need.
 
 ## Fields and on-disk layout
 
@@ -31,8 +31,8 @@ pattern, and orphan-sweep filter live in the `FIELDS` table at the top of
 `library.yaml` AND its file must exist on disk before any YAML is written.
 If any check fails the call raises and the YAML is left untouched.
 
-Dialogue isn't a tracked field — the audio transcript JSON is the source of
-truth, and agents that want clean dialogue text run
+The audio transcript JSON is the source of truth for dialogue, and agents that
+want clean dialogue text run
 `ruby lib/buttercut/script_extractor.rb <transcript>` on demand (stdout).
 
 ## CLI
@@ -46,7 +46,12 @@ ruby lib/buttercut/library.rb <name> exists       # exit 0 if it exists, 1 if no
 ruby lib/buttercut/library.rb <name> summary      # JSON: metadata + clip-completion breakdown
 ruby lib/buttercut/library.rb <name> incomplete_videos
 ruby lib/buttercut/library.rb <name> ready        # exit 0 if every video is ready for roughcut, 1 if not
+ruby lib/buttercut/library.rb update_checked      # record that you just checked GitHub for a newer ButterCut
 ```
+
+**Daily update-check gate.** The Library class has a once-a-day gate to check
+for updates to ButterCut. If in Auto mode, check for updates. Otherwise ask the
+user.
 
 `recent` is the right tool for "which library was the user most recently working on?" — it sees activity across `transcripts/`, `contact_sheets/`, `summaries/`, and `cuts/`, not just `library.yaml`. `list` is fine when you want the full set.
 

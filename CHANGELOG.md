@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Daily update-check gate in the `Library` CLI.** Library commands now check a gitignored `last_buttercut_update_check` stamp first; once a day they raise `UpdateCheckNeeded`, surfaced as a `library:` error that tells the agent to check for a newer ButterCut and offer to update.
+
 ## [0.7.1] - 2026-05-23
 
 Final RubyGems release of ButterCut xml generator. Having the ButterCut (agent) codebase live across skill scripts, shared scripts, and traditional lib code has gotten messy to work on and to explain to agents. I want to do a refactor where we pull all 'business' code into a single directory and it doesn't make sense to have the agent ruby code live with the xml generation code. Using the agent is by far the most popular use of this repository so it makes sense to make it be as easy as possible to work on and use that code. The agent + xml generation project will continue at the same location https://github.com/barefootford/buttercut;
