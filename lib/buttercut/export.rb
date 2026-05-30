@@ -27,11 +27,15 @@ class Export
     @editor        = resolve_editor(editor.to_s)
   end
 
+  # A still has no intrinsic duration; this is how long it sits on the timeline
+  # unless the clip overrides it.
+  DEFAULT_IMAGE_DURATION_SECONDS = 5.0
+
   def perform
     roughcut    = load_yaml(@roughcut_path)
     library     = load_library(@roughcut_path)
-    video_paths = index_video_paths(library)
-    clips       = build_clips(roughcut, video_paths)
+    video_index = index_videos(library)
+    clips       = build_clips(roughcut, video_index)
 
     write_xml(clips, @editor)
     validate_fcpxml(@output_path) if @editor == :fcpx
@@ -56,27 +60,57 @@ class Export
     load_yaml(library_yaml)
   end
 
-  def index_video_paths(library)
+  def index_videos(library)
     library['videos'].each_with_object({}) do |video, map|
-      map[File.basename(video['path'])] = video['path']
+      map[File.basename(video['path'])] = {
+        path: video['path'],
+        media_type: video['media_type'] || 'video'
+      }
     end
   end
 
-  def build_clips(roughcut, video_paths)
+  def build_clips(roughcut, video_index)
     roughcut['clips'].filter_map do |clip|
       source = clip['source_file']
-      path   = video_paths[source]
+      entry  = video_index[source]
 
-      unless path
+      unless entry
         warn "Warning: Source file not found in library data: #{source}"
         next
       end
 
+      clip_for(clip, entry)
+    end
+  end
+
+  # Build the generator's clip hash. Video and audio are trimmed with in/out
+  # points; a still image has no intrinsic timing, so it gets an explicit
+  # on-timeline duration starting at 0. media_type rides along so the generators
+  # know which kind of timeline element to emit.
+  def clip_for(clip, entry)
+    if entry[:media_type] == 'image'
+      { path: entry[:path], start_at: 0.0, duration: image_duration_seconds(clip), media_type: 'image' }
+    else
       start_at = timecode_to_seconds(clip['in_point'])
       duration = timecode_to_seconds(clip['out_point']) - start_at
-
-      { path: path, start_at: start_at.to_f, duration: duration.to_f }
+      { path: entry[:path], start_at: start_at.to_f, duration: duration.to_f, media_type: entry[:media_type] }
     end
+  end
+
+  # An image clip's on-timeline length: an explicit `duration` (HH:MM:SS.ss or a
+  # bare number of seconds), else the in/out span if both are given, else the
+  # default.
+  def image_duration_seconds(clip)
+    raw = clip['duration']
+    return raw.to_f if raw.is_a?(Numeric)
+    return timecode_to_seconds(raw).to_f if raw.is_a?(String) && !raw.strip.empty?
+
+    if clip['in_point'] && clip['out_point']
+      span = timecode_to_seconds(clip['out_point']) - timecode_to_seconds(clip['in_point'])
+      return span.to_f if span.positive?
+    end
+
+    DEFAULT_IMAGE_DURATION_SECONDS
   end
 
   # Accepts HH:MM:SS or HH:MM:SS.s

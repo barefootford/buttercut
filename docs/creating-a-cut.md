@@ -52,7 +52,3 @@ Every cut exports a timeline into `libraries/[library-name]/cuts/`:
 - **DaVinci Resolve** → `.xml`
 
 If you've enabled it, Claude can also drop a copy on your Desktop and open the file directly in your editor after export.
-
-## Direct XML generation
-
-To generate a timeline in Ruby without going through Claude, see [basic-xml-generation.md](basic-xml-generation.md).

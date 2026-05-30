@@ -17,7 +17,7 @@ ruby lib/buttercut/library.rb <library_name> <action> [args...]
 
 ## Fields and on-disk layout
 
-Completeness tracks three per-video fields. Each field's subdir, filename
+Completeness tracks three per-clip fields — only **video** needs all three; **audio** and **image** clips are complete with just a `summary` (see `ready` below). Each field's subdir, filename
 pattern, and orphan-sweep filter live in the `FIELDS` table at the top of
 `library.rb`:
 
@@ -55,7 +55,7 @@ user.
 
 `recent` is the right tool for "which library was the user most recently working on?" — it sees activity across `transcripts/`, `contact_sheets/`, `summaries/`, and `cuts/`, not just `library.yaml`. `list` is fine when you want the full set.
 
-`summary` is the snapshot to call when picking up a library — full metadata plus a clip-completion breakdown. `ready` is the one-shot pre-flight before building a cut: it's legacy-aware (a clip with `summary` + either `transcript` or `visual_transcript` counts as ready, even without a `contact_sheet`), so it doesn't block roughcut work on libraries that predate the contact-sheet pipeline. The roughcut sub-agent generates contact sheets on demand when it needs to see a clip.
+`summary` is the snapshot to call when picking up a library — full metadata plus a clip-completion breakdown (each incomplete entry carries its `media_type`). `ready` is the one-shot pre-flight before building a cut. It's media-type aware: a **video** clip needs `summary` + either `transcript` or `visual_transcript` (legacy), while **audio** and **image** clips need only a `summary` (they have no contact sheet, and audio's transcript is optional). `contact_sheet` is never required, so libraries predating the contact-sheet pipeline aren't blocked. The roughcut sub-agent generates contact sheets on demand when it needs to see a clip.
 
 Use `summary` when you want to look at *what's* missing; use `ready` when you only need a yes/no gate.
 
@@ -75,6 +75,8 @@ ruby lib/buttercut/library.rb <name> update_metadata transcript_refinement false
 library whose config was never filled in. `editor` is validated against
 `fcpx|premiere|resolve` and `transcript_refinement` is coerced to a real
 boolean.
+
+`add_videos` takes any footage — video, audio (`.mp3/.wav/.m4a/...`) or still images (`.jpg/.png/.heic/...`); each clip's `media_type` is inferred from its file extension, so you don't tag them by hand.
 
 ### Mark files done
 ```bash

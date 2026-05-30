@@ -11,6 +11,8 @@ module RotationMetadata
   # counter-clockwise — negate it. Returns degrees clockwise in 0..359, 0 when
   # there's no rotation metadata.
   def extract_rotation(stream)
+    return 0 if stream.nil? # audio clips have no video stream to rotate
+
     tag = stream.dig('tags', 'rotate') || stream.dig('tags', 'ROTATE')
     return normalize_rotation(tag.to_i) if tag
 

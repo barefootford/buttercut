@@ -35,11 +35,20 @@ Each entry in `clips:`
 
 | Field                | Format          | Notes |
 | -------------------- | --------------- | ----- |
-| `source_file`        | filename only   | Bare filename from the video's entry in `library.yaml` — no path. |
+| `source_file`        | filename only   | Bare filename from the clip's entry in `library.yaml` — no path. |
 | `in_point`           | `HH:MM:SS.ss`   | Start of the cut. Preserve sub-second precision (2.849s → `00:00:02.85`). |
 | `out_point`          | `HH:MM:SS.ss`   | End of the cut. Same precision rule. |
-| `dialogue`           | string          | Spoken words for the span; concatenate across transcript segments if the cut crosses them. Empty string when the clip is silent / B-roll. |
-| `visual_description` | string          | Shot description based on what the contact sheet shows for this range. Wrap in brackets to match template style. |
+| `duration`           | `HH:MM:SS.ss`   | **Images only.** How long the still sits on the timeline (defaults to 5s if omitted). Ignored for video/audio, which are trimmed with in/out. |
+| `dialogue`           | string          | Spoken words for the span; concatenate across transcript segments if the cut crosses them. Empty string when the clip is silent / B-roll / an image. |
+| `visual_description` | string          | Shot description based on what the contact sheet (video) or the summary (image) shows. Wrap in brackets to match template style. |
+
+## Media types on the single track
+
+A library clip can be **video**, **audio**, or an **image** (its `media_type` in `library.yaml`). All three live on the one track, in `clips:` order:
+
+- **video** — trim with `in_point`/`out_point` as usual.
+- **audio** (music/voiceover) — trim with `in_point`/`out_point` against the audio's own timeline. It occupies its own slot and plays only during that slot — there is no second track for audio *under* video.
+- **image** (still) — no in/out; give it a `duration` (or accept the 5s default). It shows on screen for that span.
 
 ## Timestamp format
 

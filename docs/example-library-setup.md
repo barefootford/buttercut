@@ -2,6 +2,8 @@
 
 This walkthrough shows a complete example of using ButterCut with Claude Code to analyze wedding footage. The entire process—from initial request to fully analyzed footage—happens in one conversation with automatic parallel processing.
 
+> This example library is all video. ButterCut also accepts audio (music/voiceover) and still images — they're added and analyzed the same way, each routed by its file type.
+
 ---
 
 ## The Conversation
@@ -14,7 +16,7 @@ I'll help you create a new library. Let me gather some information about your pr
 
 **Questions:**
 1. What would you like to name this library?
-2. Where are your video files located?
+2. Where is your footage located?
 3. What language is spoken in these videos?
 
 ### **User**
@@ -23,7 +25,7 @@ I'll help you create a new library. Let me gather some information about your pr
 ### **Claude**
 Perfect! The library will be named "wedding".
 
-Now, what is the directory path containing your video files?
+Now, what is the directory path containing your footage?
 
 ### **User**
 > /Users/andrew/Final Cuts/Wedding Camcorder Footage

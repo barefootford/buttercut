@@ -2,7 +2,7 @@ require 'spec_helper'
 
 RSpec.describe ButterCut::FCPX do
   let(:video_file_path) { File.expand_path('../fixtures/media/MVI_0323_720p.mov', __dir__) }
-  let(:clips) { [{ path: video_file_path }] }
+  let(:clips) { [{ path: video_file_path, media_type: 'video' }] }
   let(:gh5_video_path) { File.expand_path('../fixtures/media/P1044376_timecode_fixture.mov', __dir__) }
 
   def build_metadata(frame_rate:, duration_seconds:, width: 1280, height: 720, sample_rate: '48000', timecode: nil)
@@ -135,13 +135,21 @@ RSpec.describe ButterCut::FCPX do
     end
 
     it 'accepts absolute paths' do
-      expect { ButterCut::FCPX.new([{ path: video_file_path }]) }.not_to raise_error
-      expect { ButterCut::FCPX.new([{ path: video_file_path }, { path: video_file_path }]) }.not_to raise_error
+      expect { ButterCut::FCPX.new([{ path: video_file_path, media_type: 'video' }]) }.not_to raise_error
+      expect { ButterCut::FCPX.new([{ path: video_file_path, media_type: 'video' }, { path: video_file_path, media_type: 'video' }]) }.not_to raise_error
+    end
+
+    it 'raises error when a clip has no media_type' do
+      expect { ButterCut::FCPX.new([{ path: video_file_path }]) }.to raise_error(ArgumentError, /media_type/)
+    end
+
+    it 'raises error when a clip has an unknown media_type' do
+      expect { ButterCut::FCPX.new([{ path: video_file_path, media_type: 'gif' }]) }.to raise_error(ArgumentError, /media_type/)
     end
   end
 
   describe 'timecode-aware clips' do
-    let(:gh5_generator) { ButterCut::FCPX.new([{ path: gh5_video_path }]) }
+    let(:gh5_generator) { ButterCut::FCPX.new([{ path: gh5_video_path, media_type: 'video' }]) }
 
     it 'extracts embedded SMPTE timecode from camera metadata' do
       expect(gh5_generator.clip_timecode_string(gh5_video_path)).to eq('21:44:10:09')
@@ -168,7 +176,7 @@ RSpec.describe ButterCut::FCPX do
 
     it 'offsets trims relative to the embedded timecode' do
       trim = '1001/24000s' # exactly one frame at 23.976 fps
-      generator = ButterCut::FCPX.new([{ path: gh5_video_path, start_at: trim }])
+      generator = ButterCut::FCPX.new([{ path: gh5_video_path, start_at: trim, media_type: 'video' }])
       xml = generator.to_xml
 
       base_timecode = gh5_generator.clip_timecode_fraction(gh5_video_path)
@@ -203,12 +211,12 @@ RSpec.describe ButterCut::FCPX do
       end
 
       it 'converts drop-frame timecode into the correct fractional start' do
-        generator = ButterCut::FCPX.new([{ path: drop_frame_path }])
+        generator = ButterCut::FCPX.new([{ path: drop_frame_path, media_type: 'video' }])
         expect(generator.clip_timecode_fraction(drop_frame_path)).to eq('8999991/2500s')
       end
 
       it 'keeps asset and clip start attributes aligned to the drop-frame timecode' do
-        generator = ButterCut::FCPX.new([{ path: drop_frame_path }])
+        generator = ButterCut::FCPX.new([{ path: drop_frame_path, media_type: 'video' }])
         xml = generator.to_xml
         asset_id = asset_id_for(generator, drop_frame_path)
 
@@ -323,7 +331,7 @@ RSpec.describe ButterCut::FCPX do
 
   describe '#to_xml' do
     it 'generates valid FCPXML' do
-      generator = ButterCut::FCPX.new([{ path: video_file_path }])
+      generator = ButterCut::FCPX.new([{ path: video_file_path, media_type: 'video' }])
       xml = generator.to_xml
 
       expect(xml).to include('<?xml version="1.0" encoding="utf-8"?>')
@@ -332,7 +340,7 @@ RSpec.describe ButterCut::FCPX do
     end
 
     it 'includes start attribute on asset element (defaults to 0s for files without timecode)' do
-      generator = ButterCut::FCPX.new([{ path: video_file_path }])
+      generator = ButterCut::FCPX.new([{ path: video_file_path, media_type: 'video' }])
       xml = generator.to_xml
       asset_id = asset_id_for(generator, video_file_path)
       asset_uid = asset_uid_for(generator, video_file_path)
@@ -342,7 +350,7 @@ RSpec.describe ButterCut::FCPX do
     end
 
     it 'assigns deterministic asset uid values' do
-      generator = ButterCut::FCPX.new([{ path: video_file_path }])
+      generator = ButterCut::FCPX.new([{ path: video_file_path, media_type: 'video' }])
       xml = generator.to_xml
       asset_uid = asset_uid_for(generator, video_file_path)
 
@@ -350,7 +358,7 @@ RSpec.describe ButterCut::FCPX do
     end
 
     it 'includes basic FCPXML structure' do
-      generator = ButterCut::FCPX.new([{ path: video_file_path }])
+      generator = ButterCut::FCPX.new([{ path: video_file_path, media_type: 'video' }])
       xml = generator.to_xml
       asset_id = asset_id_for(generator, video_file_path)
       asset_uid = asset_uid_for(generator, video_file_path)
@@ -367,7 +375,7 @@ RSpec.describe ButterCut::FCPX do
     end
 
     it 'includes format specifications' do
-      generator = ButterCut::FCPX.new([{ path: video_file_path }])
+      generator = ButterCut::FCPX.new([{ path: video_file_path, media_type: 'video' }])
       xml = generator.to_xml
 
       # Uses actual metadata from video file
@@ -378,7 +386,7 @@ RSpec.describe ButterCut::FCPX do
     end
 
     it 'includes audio settings' do
-      generator = ButterCut::FCPX.new([{ path: video_file_path }])
+      generator = ButterCut::FCPX.new([{ path: video_file_path, media_type: 'video' }])
       xml = generator.to_xml
 
       expect(xml).to include('audioRate="48000"')
@@ -387,7 +395,7 @@ RSpec.describe ButterCut::FCPX do
     end
 
     it 'handles multiple video files' do
-      generator = ButterCut::FCPX.new([{ path: video_file_path }, { path: video_file_path }])
+      generator = ButterCut::FCPX.new([{ path: video_file_path, media_type: 'video' }, { path: video_file_path, media_type: 'video' }])
       xml = generator.to_xml
 
       # Should have one asset (deduplicated since it's the same file)
@@ -397,7 +405,7 @@ RSpec.describe ButterCut::FCPX do
     end
 
     it 'deduplicates same file used multiple times' do
-      generator = ButterCut::FCPX.new([{ path: video_file_path }, { path: video_file_path }])
+      generator = ButterCut::FCPX.new([{ path: video_file_path, media_type: 'video' }, { path: video_file_path, media_type: 'video' }])
       xml = generator.to_xml
 
       # Should have one asset (deduplicated)
@@ -408,18 +416,18 @@ RSpec.describe ButterCut::FCPX do
 
     it 'calculates correct sequence duration for multiple clips' do
       # Single clip: initial_offset (0s) + clip_duration = 29029/4800s
-      generator = ButterCut::FCPX.new([{ path: video_file_path }])
+      generator = ButterCut::FCPX.new([{ path: video_file_path, media_type: 'video' }])
       xml = generator.to_xml
       expect(xml).to include('sequence duration="29029/4800s"')
 
       # Two clips: 0s + 2*clip_duration = 29029/2400s
-      generator = ButterCut::FCPX.new([{ path: video_file_path }, { path: video_file_path }])
+      generator = ButterCut::FCPX.new([{ path: video_file_path, media_type: 'video' }, { path: video_file_path, media_type: 'video' }])
       xml = generator.to_xml
       expect(xml).to include('sequence duration="29029/2400s"')
     end
 
     it 'calculates correct offsets for sequential clips' do
-      generator = ButterCut::FCPX.new([{ path: video_file_path }, { path: video_file_path }])
+      generator = ButterCut::FCPX.new([{ path: video_file_path, media_type: 'video' }, { path: video_file_path, media_type: 'video' }])
       xml = generator.to_xml
 
       # First clip should have initial offset (0s)
@@ -433,7 +441,7 @@ RSpec.describe ButterCut::FCPX do
       # Asset duration is 29029/4800s (6.044 seconds)
       # If start_at is 48000/24000s (2 seconds), it gets rounded to nearest frame boundary: 1001/500s (48 frames)
       # Duration is then calculated as asset_duration - start_at_rounded and also rounded to frame boundary
-      generator = ButterCut::FCPX.new([{ path: video_file_path, start_at: '48000/24000s' }])
+      generator = ButterCut::FCPX.new([{ path: video_file_path, start_at: '48000/24000s', media_type: 'video' }])
       xml = generator.to_xml
 
       # start_at should be rounded to frame boundary (48 frames = 1001/500s)
@@ -468,8 +476,8 @@ RSpec.describe ButterCut::FCPX do
 
       it 'rounds trims using each asset frame duration before timeline placement' do
         generator = ButterCut::FCPX.new([
-          { path: clip_a_path },
-          { path: clip_b_path, start_at: '1001/30000s' }
+          { path: clip_a_path, media_type: 'video' },
+          { path: clip_b_path, start_at: '1001/30000s', media_type: 'video' }
         ])
 
         xml = generator.to_xml
@@ -493,7 +501,7 @@ RSpec.describe ButterCut::FCPX do
     end
 
     it 'matches the full-clip fixture output' do
-      generator = ButterCut::FCPX.new(media_paths.map { |path| { path: path } })
+      generator = ButterCut::FCPX.new(media_paths.map { |path| { path: path, media_type: 'video' } })
       stub_uuid_sequence(generator, uuid_sequence)
 
       xml = generator.to_xml
@@ -503,7 +511,7 @@ RSpec.describe ButterCut::FCPX do
     end
 
     it 'matches the last-second fixture output' do
-      metadata_generator = ButterCut::FCPX.new(media_paths.map { |path| { path: path } })
+      metadata_generator = ButterCut::FCPX.new(media_paths.map { |path| { path: path, media_type: 'video' } })
 
       last_second_clips = media_paths.map do |path|
         duration_seconds = metadata_generator.video_duration(path)
@@ -511,6 +519,7 @@ RSpec.describe ButterCut::FCPX do
 
         {
           path: path,
+          media_type: 'video',
           start_at: metadata_generator.seconds_to_fraction(start_seconds),
           duration: metadata_generator.seconds_to_fraction(1.0)
         }
@@ -534,7 +543,7 @@ RSpec.describe ButterCut::FCPX do
     end
 
     it 'saves XML to a file' do
-      generator = ButterCut::FCPX.new([{ path: video_file_path }])
+      generator = ButterCut::FCPX.new([{ path: video_file_path, media_type: 'video' }])
       generator.save(filename)
 
       expect(File.exist?(filename)).to be true
@@ -543,7 +552,7 @@ RSpec.describe ButterCut::FCPX do
     end
 
     it 'saves complete valid FCPXML' do
-      generator = ButterCut::FCPX.new([{ path: video_file_path }])
+      generator = ButterCut::FCPX.new([{ path: video_file_path, media_type: 'video' }])
       generator.save(filename)
 
       content = File.read(filename)

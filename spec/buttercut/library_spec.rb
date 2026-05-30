@@ -531,6 +531,98 @@ RSpec.describe Library do
     end
   end
 
+  describe '.detect_media_type' do
+    it 'classifies by file extension (case-insensitive)' do
+      expect(Library.detect_media_type('/x/song.mp3')).to eq('audio')
+      expect(Library.detect_media_type('/x/voice.WAV')).to eq('audio')
+      expect(Library.detect_media_type('/x/take.m4a')).to eq('audio')
+      expect(Library.detect_media_type('/x/photo.jpg')).to eq('image')
+      expect(Library.detect_media_type('/x/photo.HEIC')).to eq('image')
+      expect(Library.detect_media_type('/x/clip.mov')).to eq('video')
+      expect(Library.detect_media_type('/x/clip.mp4')).to eq('video')
+    end
+
+    it 'defaults unknown extensions to video' do
+      expect(Library.detect_media_type('/x/mystery.xyz')).to eq('video')
+    end
+  end
+
+  describe '.probe_duration' do
+    it 'synthesizes a default duration for images without probing ffprobe' do
+      # Returns the default even for a path that does not exist — proof it never
+      # shelled out to ffprobe (which would fail on a still and on a missing file).
+      expect(Library.probe_duration('/nonexistent/photo.jpg')).to eq(Library::IMAGE_DEFAULT_DURATION)
+    end
+  end
+
+  describe '#add_videos with audio and images' do
+    let(:audio) { File.join(@libraries_root, 'src', 'music.mp3') }
+    let(:image) { File.join(@libraries_root, 'src', 'photo.jpg') }
+    let(:video) { File.join(@libraries_root, 'src', 'clip.mov') }
+
+    before do
+      FileUtils.mkdir_p(File.join(@libraries_root, 'src'))
+      [audio, image, video].each { |p| FileUtils.touch(p) }
+      allow(Library).to receive(:probe_duration).and_return('00:00:08')
+      write_library(videos: [])
+    end
+
+    it 'stamps media_type on each entry from the file extension' do
+      Library.find(library_name).add_videos([video, audio, image])
+      stored = load_yaml['videos']
+      expect(stored.map { |v| [File.basename(v['path']), v['media_type']] }).to eq(
+        [['clip.mov', 'video'], ['music.mp3', 'audio'], ['photo.jpg', 'image']]
+      )
+    end
+  end
+
+  describe '#ready? with audio and images' do
+    it 'treats audio as ready on summary alone (no transcript or contact sheet)' do
+      write_library(videos: [video_entry('song.mp3', media_type: 'audio', summary: 'summary_song.md')])
+      expect(Library.find(library_name).ready?).to be(true)
+    end
+
+    it 'treats an image as ready on summary alone' do
+      write_library(videos: [video_entry('photo.jpg', media_type: 'image', summary: 'summary_photo.md')])
+      expect(Library.find(library_name).ready?).to be(true)
+    end
+
+    it 'is not ready when audio has no summary, even with a transcript' do
+      write_library(videos: [video_entry('song.mp3', media_type: 'audio', transcript: 'song.json')])
+      expect(Library.find(library_name).ready?).to be(false)
+    end
+
+    it 'applies the right rule per clip across a mixed library' do
+      write_library(videos: [
+                      video_entry('a.mov', media_type: 'video', transcript: 'a.json', summary: 'summary_a.md'),
+                      video_entry('song.mp3', media_type: 'audio', summary: 'summary_song.md'),
+                      video_entry('photo.jpg', media_type: 'image', summary: 'summary_photo.md')
+                    ])
+      expect(Library.find(library_name).ready?).to be(true)
+    end
+  end
+
+  describe '#incomplete_videos with audio and images' do
+    it 'requires only a summary for audio and images' do
+      write_library(videos: [
+                      video_entry('song.mp3', media_type: 'audio', summary: 'summary_song.md'),
+                      video_entry('photo.jpg', media_type: 'image', summary: 'summary_photo.md')
+                    ])
+      expect(Library.find(library_name).incomplete_videos).to eq([])
+    end
+
+    it 'flags only the missing summary, and surfaces media_type' do
+      write_library(videos: [
+                      video_entry('song.mp3', media_type: 'audio'),
+                      video_entry('photo.jpg', media_type: 'image')
+                    ])
+      result = Library.find(library_name).incomplete_videos
+      expect(result.map { |v| [v['filename'], v['media_type'], v['missing']] }).to eq(
+        [['song.mp3', 'audio', %w[summary]], ['photo.jpg', 'image', %w[summary]]]
+      )
+    end
+  end
+
   describe '#complete!' do
     before do
       write_library(videos: [video_entry('a.mov'), video_entry('b.mov'), video_entry('c.mov')])

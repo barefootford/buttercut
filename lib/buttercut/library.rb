@@ -39,7 +39,29 @@ class Library
     'transcript_refinement' => nil
   }.freeze
 
+  # A clip's media kind, inferred from its file extension. Audio and images are
+  # single-track citizens alongside video, but they skip the parts of the
+  # pipeline that assume frames or a soundtrack: audio has no frames (no contact
+  # sheet), images have no audio and no intrinsic duration. Anything not matched
+  # here is treated as 'video' — the original, default kind.
+  AUDIO_EXTS = %w[.mp3 .wav .m4a .aac .flac .ogg].freeze
+  IMAGE_EXTS = %w[.jpg .jpeg .png .heic .heif .gif .bmp .webp].freeze
+
+  # Stills have no duration of their own; give them a default on-timeline length
+  # at import. Overridable per-image when building a cut.
+  IMAGE_DEFAULT_DURATION = '00:00:05'
+
   def self.find(library_name) = new(library_name)
+
+  # Classify a clip by extension. Cheap and deterministic — no ffprobe needed,
+  # which also avoids probing a still for a video stream it reports oddly.
+  def self.detect_media_type(path)
+    ext = File.extname(path.to_s).downcase
+    return 'image' if IMAGE_EXTS.include?(ext)
+    return 'audio' if AUDIO_EXTS.include?(ext)
+
+    'video'
+  end
 
   def self.exists?(library_name)
     return false if library_name.to_s.strip.empty?
@@ -113,9 +135,11 @@ class Library
     expanded = File.expand_path(path)
     raise ArgumentError, "video file not found: #{expanded}" unless File.exist?(expanded)
 
+    media_type = detect_media_type(expanded)
     {
       'path' => expanded,
-      'duration' => probe_duration(expanded),
+      'media_type' => media_type,
+      'duration' => probe_duration(expanded, media_type: media_type),
       'transcript' => '',
       'contact_sheet' => '',
       'summary' => ''
@@ -127,7 +151,14 @@ class Library
   # the `videos` reader all agree on what a clip is called.
   def self.filename_of(video) = File.basename(video['path'].to_s)
 
-  def self.probe_duration(path)
+  # Images have no duration to probe — ffprobe reports `N/A`, which the old
+  # `Float()` turned into a hard crash on add. Synthesize the default still
+  # length instead. Audio and video probe normally (both carry a real duration).
+  def self.probe_duration(path, media_type: nil)
+    media_type ||= detect_media_type(path)
+    return IMAGE_DEFAULT_DURATION if media_type == 'image'
+
+
     output = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 #{Shellwords.escape(path)} 2>&1`
     raise ArgumentError, "ffprobe failed for #{path}: #{output.strip}" unless $CHILD_STATUS.success?
 
@@ -310,11 +341,12 @@ class Library
     self
   end
 
-  # True when every video is ready for roughcut work under either pipeline.
-  # Current: transcript + summary. Legacy: visual_transcript + summary.
-  # `contact_sheet` is intentionally not required — new libraries always have
-  # them, and the roughcut sub-agent can generate sheets on demand for legacy
-  # libraries when it needs to "see" a clip.
+  # True when every clip is ready for cut work, judged per media type (see
+  # `clip_ready?`). Video: summary + a transcript (current or legacy visual).
+  # Audio/image: summary alone — they have no contact sheet, and audio's
+  # transcript is optional (music has no speech). `contact_sheet` is never
+  # required: new video libraries always have them, and the cut sub-agent can
+  # generate sheets on demand for legacy libraries.
   #
   # Raises if a legacy `roughcuts/` directory is still present — the cut skill
   # writes to `cuts/`, so building anything before migration would scatter
@@ -330,9 +362,7 @@ class Library
     vids = videos
     return false if vids.empty?
 
-    vids.all? do |v|
-      present?(v['summary']) && (present?(v['transcript']) || present?(v['visual_transcript']))
-    end
+    vids.all? { |v| clip_ready?(v) }
   end
 
   def incomplete_videos = incomplete_from(videos)
@@ -398,7 +428,7 @@ class Library
 
   def incomplete_from(vids)
     vids.filter_map do |video|
-      missing = FIELDS.keys.reject { |f| present?(video[f]) }
+      missing = required_fields_for(video).reject { |f| present?(video[f]) }
       next if missing.empty?
 
       clip_record(video).merge('missing' => missing)
@@ -412,9 +442,33 @@ class Library
     {
       'filename' => self.class.filename_of(video),
       'path' => video['path'],
+      'media_type' => media_type_of(video),
       'duration' => video['duration']
     }
   end
+
+  # Audio and images are fully analyzed with only a summary: no contact sheet
+  # (no frames), and audio's transcript is optional (music has no speech). Video
+  # needs the full pipeline. The audio/image-vs-video split lives here alone so
+  # the readiness gate and the completeness report below can't drift apart.
+  def summary_only?(video) = %w[audio image].include?(media_type_of(video))
+
+  # Per-clip readiness, media-type aware. Video also accepts a legacy
+  # `visual_transcript` in place of `transcript`. nil media_type (an un-migrated
+  # legacy clip) is video — preserves the original gate exactly.
+  def clip_ready?(video)
+    return present?(video['summary']) if summary_only?(video)
+
+    present?(video['summary']) && (present?(video['transcript']) || present?(video['visual_transcript']))
+  end
+
+  # Fields that must be present for a clip to count as fully analyzed; drives
+  # `incomplete_videos`/`summary` reporting. Audio/image need only a summary,
+  # video the full set.
+  def required_fields_for(video) = summary_only?(video) ? %w[summary] : FIELDS.keys
+
+  def media_type_of(video) = video['media_type'] || 'video'
+
 
   def reset_field!(field)
     spec = field_spec(field)

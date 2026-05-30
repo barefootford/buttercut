@@ -14,6 +14,26 @@ class ButterCut
     DEFAULT_INITIAL_OFFSET = "0s"
     DEFAULT_VOLUME_ADJUSTMENT = "-13.100000000000001db"
 
+    # Fallbacks for clips that lack a stream the timeline math expects: audio
+    # files have no video stream (no dimensions/frame rate), images have no
+    # audio stream. The values are only ever used to keep the fraction math and
+    # the sequence-format header well-formed — they never override a real clip's
+    # own metadata, and an audio/image clip emits no element that reads them.
+    DEFAULT_WIDTH = 1920
+    DEFAULT_HEIGHT = 1080
+    DEFAULT_FRAME_RATE = "30/1"
+    DEFAULT_SAMPLE_RATE = "48000"
+
+    # Stills have no source duration of their own; FCP7/FCPXML treat them as
+    # effectively unbounded media. Give an image asset a generous source
+    # duration so any chosen on-timeline length fits inside it.
+    IMAGE_ASSET_DURATION_SECONDS = 3600
+
+    # The media kinds a clip may declare. The exporter (the only caller) stamps
+    # one on every clip from library.yaml, and the constructor requires it — so
+    # the generators read the kind directly instead of guessing a default.
+    MEDIA_TYPES = %w[video audio image].freeze
+
     attr_reader :clips, :initial_offset, :volume_adjustment
 
     def initialize(clips)
@@ -32,6 +52,12 @@ class ButterCut
       unless relative_paths.empty?
         paths = relative_paths.map { |clip| clip[:path] }.join(', ')
         raise ArgumentError, "All video file paths must be absolute paths. Relative paths found: #{paths}"
+      end
+
+      clips.each_with_index do |clip, index|
+        next if MEDIA_TYPES.include?(clip[:media_type])
+
+        raise ArgumentError, "Clip at index #{index} must have a media_type of #{MEDIA_TYPES.join(', ')}, got #{clip[:media_type].inspect}"
       end
 
       @clips = clips
@@ -65,12 +91,16 @@ class ButterCut
       extract_metadata(video_path)['streams'].find { |s| s['codec_type'] == 'audio' }
     end
 
+    # A clip's media kind (video|audio|image). The constructor requires every
+    # clip to declare one, so this is a plain read with no default to guess.
+    def clip_kind(clip) = clip[:media_type]
+
     def video_width(video_path)
-      video_stream(video_path)['width']
+      video_stream(video_path)&.dig('width') || DEFAULT_WIDTH
     end
 
     def video_height(video_path)
-      video_stream(video_path)['height']
+      video_stream(video_path)&.dig('height') || DEFAULT_HEIGHT
     end
 
     # Degrees clockwise (0/90/180/270) the source must be rotated to display upright,
@@ -85,7 +115,12 @@ class ButterCut
     end
 
     def frame_rate(video_path)
-      video_stream(video_path)['r_frame_rate']
+      rate = video_stream(video_path)&.dig('r_frame_rate')
+      # No stream, or a degenerate rate (stills can report "0/0" or "N/D"): use a
+      # sane fallback so the fraction math downstream never divides by zero.
+      return DEFAULT_FRAME_RATE if rate.nil? || rate.start_with?('0/') || rate.end_with?('/0')
+
+      rate
     end
 
     def frame_duration(video_path)
@@ -95,7 +130,7 @@ class ButterCut
     end
 
     def audio_sample_rate(video_path)
-      audio_stream(video_path)['sample_rate']
+      audio_stream(video_path)&.dig('sample_rate') || DEFAULT_SAMPLE_RATE
     end
 
     def nominal_frame_rate(video_path)
@@ -206,32 +241,43 @@ class ButterCut
       "#{duration_num / divisor}/#{duration_denom / divisor}s"
     end
 
+    # The clip whose metadata defines the sequence format. Prefer a real video
+    # clip; fall back to an image (a stills-only timeline still needs real
+    # dimensions); finally the first clip (an all-audio timeline, where the
+    # dimensions are a harmless placeholder no one sees).
+    def format_source_path
+      @format_source_path ||=
+        (@clips.find { |c| clip_kind(c) == 'video' } ||
+         @clips.find { |c| clip_kind(c) == 'image' } ||
+         @clips.first)[:path]
+    end
+
     def format_width
-      video_width(@clips.first[:path])
+      video_width(format_source_path)
     end
 
     def format_height
-      video_height(@clips.first[:path])
+      video_height(format_source_path)
     end
 
     def format_frame_duration
-      frame_duration(@clips.first[:path])
+      frame_duration(format_source_path)
     end
 
     def format_frame_rate
-      frame_rate(@clips.first[:path])
+      frame_rate(format_source_path)
     end
 
     def format_nominal_frame_rate
-      nominal_frame_rate(@clips.first[:path])
+      nominal_frame_rate(format_source_path)
     end
 
     def format_color_space
-      color_space(@clips.first[:path])
+      color_space(format_source_path)
     end
 
     def format_audio_rate
-      audio_sample_rate(@clips.first[:path])
+      audio_sample_rate(format_source_path)
     end
 
     # Greatest Common Divisor (GCD): the largest whole number that divides two
@@ -358,6 +404,7 @@ class ButterCut
         abs_path = get_absolute_path(video_file_path)
         next if file_to_asset.key?(abs_path)
 
+        kind = clip_kind(clip_def)
         asset_id = deterministic_asset_id(abs_path)
         asset_uid = deterministic_asset_uid(abs_path)
         filename = get_filename(video_file_path)
@@ -370,7 +417,9 @@ class ButterCut
           filename: filename,
           basename: get_basename(filename),
           file_url: file_url,
-          asset_duration: duration_to_fraction(video_file_path),
+          has_video: kind != 'audio',
+          has_audio: kind != 'image',
+          asset_duration: asset_duration_fraction(video_file_path, kind),
           audio_rate: audio_sample_rate(video_file_path),
           timecode: clip_timecode_fraction(video_file_path),
           frame_duration: frame_duration(video_file_path),
@@ -382,6 +431,15 @@ class ButterCut
         }
       end
       file_to_asset
+    end
+
+    # A still has no source duration of its own (`video_duration` reads 0), so
+    # give it a bounded placeholder that comfortably exceeds any on-timeline
+    # length. Video and audio carry a real duration.
+    def asset_duration_fraction(path, kind)
+      return seconds_to_fraction(IMAGE_ASSET_DURATION_SECONDS) if kind == 'image'
+
+      duration_to_fraction(path)
     end
 
     def build_timeline_clips(asset_map, timeline_frame_duration)

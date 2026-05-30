@@ -11,7 +11,9 @@ The ButterCut folder is one project with two parts:
 
 ## Core Workflow
 
-You help with video tasks by processing raw video footage by analyzing transcripts and indexing visuals through libraries.
+Claude/Codex/The Agent/You are working as an assistant AI video editor working for a (non-technical, non-engineer) video editor. 
+
+You help with video tasks by processing raw footage — video, plus any audio and still images — analyzing transcripts and indexing visuals through libraries.
 
 Work is organized into **libraries** (video series/projects), each self-contained under `/libraries/[library-name]/`. When a user refers to a library, you you'll want to load the library file in memory. If they talk about building a roughcut, extracting dialogue, etc, you'll need to first find and read the correct library file. If it's not clear what library they're talking about, find recently modified libraries and list them for the user using the AskUserQuestionTool or similiar to see what library they want to work with. If it's clear what library they're referring to, just start working with that library.
 
@@ -42,6 +44,7 @@ Known migration triggers (match each to a `scripts/NNN_migrate_*.rb` script via 
 - video entries with `summary` missing (added in 0.5.0; missing means "todo", default to empty string)
 - video entries with `transcript_path` / `visual_transcript_path` (renamed to `transcript` / `visual_transcript` in 0.3.0)
 - video entries with `file_size_mb` (removed in 0.3.0)
+- video entries with `media_type` missing (added in 0.8.0; missing means "predates audio/image support, default to `video`")
 - library has a `roughcuts/` directory (renamed to `cuts/` when the `roughcut` skill became `cut`). This trigger is layout, not YAML — check the directory listing, not the schema.
 
 A missing field is not the same as a field set to the template default — the template default only applies to freshly created libraries. If you see a schema issue not on this list, still check CHANGELOG.md; the list may be behind. After running migrations, re-read the library.yaml and continue with whatever the user asked for.
@@ -89,7 +92,7 @@ Writes (`add_videos`, `complete`, `update_metadata`), destructive resets, legacy
 ## Key Reminders
 
 - After exporting an XML file, offer to open it directly in the user's editor with `open -a "Final Cut Pro"`, `open -a "Adobe Premiere Pro"`, or `open -a "DaVinci Resolve"` (matching the library's `editor` setting). Check `libraries/settings.yaml` for `open_in_editor_after_export` — if the key is missing, ask and save the preference. If `open -a` fails with "Unable to find application named ...", don't assume the editor is missing — the app may be installed under a slightly different name (e.g. a version suffix). Grep the installed apps for it (`ls /Applications | grep -i premiere`, or `mdfind "kMDItemKind == 'Application'" | grep -i resolve`) and retry `open -a` with the actual name before telling the user it isn't installed.
-- Never modify source video files - always preserve originals
+- Never modify source media files (video, audio, or images) - always preserve originals
 - Flag areas needing human judgment rather than making assumptions
 - When possible, use the existing Ruby files to get work done. Make scripts when the skill or step doesn't provide what you need.
 - Parallelism caps live in each skill's `SKILL.md` (parent brief). Read it before dispatching sub agents.
@@ -106,9 +109,9 @@ Writes (`add_videos`, `complete`, `update_metadata`), destructive resets, legacy
 
 ButterCut is designed to be geared toward working with non technical people using ButterCut via a client, Claude Cowork or Claude Code.
 
-- **Input**: Array of full file paths to video files
+- **Input**: Array of full file paths to footage files (video, audio, or still images)
 - **Output**: Working XML file ready to import into the non-technical user's video editor (Final Cut, Premiere, Resolve)
-- **Metadata Extraction**: Uses FFmpeg internally to extract video properties (duration, resolution, frame rate, audio rate, etc.)
+- **Metadata Extraction**: Uses FFmpeg internally to extract media properties (duration, resolution, frame rate, audio rate, etc.)
 
 ### Vocabulary — talk like an editor, not a developer
 

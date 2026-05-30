@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Audio and image footage (single-track).** Libraries can now import audio files (`.mp3/.wav/.m4a/.aac/.flac/.ogg`) and still images (`.jpg/.png/.heic/...`) alongside video. A new per-clip `media_type` field (`video | audio | image`, inferred from the file extension at add time) routes each clip through the right analysis: audio gets a transcript + summary (no contact sheet), images get a summary written from the image itself (no transcript, no contact sheet), video is unchanged. All three export onto the single timeline track in Final Cut, Premiere, and Resolve — audio clips emit an audio-only element, stills emit a video-only element with a default 5s duration (overridable per-clip in the cut). Staying single-track, a music/voiceover clip plays only during its own slot; there is no second track for music *under* video.
+- **Daily update-check gate in the `Library` CLI.** Library commands now check a gitignored `last_buttercut_update_check` stamp first; once a day they raise `UpdateCheckNeeded`, surfaced as a `library:` error that tells the agent to check for a newer ButterCut and offer to update.
+
+### Migration
+- **`media_type` added to every clip (0.8.0).** Existing video entries are stamped `media_type: video`. Run:
+  ```bash
+  ruby lib/buttercut/library.rb migrate
+  ```
+
 ## [0.7.2] - 2026-06-02
 
 Processing your footage now uses less of your account, your Mac stays awake while it works, and we've fixed a bug in Premiere files so vertical clips export to Premiere right side up.

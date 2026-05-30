@@ -14,9 +14,15 @@ footage_summary: "No footage analyzed yet."
 # "This footage appears to be wedding footage. It includes the bride and groom getting dressed, preparing for the wedding ceremomy, the ceremony, and the post ceremony dinner and party."
 # "This footage appears to be a vlog. The footage starts in The Richmond District in San Francisco, includes a bus ride on the 38R, and concludes at a Ruby Meetup in downtown San Francisco."
 
-# Video files and analysis status
+# Footage files and analysis status
 #
-# Per clip, analysis fills three fields:
+# media_type is one of: video | audio | image (inferred from the file extension
+# at add time). It decides which analysis a clip gets:
+#   video  — transcript + contact_sheet + summary (the full pipeline)
+#   audio  — transcript + summary (no contact_sheet; music/voiceover)
+#   image  — summary only (a still; no transcript, no contact_sheet)
+#
+# Per clip, analysis fills these fields:
 #   transcript     — audio transcript JSON (word-level timing, in transcripts/);
 #                    also the source for on-demand dialogue extraction via
 #                    lib/buttercut/script_extractor.rb
@@ -28,6 +34,7 @@ footage_summary: "No footage analyzed yet."
 # field; new libraries use the contact_sheet field instead.
 videos:
   - path: /full/path/to/video_file.mp4
+    media_type: video # video | audio | image (from the file extension)
     duration: "00:05:32"
     transcript: # filename only (stored in libraries/[library-name]/transcripts/)
     contact_sheet: # filename only (_full.jpg in libraries/[library-name]/contact_sheets/)

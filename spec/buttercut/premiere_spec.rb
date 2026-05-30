@@ -59,7 +59,7 @@ RSpec.describe ButterCut::Premiere do
 
   describe '#to_xml' do
     it 'writes a Basic Motion rotation filter for a rotated source clip' do
-      xml = described_class.new([{ path: rotated_clip_path }]).to_xml
+      xml = described_class.new([{ path: rotated_clip_path, media_type: 'video' }]).to_xml
 
       expect(xml).to include('<name>Basic Motion</name>')
       # A -90 display-matrix source must turn +90 clockwise to display upright.
@@ -67,13 +67,13 @@ RSpec.describe ButterCut::Premiere do
     end
 
     it 'does not add a rotation filter to footage that is already upright' do
-      xml = described_class.new([{ path: upright_clip_path }]).to_xml
+      xml = described_class.new([{ path: upright_clip_path, media_type: 'video' }]).to_xml
 
       expect(xml).not_to include('<parameterid>rotation</parameterid>')
     end
 
     it 'writes the rotation the short way around for a 270-degree source' do
-      xml = described_class.new([{ path: cw_rotated_clip_path }]).to_xml
+      xml = described_class.new([{ path: cw_rotated_clip_path, media_type: 'video' }]).to_xml
 
       expect(xml).to match(%r{<parameterid>rotation</parameterid>.*?<value>-90</value>}m)
     end
@@ -82,7 +82,7 @@ RSpec.describe ButterCut::Premiere do
     # quarter-turn source must yield a portrait timeline (stored 3840x2160 swapped
     # to 2160x3840) rather than a landscape one the rotated footage can't fill.
     it 'swaps the sequence dimensions to portrait for quarter-turn footage' do
-      xml = described_class.new([{ path: rotated_clip_path }]).to_xml
+      xml = described_class.new([{ path: rotated_clip_path, media_type: 'video' }]).to_xml
       format = xml[%r{<format>.*?</format>}m]
 
       expect(format).to include('<width>2160</width>')
@@ -90,7 +90,7 @@ RSpec.describe ButterCut::Premiere do
     end
 
     it 'leaves the sequence dimensions landscape for upright footage' do
-      xml = described_class.new([{ path: upright_clip_path }]).to_xml
+      xml = described_class.new([{ path: upright_clip_path, media_type: 'video' }]).to_xml
       format = xml[%r{<format>.*?</format>}m]
 
       expect(format).to include('<width>1920</width>')
@@ -104,9 +104,9 @@ RSpec.describe ButterCut::Premiere do
   describe 'a timeline mixing rotated and upright clips' do
     let(:xml) do
       described_class.new([
-        { path: rotated_clip_path },    # -90 source -> +90 cw
-        { path: upright_clip_path },    # no rotation
-        { path: cw_rotated_clip_path }  # +90 source -> 270, written the short way as -90
+        { path: rotated_clip_path, media_type: 'video' },    # -90 source -> +90 cw
+        { path: upright_clip_path, media_type: 'video' },    # no rotation
+        { path: cw_rotated_clip_path, media_type: 'video' }  # +90 source -> 270, written the short way as -90
       ]).to_xml
     end
     let(:doc) { Nokogiri::XML(xml) }
@@ -146,7 +146,7 @@ RSpec.describe ButterCut::Premiere do
   # double-rotated Resolve.
   describe 'Resolve output is left unchanged' do
     it 'emits no rotation filter for the same rotated clip' do
-      xml = ButterCut::Resolve.new([{ path: rotated_clip_path }]).to_xml
+      xml = ButterCut::Resolve.new([{ path: rotated_clip_path, media_type: 'video' }]).to_xml
 
       expect(xml).not_to include('<parameterid>rotation</parameterid>')
       expect(xml).not_to include('<name>Basic Motion</name>')

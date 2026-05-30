@@ -4,7 +4,7 @@ RSpec.describe 'VideoMetadata' do
   let(:video_path) { File.expand_path('./fixtures/media/MVI_0323_720p.mov', __dir__) }
 
   describe 'metadata extraction' do
-    let(:generator) { ButterCut.new([{ path: video_path }], editor: :fcpx) }
+    let(:generator) { ButterCut.new([{ path: video_path, media_type: 'video' }], editor: :fcpx) }
 
     describe '#extract_metadata' do
       it 'extracts metadata from video file using ffprobe' do

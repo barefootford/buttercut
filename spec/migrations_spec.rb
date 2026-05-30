@@ -718,6 +718,154 @@ RSpec.describe 'Migration scripts' do
     end
   end
 
+  # ─── 005: add media_type to video entries ───
+
+  describe '005_migrate_add_media_type' do
+    before(:context) { load File.expand_path('../scripts/005_migrate_add_media_type.rb', __dir__) }
+
+    def migrate(name = 'test-lib')
+      migrate_library(library_yaml_path(name))
+    end
+
+    it 'inserts media_type: video into each entry that lacks it' do
+      write_yaml(<<~YAML)
+        library_name: test-lib
+        videos:
+          - path: /tmp/a.mov
+            duration: "00:05:00"
+            transcript: a.json
+          - path: /tmp/b.mov
+            duration: "00:03:00"
+      YAML
+
+      expect(migrate).to be true
+      expect(read_yaml['videos'].map { |v| v['media_type'] }).to eq(%w[video video])
+    end
+
+    it 'places media_type on the line immediately after path:' do
+      write_yaml(<<~YAML)
+        library_name: test-lib
+        videos:
+          - path: /tmp/a.mov
+            duration: "00:05:00"
+      YAML
+
+      migrate
+      lines = read_raw.lines
+      path_idx = lines.index { |l| l.include?('path: /tmp/a.mov') }
+      expect(lines[path_idx + 1].strip).to eq('media_type: video')
+    end
+
+    it 'is idempotent — skips when every entry already has media_type' do
+      write_yaml(<<~YAML)
+        library_name: test-lib
+        videos:
+          - path: /tmp/a.mov
+            media_type: video
+            duration: "00:05:00"
+      YAML
+
+      expect(migrate).to be false
+    end
+
+    it 'stamps only the entries missing it and preserves existing values' do
+      write_yaml(<<~YAML)
+        library_name: test-lib
+        videos:
+          - path: /tmp/a.mp3
+            media_type: audio
+            duration: "00:05:00"
+          - path: /tmp/b.mov
+            duration: "00:03:00"
+      YAML
+
+      expect(migrate).to be true
+      videos = read_yaml['videos']
+      expect(videos[0]['media_type']).to eq('audio') # preserved
+      expect(videos[1]['media_type']).to eq('video') # stamped
+    end
+
+    it 'returns false when videos is an empty array' do
+      write_yaml("library_name: test-lib\nvideos: []\n")
+      expect(migrate).to be false
+    end
+
+    it 'returns false when there are no videos' do
+      write_yaml("library_name: test-lib\n")
+      expect(migrate).to be false
+    end
+
+    it 'returns false for a missing file' do
+      expect(migrate_library('/nonexistent/library.yaml')).to be false
+    end
+
+    it 'preserves quote styles and other fields (textual edit)' do
+      write_yaml(<<~YAML)
+        library_name: test-lib
+        user_context: "The tall guy is Andrew"
+        footage_summary: "Café — château"
+        videos:
+          - path: /tmp/a.mov
+            duration: "00:05:00"
+      YAML
+
+      migrate
+      raw = read_raw
+      expect(raw).to include('"The tall guy is Andrew"')
+      expect(raw).to include('"Café — château"')
+    end
+
+    it 'produces valid YAML after insertion' do
+      write_yaml(<<~YAML)
+        library_name: test-lib
+        videos:
+          - path: /tmp/a.mov
+            duration: "00:05:00"
+            transcript: a.json
+      YAML
+
+      migrate
+      expect(read_yaml['videos'].first).to include('media_type' => 'video', 'transcript' => 'a.json')
+    end
+
+    it 'stamps an entry whose path is not the first key' do
+      write_yaml(<<~YAML)
+        library_name: test-lib
+        videos:
+          - path: /tmp/a.mov
+            duration: "00:05:00"
+          - duration: "00:03:00"
+            path: /tmp/b.mov
+            transcript: b.json
+      YAML
+
+      expect(migrate).to be true
+      videos = read_yaml['videos']
+      expect(videos.map { |v| v['media_type'] }).to eq(%w[video video])
+      expect(videos[1]).to include('path' => '/tmp/b.mov', 'transcript' => 'b.json')
+    end
+
+    it 'does not corrupt a multi-line user_context that contains "- path:" lines' do
+      write_yaml(<<~YAML)
+        library_name: test-lib
+        user_context: |-
+          Two shoots. Source folders:
+          - path: /Volumes/SSD/shoot1
+          - path: /Volumes/SSD/shoot2
+        videos:
+          - path: /tmp/a.mov
+            duration: "00:05:00"
+      YAML
+
+      expect(migrate).to be true
+      data = read_yaml
+      expect(data['user_context'])
+        .to eq("Two shoots. Source folders:\n- path: /Volumes/SSD/shoot1\n- path: /Volumes/SSD/shoot2")
+      expect(data['videos'].size).to eq(1)
+      expect(data['videos'].first['media_type']).to eq('video')
+    end
+  end
+
   # ─── migrate_all.rb orchestrator ───
 
   describe 'migrate_all' do
@@ -732,13 +880,14 @@ RSpec.describe 'Migration scripts' do
         expect(output).to include('002_migrate_add_transcript_refinement.rb')
         expect(output).to include('003_migrate_add_summary.rb')
         expect(output).to include('004_migrate_roughcuts_to_cuts.rb')
+        expect(output).to include('005_migrate_add_media_type.rb')
       end
     end
 
     it 'runs scripts in numeric order' do
       Dir.chdir(repo_root) do
         output = `ruby #{script_path} 2>&1`
-        positions = %w[001 002 003 004].map { |n| output.index(n) }
+        positions = %w[001 002 003 004 005].map { |n| output.index(n) }
         expect(positions).to eq(positions.sort)
       end
     end

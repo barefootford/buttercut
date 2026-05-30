@@ -15,11 +15,11 @@ class ButterCut
     # source gives a portrait timeline (the stored landscape dimensions swapped) rather than
     # a landscape one the rotated footage can't fill.
     def format_width
-      quarter_turn?(@clips.first[:path]) ? video_height(@clips.first[:path]) : super
+      quarter_turn?(format_source_path) ? video_height(format_source_path) : super
     end
 
     def format_height
-      quarter_turn?(@clips.first[:path]) ? video_width(@clips.first[:path]) : super
+      quarter_turn?(format_source_path) ? video_width(format_source_path) : super
     end
 
     private

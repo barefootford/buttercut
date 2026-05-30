@@ -14,6 +14,16 @@ This is the main thread's playbook for the **Analyze Video** workflow step. Run 
 - **User-facing:** call it "footage analysis" or "analyzing footage."
 - **Internal/file names:** "transcription" (library.yaml field `transcript`, etc.).
 
+## Media types
+
+Each clip has a `media_type` (`video | audio | image`) — read it from `summary`/`incomplete_videos` JSON. It decides which steps run:
+
+- **video** — all three steps (transcript + contact sheet + summary). Status quo.
+- **audio** (music/voiceover) — transcript + summary. **No contact sheet** (no frames). The summary is written from the transcript.
+- **image** (still) — summary only. **No transcript, no contact sheet.** The summary sub-agent reads the image file directly.
+
+"Ready" reflects this: audio and images need only a `summary`. Don't try to contact-sheet an audio file or transcribe an image — the steps below already route by kind.
+
 ## Prerequisites
 
 - Library setup is complete (`library.yaml` exists, schema is current — run migrations from AGENTS.md if not).
@@ -103,11 +113,15 @@ Dispatch `analyze-video` sub-agents on the **Sonnet model**. Sonnet reads the co
 
 For each sub-agent, pass a list of 10 clip records inline. Each clip record needs:
 
-- `video_filename` — basename of the video (used in the summary header and reply line)
+- `media_type` — `video`, `audio`, or `image`; tells the sub-agent which inputs it has and how to write the summary
+- `video_filename` — basename of the clip (used in the summary header and reply line)
 - `duration` — duration string from library.yaml (e.g. `00:01:19`); the agent renders it in the summary header
-- `contact_sheet_path` — absolute path to the `_full.jpg` (from step 2)
-- `transcript_path` — absolute path to the audio transcript JSON (from step 2); the sub-agent extracts dialogue on demand via `script_extractor.rb`
+- `contact_sheet_path` — absolute path to the `_full.jpg` (from step 2). **video only** — omit for audio/image.
+- `transcript_path` — absolute path to the audio transcript JSON (from step 2); the sub-agent extracts dialogue on demand via `script_extractor.rb`. **video and audio only** — omit for image.
+- `source_path` — absolute path to the original media file. **image only** — the sub-agent reads the image directly to describe it.
 - `summary_output_path` — absolute path where the agent should write the summary markdown. Don't hand-build this filename; ask the library for the canonical path: `ruby lib/buttercut/library.rb <name> field_path summary <clip>` (handles the `summaries/summary_<clip>.md` convention for you, with or without the file extension)
+
+Batch by media type when convenient — but the sub-agent branches on each record's `media_type`, so mixed batches are fine.
 
 As each sub-agent returns its batch, update library.yaml with `summary` for every clip in that batch:
 

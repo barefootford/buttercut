@@ -41,12 +41,18 @@ class FootageProcessor
     validate_clips!
   end
 
+  # Media kinds each step can actually process. Transcription reads an audio
+  # track, so it skips images (no audio); contact sheets extract frames, so they
+  # run on video only. A clip's media_type is threaded through its clip_record.
+  TRANSCRIBABLE = %w[video audio].freeze
+  CONTACT_SHEETABLE = %w[video].freeze
+
   # Transcribe every candidate clip with WhisperX. Returns true if all succeeded.
   def transcribe
     code = language_code(@library.language)
     model = settings.whisper_model
     output_dir = File.join(@library.dir, 'transcripts')
-    jobs = candidates('transcript').map do |clip|
+    jobs = candidates('transcript', media_types: TRANSCRIBABLE).map do |clip|
       TranscribeJob.new(
         library_name: @library.name, clip: clip['filename'],
         video_path: clip['path'], output_dir: output_dir,
@@ -58,7 +64,7 @@ class FootageProcessor
 
   # Build a contact sheet for every candidate clip. Returns true if all succeeded.
   def build_contact_sheets
-    jobs = candidates('contact_sheet').map do |clip|
+    jobs = candidates('contact_sheet', media_types: CONTACT_SHEETABLE).map do |clip|
       ContactSheetJob.new(
         library_name: @library.name, clip: clip['filename'],
         video_path: clip['path'], duration: clip['duration'], library_dir: @library.dir
@@ -86,9 +92,12 @@ class FootageProcessor
 
   # Clips to (re)process for one field. Default: only those still missing the
   # artifact. With --force: every clip, so existing artifacts get rebuilt.
-  # --clips narrows either set to the named clips.
-  def candidates(field)
+  # --clips narrows either set to the named clips. media_types restricts to the
+  # kinds the step can handle (e.g. no transcript for images), so audio/image
+  # clips never get fed to a step built for the wrong media.
+  def candidates(field, media_types:)
     records = @force ? @library.clip_records : @library.pending(field)
+    records = records.select { |r| media_types.include?(r['media_type'] || 'video') }
     return records unless @clips
 
     records.select { |r| @clips.include?(r['filename']) }

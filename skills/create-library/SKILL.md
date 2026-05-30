@@ -45,10 +45,12 @@ Ask the user these questions one at a time — never all at once.
    - Examples: "bike-locking-video-series", "raiders-2025-highlights", "yo-yo-techniques"
    - Normalize the name: replace spaces with dashes, lowercase, drop special characters (keep alphanumeric and dashes).
 
-2. **Where are the video files located?**
-   - Ask: "Where are your video files? You can drag folders or individual files directly into the chat."
+2. **Where is the footage located?**
+   - Ask: "Where's your footage? You can drag folders or individual files into the chat — video, plus any music/voiceover audio and still images you want in the library."
    - Verify all files exist before proceeding.
-   - Inform the user of what was found: "Found 5 video files totaling 2.3GB."
+   - ButterCut accepts three kinds of footage: **video**, **audio** (music/voiceover: `.mp3/.wav/.m4a/.aac/.flac/.ogg`), and **still images** (`.jpg/.png/.heic/.heif/.gif/.bmp/.webp`). `Library.create`/`add_videos` infer each clip's `media_type` from its extension automatically — you don't tag them by hand.
+   - Report what was found, broken down by kind: "Found 5 videos, 1 music track, and 3 images (2.3GB total)."
+   - Single-track reminder: audio and images sit in their own slot on the one timeline track. A music/voiceover clip plays only during its slot — there's no second track for music *under* video.
 
 3. **What language is spoken in these videos?**
    - `AskUserQuestion` with options: "English", "Spanish", and a free-text fallback for other languages.

@@ -42,10 +42,17 @@ Derive a slug from the plan's working title — the `# ` heading at the top of t
   - For word-level in/out points at a cut boundary: grep the JSON directly for the words you need. Don't read the whole file.
 - **Visual transcript** (`transcripts/visual_*.json`, legacy / optional) — older libraries from the previous pipeline carry these. If present, treat them as extra planning context alongside the contact sheet. Newly-processed libraries won't have them, and you should never generate new ones.
 
+**Media types — not every clip has every artifact.** Check each clip's `media_type` in `library.yaml`:
+- **video** — has all artifacts above. Plan as described.
+- **audio** (music/voiceover) — has a transcript and a summary, but **no contact sheet** (nothing to "see"). Plan from the transcript: grep it for in/out points just like video. A music track usually has an empty transcript — place it by feel against the timeline, trimming with in/out.
+- **image** (still) — has **only a summary**; no transcript, no contact sheet. Plan from the summary. Instead of in/out, give it a `duration` (or accept the 5s default).
+
+Single-track reality: an audio or image clip occupies its own slot in `clips:` order and plays only during that slot. There is no track *under* a video clip — don't plan "music bed under the montage." If you want music during a stretch, that stretch must be the audio clip's slot.
+
 For each beat in the plan:
 - Skim summaries to shortlist candidate clips.
-- For shortlisted clips, read the contact sheet and extract the dialogue (`script_extractor.rb`).
-- Set in/out points by grepping the audio transcript for the words at your cut boundaries.
+- For shortlisted **video** clips, read the contact sheet and extract the dialogue (`script_extractor.rb`); for **audio**, extract the dialogue; for **image**, the summary is enough.
+- Set in/out points by grepping the audio transcript (video/audio); for an image, set its `duration`.
 
 **Zoom in when timing matters.** Generate a tighter contact sheet for any clip and any range whenever the existing one leaves you guessing at a cut point:
 

@@ -5,4 +5,3 @@ First tell Claude to create a **library** — it organizes your footage along wi
 - [Installation](installation.md) — manual setup and dependency versions.
 - [Creating a library](creating-a-library.md) — process footage into a library. ([full walkthrough](example-library-setup.md))
 - [Creating a cut](creating-a-cut.md) — build a scene, selects reel, roughcut, or custom cut and export it.
-- [Basic XML generation](basic-xml-generation.md) — generate timelines in Ruby without Claude Code.

@@ -15,10 +15,15 @@ require_relative 'buttercut/premiere'
 # FCP7 itself is the shared xmeml-v5 format base that Resolve and Premiere subclass;
 # it is not a public editor symbol.
 #
-# Example usage:
+# Clips are built by lib/buttercut/export.rb — the only caller — from a cut's
+# YAML against its library. Each clip hash carries a media_type
+# (video | audio | image) so the generators route it onto the single timeline
+# track; every clip must declare one (the constructor requires it). video/audio
+# trim with start_at + duration; an image just takes an on-timeline duration:
 #   clips = [
-#     { path: '/absolute/path/to/video1.mov', start_at: 2.0, duration: 5.0 },
-#     { path: '/absolute/path/to/video2.mov' }
+#     { path: '/abs/interview.mov', start_at: 2.0, duration: 5.0, media_type: 'video' },
+#     { path: '/abs/music.mp3',     start_at: 0.0, duration: 8.0, media_type: 'audio' },
+#     { path: '/abs/still.jpg',     start_at: 0.0, duration: 5.0, media_type: 'image' }
 #   ]
 #   generator = ButterCut.new(clips, editor: :fcpx)
 #   generator.save('output.fcpxml')

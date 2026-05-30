@@ -33,15 +33,18 @@ class ButterCut
             )
 
             asset_map.each_value do |asset|
+              # hasAudio/hasVideo must match the real streams or FCPX rejects the
+              # asset; audioRate only belongs on an asset that has audio.
+              audio_attrs = asset[:has_audio] ? { audioRate: asset[:audio_rate] } : {}
               xml.asset(
                 id: asset[:asset_id],
                 name: asset[:filename],
                 uid: asset[:asset_uid],
                 src: asset[:file_url],
                 start: asset[:timecode],
-                audioRate: asset[:audio_rate],
-                hasAudio: '1',
-                hasVideo: '1',
+                **audio_attrs,
+                hasAudio: asset[:has_audio] ? '1' : '0',
+                hasVideo: asset[:has_video] ? '1' : '0',
                 format: FORMAT_ID,
                 duration: asset[:asset_duration]
               )
@@ -54,15 +57,19 @@ class ButterCut
                 xml.sequence(duration: sequence_duration, format: FORMAT_ID, tcStart: '0s', audioRate: '48k') do
                   xml.spine do
                     timeline_clips.each do |clip|
+                      asset = clip[:asset]
+                      # An image clip carries no audio: no audioRole, no volume
+                      # adjustment. Audio and video clips keep both.
+                      role_attrs = asset[:has_audio] ? { audioRole: 'dialogue' } : {}
                       xml.send('asset-clip',
                         name: clip[:filename],
                         ref: clip[:asset_id],
                         start: clip[:start],
                         offset: clip[:timeline_offset],
                         duration: clip[:duration],
-                        audioRole: 'dialogue'
+                        **role_attrs
                       ) do
-                        xml.send('adjust-volume', amount: volume_adjustment)
+                        xml.send('adjust-volume', amount: volume_adjustment) if asset[:has_audio]
                       end
                     end
                   end

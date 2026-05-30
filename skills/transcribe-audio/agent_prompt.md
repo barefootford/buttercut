@@ -1,8 +1,10 @@
 # Transcribe Audio (sub-agent prompt)
 
-You are a sub-agent. Transcribe one video file using WhisperX and produce a clean JSON transcript with word-level timing.
+You are a sub-agent. Transcribe one clip using WhisperX and produce a clean JSON transcript with word-level timing. The clip is a **video or an audio file** (music/voiceover) — WhisperX reads the audio track of either; nothing changes between them.
 
-**Critical:** Use WhisperX, NOT standard Whisper. WhisperX preserves the original video timeline including leading silence, ensuring transcripts match actual video timestamps. Run WhisperX directly on the video file — don't extract audio separately.
+**Never run on a still image.** Images (`.jpg/.png/.heic`, etc.) have no audio. If `video_path` points at one, skip transcription and return `✓ <filename> skipped (image — no audio to transcribe)`. The parent shouldn't send you images, but guard anyway.
+
+**Critical:** Use WhisperX, NOT standard Whisper. WhisperX preserves the original timeline including leading silence, ensuring transcripts match actual timestamps. Run WhisperX directly on the file — don't extract audio separately.
 
 ## Inputs (passed inline by the parent)
 

@@ -56,15 +56,15 @@ RSpec.describe ButterCut::FCP7 do
     end
 
     it 'accepts absolute clip paths' do
-      expect { described_class.new([{ path: clip_a_path }]) }.not_to raise_error
+      expect { described_class.new([{ path: clip_a_path, media_type: 'video' }]) }.not_to raise_error
     end
   end
 
   describe '#to_xml' do
     let(:generator) do
       described_class.new([
-        { path: clip_a_path },
-        { path: clip_b_path, start_at: 1.0, duration: 2.0 }
+        { path: clip_a_path, media_type: 'video' },
+        { path: clip_b_path, start_at: 1.0, duration: 2.0, media_type: 'video' }
       ])
     end
 

@@ -65,7 +65,7 @@ class ButterCut
                   end
                 end
                 xml.track do
-                  clip_payloads.each do |payload|
+                  clip_payloads.select { |payload| payload[:has_video] }.each do |payload|
                     build_video_clipitem(xml, payload)
                   end
                 end
@@ -79,7 +79,7 @@ class ButterCut
                   end
                 end
                 xml.track do
-                  clip_payloads.each do |payload|
+                  clip_payloads.select { |payload| payload[:has_audio] }.each do |payload|
                     build_audio_clipitem(xml, payload)
                   end
                 end
@@ -99,8 +99,20 @@ class ButterCut
     end
 
     def build_clip_payloads(timeline_clips, timeline_frame_duration)
+      # The timeline is one sequential track. FCP7 just represents it as two
+      # lanes — picture (<video>) and sound (<audio>) — with a <link> pairing the
+      # two clipitems a normal clip puts in both. An audio-only or image clip
+      # lands in a single lane, so a clip's position in the picture lane no longer
+      # matches its position in the sound lane. Count each lane on its own so
+      # every <link> cites the right per-lane position in its clipindex.
+      video_lane_position = 0
+      audio_lane_position = 0
       timeline_clips.each_with_index.map do |clip, index|
         asset = clip[:asset]
+        has_video = asset[:has_video]
+        has_audio = asset[:has_audio]
+        video_lane_position += 1 if has_video
+        audio_lane_position += 1 if has_audio
         asset_rate_num, asset_rate_denom = asset[:frame_rate].split('/').map(&:to_i)
         asset_timebase = (asset_rate_num.to_f / asset_rate_denom).round
         asset_ntsc = ntsc_flag_for(asset_rate_denom)
@@ -118,9 +130,12 @@ class ButterCut
         asset_timecode_start = frames_for_fraction(asset[:timecode], asset[:frame_duration])
 
         {
-          index: index + 1,
           clip: clip,
           asset: asset,
+          has_video: has_video,
+          has_audio: has_audio,
+          video_clip_index: (has_video ? video_lane_position : nil),
+          audio_clip_index: (has_audio ? audio_lane_position : nil),
           video_clip_id: "clipitem-video-#{index + 1}",
           audio_clip_id: "clipitem-audio-#{index + 1}",
           file_id: "file-#{asset[:asset_id]}",
@@ -180,10 +195,13 @@ class ButterCut
                 xml.fielddominance 'none'
               end
             end
-            xml.audio do
-              xml.samplecharacteristics do
-                xml.samplerate asset_audio_rate(asset)
-                xml.sampledepth 16
+            # A still has no audio track; don't declare a phantom one on its file.
+            if asset[:has_audio]
+              xml.audio do
+                xml.samplecharacteristics do
+                  xml.samplerate asset_audio_rate(asset)
+                  xml.sampledepth 16
+                end
               end
             end
           end
@@ -241,18 +259,23 @@ class ButterCut
       end
     end
 
+    # A <link> pairs a clip's video and audio clipitems so the editor moves them
+    # together. Audio-only and image clips have just one clipitem, so they get no
+    # link. clipindex is the clip's 1-based position within its own lane.
     def build_link_entries(xml, payload)
+      return unless payload[:has_video] && payload[:has_audio]
+
       xml.link do
         xml.linkclipref payload[:video_clip_id]
         xml.mediatype 'video'
         xml.trackindex 1
-        xml.clipindex payload[:index]
+        xml.clipindex payload[:video_clip_index]
       end
       xml.link do
         xml.linkclipref payload[:audio_clip_id]
         xml.mediatype 'audio'
         xml.trackindex 1
-        xml.clipindex payload[:index]
+        xml.clipindex payload[:audio_clip_index]
         xml.groupindex 1
       end
     end
