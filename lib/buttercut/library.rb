@@ -25,6 +25,20 @@ class Library
 
   SUBDIRS = %w[transcripts contact_sheets summaries cuts plans].freeze
 
+  # Library-level metadata cleared by `reset_all`, returning a library to its
+  # pre-setup, pre-analysis state: the setup choices (language, editor,
+  # transcript_refinement) and the analysis-derived context (footage_summary,
+  # user_context). Strings go blank; transcript_refinement goes nil ("unset", so
+  # setup re-asks rather than assuming off). nil still serializes the key, so the
+  # 002 migration sees it as already-present and won't re-default it on `migrate`.
+  CLEARED_METADATA = {
+    'user_context'          => '',
+    'footage_summary'       => '',
+    'language'              => '',
+    'editor'                => '',
+    'transcript_refinement' => nil
+  }.freeze
+
   def self.find(library_name) = new(library_name)
 
   def self.exists?(library_name)
@@ -185,7 +199,11 @@ class Library
   # Mark `video_filenames` complete for one field. Validates each file exists
   # on disk before writing — atomicity is preserved by building the full plan
   # first and only mutating the YAML once every check passes.
-  def complete!(field, video_filenames)
+  #
+  # `announce:` prints a one-line summary (default). JobRunner passes
+  # `announce: false` because it owns its own progress output and calls this
+  # once per finished job.
+  def complete!(field, video_filenames, announce: true)
     spec = field_spec(field)
     library = load_library
     pairs = Array(video_filenames).map do |filename|
@@ -198,7 +216,7 @@ class Library
     end
     pairs.each { |video, stored_filename| video[field] = stored_filename }
     write_library(library)
-    puts "#{@name}: #{field} set for #{pairs.size} #{pluralize(pairs.size, 'video')}"
+    puts "#{@name}: #{field} set for #{pairs.size} #{pluralize(pairs.size, 'video')}" if announce
     self
   end
 
@@ -208,6 +226,18 @@ class Library
   # `remove_visual_transcripts!` stays the explicit tool for legacy cleanup.
   def reset!(*fields)
     fields.each { |f| reset_field!(f) }
+    self
+  end
+
+  # Destructive: clear library-level metadata back to an unconfigured state —
+  # both the setup choices and the analysis-derived context (see
+  # CLEARED_METADATA). Video records and dates are kept. Part of `reset_all`'s
+  # factory reset, so a re-run starts setup and footage analysis from scratch.
+  def reset_metadata!
+    library = load_library
+    CLEARED_METADATA.each { |key, value| library[key] = value }
+    write_library(library)
+    puts "#{@name}: metadata reset (#{CLEARED_METADATA.keys.join(', ')})"
     self
   end
 
@@ -254,12 +284,16 @@ class Library
   def footage_summary = load_library['footage_summary'].to_s
   def editor = load_library['editor']
 
-  # Update one or both free-text metadata fields. Omitted fields are left
-  # alone; pass `''` to clear.
-  def update_metadata!(footage_summary: nil, user_context: nil)
+  # Update any subset of the editable metadata fields. Omitted (nil) fields are
+  # left alone; pass `''` to clear a string field. `transcript_refinement` takes
+  # a real boolean — the CLI coerces "true"/"false" before calling here.
+  def update_metadata!(footage_summary: nil, user_context: nil, language: nil, editor: nil, transcript_refinement: nil)
     library = load_library
     library['footage_summary'] = footage_summary unless footage_summary.nil?
     library['user_context'] = user_context unless user_context.nil?
+    library['language'] = language unless language.nil?
+    library['editor'] = editor unless editor.nil?
+    library['transcript_refinement'] = transcript_refinement unless transcript_refinement.nil?
     write_library(library)
     self
   end
@@ -290,6 +324,23 @@ class Library
   end
 
   def incomplete_videos = incomplete_from(videos)
+
+  # Clips still missing one specific artifact, as records the JobRunner can turn
+  # straight into jobs. Unlike `incomplete_videos` (missing ANY field), this is
+  # scoped to a single field so the runner can build one independent batch per
+  # phase — transcripts and contact sheets don't depend on each other.
+  def pending(field)
+    field_spec(field) # validate the field name up front
+    videos.filter_map do |video|
+      next if present?(video[field])
+
+      {
+        'filename' => File.basename(video['path'].to_s),
+        'path' => video['path'],
+        'duration' => video['duration']
+      }
+    end
+  end
 
   # Snapshot for picking up a library: top-level metadata plus a
   # clip-completion breakdown. `incomplete_count == 0` means ready for roughcut.
@@ -397,7 +448,16 @@ class Library
     data
   end
 
-  def write_library(library) = File.write(@library_yaml_path, library.to_yaml)
+  # Atomic write: render to a sibling temp file, then rename into place.
+  # rename(2) is atomic within a filesystem, so a concurrent reader — e.g. an
+  # external `library.rb pending` poll running while a JobRunner records
+  # progress — always sees a complete file, the old one or the new one, never a
+  # half-written torn read.
+  def write_library(library)
+    tmp = "#{@library_yaml_path}.tmp.#{Process.pid}"
+    File.write(tmp, library.to_yaml)
+    File.rename(tmp, @library_yaml_path)
+  end
 
   def find_video!(library, video_filename)
     library['videos'].find { |v| File.basename(v['path'].to_s) == video_filename } ||
@@ -418,20 +478,22 @@ if __FILE__ == $PROGRAM_NAME
       <name> exists                                   — exits 0 if library exists, 1 otherwise
       <name> summary                                  — JSON snapshot
       <name> incomplete_videos                        — JSON array of incomplete clips
+      <name> pending <field>                          — JSON array of clips still missing one field
       <name> ready                                    — exits 0 if every video is ready for roughcut, 1 otherwise
 
     Writes:
       <name> add_videos <video_path>...               — append video records
-      <name> update_metadata <key> <value...>         — set footage_summary or user_context
+      <name> update_metadata <key> <value...>         — set footage_summary, user_context, language, editor, or transcript_refinement
       <name> complete <field> <files>                 — mark files done for one field
       <name> reset <field> [<field>...]               — wipe one or more phases
-      <name> reset_all                                — wipe every field (incl. legacy visual_transcripts)
+      <name> reset_all                                — factory reset: wipe every field (incl. legacy visual_transcripts) + clear metadata (language, editor, transcript_refinement, footage_summary, user_context)
       <name> reset_all_except_audio_transcripts       — wipe everything except audio transcripts
       <name> remove_visual_transcripts                — sweep legacy visual_*.json + clear field
 
     <field>: transcript | contact_sheet | summary
     <files>: space- and/or comma-separated
-    <key>:   footage_summary | user_context
+    <key>:   footage_summary | user_context | language | editor | transcript_refinement
+             (editor: fcpx|premiere|resolve; transcript_refinement: true|false)
 
     Library.create is not exposed via the CLI (kwarg-heavy). From bash:
       ruby -e "require_relative 'lib/buttercut/library'; \\
@@ -490,6 +552,11 @@ if __FILE__ == $PROGRAM_NAME
       puts JSON.pretty_generate(library.summary)
     when 'incomplete_videos'
       puts JSON.pretty_generate(library.incomplete_videos)
+    when 'pending'
+      field, = rest
+      raise ArgumentError, 'pending requires <field>' if field.nil?
+
+      puts JSON.pretty_generate(library.pending(field))
     when 'ready'
       exit(library.ready? ? 0 : 1)
     when 'add_videos'
@@ -499,9 +566,23 @@ if __FILE__ == $PROGRAM_NAME
     when 'update_metadata'
       key, *value_parts = rest
       raise ArgumentError, 'update_metadata requires <key> <value>' if key.nil? || value_parts.empty?
-      raise ArgumentError, "unknown metadata key: #{key} (expected footage_summary or user_context)" unless %w[footage_summary user_context].include?(key)
 
-      library.update_metadata!(key.to_sym => value_parts.join(' '))
+      allowed_keys = %w[footage_summary user_context language editor transcript_refinement]
+      raise ArgumentError, "unknown metadata key: #{key} (expected #{allowed_keys.join(', ')})" unless allowed_keys.include?(key)
+
+      value = value_parts.join(' ')
+      case key
+      when 'transcript_refinement'
+        value = case value.strip.downcase
+                when 'true', 'yes', '1' then true
+                when 'false', 'no', '0' then false
+                else raise ArgumentError, "transcript_refinement expects true/false, got: #{value}"
+                end
+      when 'editor'
+        raise ArgumentError, "editor expects fcpx, premiere, or resolve, got: #{value}" unless %w[fcpx premiere resolve].include?(value)
+      end
+
+      library.update_metadata!(key.to_sym => value)
     when 'complete'
       field, *files = rest
       raise ArgumentError, 'complete requires <field> <files>' if field.nil? || files.empty?
@@ -514,6 +595,7 @@ if __FILE__ == $PROGRAM_NAME
     when 'reset_all'
       library.reset!(*Library::FIELDS.keys)
       library.remove_visual_transcripts!
+      library.reset_metadata!
     when 'reset_all_except_audio_transcripts'
       library.reset!('contact_sheet', 'summary')
       library.remove_visual_transcripts!

@@ -16,33 +16,21 @@ You are a sub-agent. Transcribe one video file using WhisperX and produce a clea
 
 Do NOT read `library.yaml` or `settings.yaml`. If a required input is missing from your prompt, stop and ask the parent rather than inferring from the filesystem.
 
-## 1. Run WhisperX
+## 1. Transcribe (WhisperX + prepare)
+
+One command runs WhisperX and prepares the JSON (adds the video source path, drops unneeded fields, prettifies it):
 
 ```bash
-whisperx "<video_path>" \
-  --language <language_code> \
-  --model <whisper_model> \
-  --compute_type float32 \
-  --device cpu \
-  --output_format json \
-  --output_dir <transcript_output_dir>
+ruby lib/buttercut/transcribe_job.rb <video_path> <transcript_output_dir> <language_code> <whisper_model>
 ```
 
-## 2. Prepare audio transcript
+This is the single source of truth for the transcription command — don't hand-write a raw `whisperx` invocation.
 
-```bash
-ruby lib/buttercut/prepare_audio_script.rb \
-  <transcript_output_dir>/<video_basename>.json \
-  <video_path>
-```
-
-This script adds the video source path as metadata, removes unnecessary fields, and prettifies the JSON.
-
-## 3. (Optional) Refine the transcript
+## 2. (Optional) Refine the transcript
 
 If `transcript_refinement: true`, follow `skills/transcribe-audio/refine_instructions.md`, using the `user_context` and `footage_summary` strings the parent supplied inline. Do NOT open `library.yaml`. Skip if `transcript_refinement` is missing or `false`.
 
-## 4. Return success response
+## 3. Return success response
 
 ```
 ✓ <video_basename.mov> transcribed successfully

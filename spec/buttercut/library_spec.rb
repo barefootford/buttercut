@@ -390,6 +390,21 @@ RSpec.describe Library do
       lib = Library.find(library_name)
       expect(lib.update_metadata!(footage_summary: 'x')).to be(lib)
     end
+
+    it 'updates the config fields (language, editor, transcript_refinement)' do
+      write_library(videos: [], language: '', editor: '', transcript_refinement: nil)
+      Library.find(library_name).update_metadata!(language: 'english', editor: 'fcpx', transcript_refinement: false)
+      reloaded = load_yaml
+      expect(reloaded['language']).to eq('english')
+      expect(reloaded['editor']).to eq('fcpx')
+      expect(reloaded['transcript_refinement']).to be(false)
+    end
+
+    it 'writes transcript_refinement: false without treating it as "omitted"' do
+      write_library(videos: [], transcript_refinement: true)
+      Library.find(library_name).update_metadata!(transcript_refinement: false)
+      expect(load_yaml['transcript_refinement']).to be(false)
+    end
   end
 
   describe '#incomplete_videos' do
@@ -424,6 +439,34 @@ RSpec.describe Library do
                     ])
       expect(Library.find(library_name).incomplete_videos.first['missing'])
         .to eq(%w[transcript contact_sheet])
+    end
+  end
+
+  describe '#pending' do
+    it 'returns records only for clips missing the named field' do
+      write_library(videos: [
+                      video_entry('a.mov', transcript: 'a.json'),
+                      video_entry('b.mov', transcript: ''),
+                      video_entry('c.mov', transcript: 'c.json')
+                    ])
+      result = Library.find(library_name).pending('transcript')
+      expect(result.map { |r| r['filename'] }).to eq(['b.mov'])
+      expect(result.first).to include('path' => '/tmp/b.mov', 'duration' => '00:00:05')
+    end
+
+    it 'is independent per field' do
+      write_library(videos: [
+                      video_entry('a.mov', transcript: 'a.json', contact_sheet: ''),
+                      video_entry('b.mov', transcript: '', contact_sheet: 'b_full.jpg')
+                    ])
+      library = Library.find(library_name)
+      expect(library.pending('transcript').map { |r| r['filename'] }).to eq(['b.mov'])
+      expect(library.pending('contact_sheet').map { |r| r['filename'] }).to eq(['a.mov'])
+    end
+
+    it 'raises on an unknown field' do
+      write_library(videos: [])
+      expect { Library.find(library_name).pending('nonsense') }.to raise_error(ArgumentError, /unknown field/)
     end
   end
 
@@ -593,6 +636,37 @@ RSpec.describe Library do
       yaml = load_yaml['videos']
       expect(yaml[0]['summary']).to eq('summary_a.md') # not cleared — delete failed
       expect(yaml[1]['summary']).to eq('')             # cleared — delete succeeded
+    end
+  end
+
+  describe '#reset_metadata!' do
+    before do
+      write_library(
+        videos: [video_entry('a.mov')],
+        created_date: '2026-05-30', last_updated: '2026-05-30',
+        language: 'english', editor: 'fcpx', transcript_refinement: true,
+        footage_summary: 'A vlog about Ruby meetups.', user_context: 'Subject is named Andrew.'
+      )
+    end
+
+    it 'clears setup choices and analysis-derived context to an unconfigured state' do
+      Library.find(library_name).reset_metadata!
+      yaml = load_yaml
+      expect(yaml.values_at('language', 'editor', 'footage_summary', 'user_context')).to eq(['', '', '', ''])
+      expect(yaml['transcript_refinement']).to be_nil
+      expect(yaml.key?('transcript_refinement')).to be(true) # key kept so 002 migration treats it as set
+    end
+
+    it 'keeps video records and dates' do
+      Library.find(library_name).reset_metadata!
+      yaml = load_yaml
+      expect(yaml['videos'].map { |v| v['path'] }).to eq(['/tmp/a.mov'])
+      expect(yaml.values_at('created_date', 'last_updated')).to eq(['2026-05-30', '2026-05-30'])
+    end
+
+    it 'returns self for chaining' do
+      lib = Library.find(library_name)
+      expect(lib.reset_metadata!).to be(lib)
     end
   end
 
