@@ -25,7 +25,7 @@ Clone this repository and then set it as your active directory.
 git clone https://github.com/barefootford/buttercut.git && cd buttercut
 ```
 
-Call the `/setup` skill to automatically install dependencies, or see [advanced-setup.md](skills/setup/advanced-setup.md) for a custom install. Primary requirements are Ruby, Python, FFmpeg, and WhisperX. Check `.python-version` and `.ruby-version` for specific language versions, and `Gemfile` and `requirements.txt` for their respective dependencies.
+Call the `/setup` skill to automatically install dependencies, or see [advanced-setup.md](skills/setup/advanced-setup.md) for a custom install. Primary requirements are Ruby, Python, FFmpeg (full), and WhisperX. Check `.python-version` and `.ruby-version` for specific language versions, and `Gemfile` and `requirements.txt` for their respective dependencies.
 
 ## Usage
 
