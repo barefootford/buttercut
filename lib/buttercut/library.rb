@@ -342,6 +342,18 @@ class Library
     end
   end
 
+  # Per-clip artifact status for the live "follow along" view: every clip with a
+  # boolean per field (transcript, contact_sheet, summary). Read-only, so it's
+  # safe to poll from a separate process (the status server) while the JobRunner
+  # records progress — atomic writes keep each read whole.
+  def clip_statuses
+    videos.map do |video|
+      FIELDS.keys.each_with_object('filename' => File.basename(video['path'].to_s)) do |field, row|
+        row[field] = present?(video[field])
+      end
+    end
+  end
+
   # Snapshot for picking up a library: top-level metadata plus a
   # clip-completion breakdown. `incomplete_count == 0` means ready for roughcut.
   def summary

@@ -32,6 +32,7 @@ GEM
       diff-lcs (>= 1.2.0, < 2.0)
       rspec-support (~> 3.13.0)
     rspec-support (3.13.6)
+    webrick (1.9.2)
 
 PLATFORMS
   aarch64-linux-gnu
@@ -46,6 +47,7 @@ PLATFORMS
 DEPENDENCIES
   nokogiri (~> 1.13)
   rspec (~> 3.12)
+  webrick (~> 1.8)
 
 BUNDLED WITH
    2.5.23

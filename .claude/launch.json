@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "buttercut-status",
+      "runtimeExecutable": "ruby",
+      "runtimeArgs": ["lib/buttercut/status_server.rb"],
+      "port": 4174
+    }
+  ]
+}
