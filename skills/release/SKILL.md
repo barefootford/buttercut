@@ -72,7 +72,7 @@ Verify the version updated in `Gemfile.lock` before proceeding.
 
 ### 6. Gather Changelog Notes
 
-Ask user for release notes. Prompt with:
+Read the commits since the last tag (`git log --oneline v<last>..HEAD`) and group them by what they mean for the user. Ask the user to fill any gaps:
 - What changed in this release?
 - Any new features?
 - Any bug fixes?
@@ -80,20 +80,28 @@ Ask user for release notes. Prompt with:
 
 ### 7. Update CHANGELOG.md
 
-Prepend the new entry under `## [Unreleased]`:
+The changelog is customer facing. Readers are video editors, not engineers. Write every entry as the benefit the user gets, not the code that changed.
+
+**Voice rules:**
+- **Customer facing, not salesy.** Describe what the user can now do or what got fixed. No hype words ("blazing fast," "game-changing," "dramatically").
+- **Straightforward.** Plain language. Say the thing.
+- **AP Style.** Sentence case, serial commas, spell out numbers under 10, etc.
+- **Active voice when possible.** "ButterCut opens your timeline" over "the timeline is opened."
+- **No em dashes or en dashes.** Use a period, comma, or parentheses instead.
+- **Editor vocabulary.** Talk like an editor (cut, sequence, timeline, footage, library), not a developer. Drop internal details, code symbols, file paths, and class names. If a change has no effect a user would notice (refactors, test coverage, repo cleanup), leave it out.
+
+Prepend the new entry under `## [Unreleased]`. Group by `### New & Improved` and `### Fixed` (add `### Changed` only for user-visible behavior changes):
 
 ```markdown
 ## [0.8.0] - 2026-MM-DD
 
-### Added
-- Feature X
-- Support for Y
+One or two plain sentences on what this release means for the user.
+
+### New & Improved
+- **Short benefit headline.** A sentence on what the user can now do.
 
 ### Fixed
-- Bug in Z
-
-### Changed
-- Improved W
+- **Short benefit headline.** What used to go wrong, and that it now works.
 ```
 
 ### 8. Commit Version Bump
