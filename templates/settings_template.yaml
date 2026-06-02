@@ -9,6 +9,11 @@ editor: fcpx
 # Recommended: `small` paired with transcript_refinement (set per-library in library.yaml)
 whisper_model: small
 
+# How many footage-processing jobs (transcription, contact sheets) to run in
+# parallel per phase. 2 is the safe default — WhisperX is memory-hungry, so
+# higher values can exhaust RAM on smaller machines. Leave blank to use 2.
+parallel_jobs: 2
+
 # After exporting a roughcut, also drop a copy of the XML on the Desktop for easy import
 save_to_desktop_after_export: true
 

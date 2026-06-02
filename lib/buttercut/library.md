@@ -62,9 +62,19 @@ Use `summary` when you want to look at *what's* missing; use `ready` when you on
 ### Add and update
 ```bash
 ruby lib/buttercut/library.rb <name> add_videos /abs/a.mov /abs/b.mov
-ruby lib/buttercut/library.rb <name> update_metadata footage_summary "subjects, locations, activities"
-ruby lib/buttercut/library.rb <name> update_metadata user_context   "creative intent, characters"
+ruby lib/buttercut/library.rb <name> update_metadata footage_summary       "subjects, locations, activities"
+ruby lib/buttercut/library.rb <name> update_metadata user_context          "creative intent, characters"
+ruby lib/buttercut/library.rb <name> update_metadata language              english
+ruby lib/buttercut/library.rb <name> update_metadata editor                fcpx        # fcpx | premiere | resolve
+ruby lib/buttercut/library.rb <name> update_metadata transcript_refinement false       # true | false
 ```
+
+`update_metadata` edits one field per call. Beyond the two free-text fields
+(`footage_summary`, `user_context`) it can also set the setup choices
+(`language`, `editor`, `transcript_refinement`) — handy when resuming a
+library whose config was never filled in. `editor` is validated against
+`fcpx|premiere|resolve` and `transcript_refinement` is coerced to a real
+boolean.
 
 ### Mark files done
 ```bash
@@ -92,6 +102,15 @@ ruby lib/buttercut/library.rb <name> remove_visual_transcripts   # legacy cleanu
 `reset` deletes every file in each named field's subdir and clears the
 field on every video. The `transcripts/` sweep leaves `visual_*.json`
 alone — that's what `remove_visual_transcripts` is for.
+
+`reset_all` is a **factory reset**: on top of wiping all three artifact
+fields it also clears library-level metadata — the setup choices
+(`language`, `editor`, `transcript_refinement`) and the analysis-derived
+context (`footage_summary`, `user_context`). Strings go blank and
+`transcript_refinement` goes nil ("unset"), so a re-run starts setup and
+footage analysis from scratch. Video records and dates are kept.
+`reset_all_except_audio_transcripts` does **not** touch metadata — it stays
+a narrow artifact reset.
 
 ### Creating a new library
 

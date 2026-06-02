@@ -114,6 +114,8 @@ The user is a video editor, not a programmer. User-facing chat stays in the lang
 
 Editor vocabulary that's always fine: rough cut, sequence, scene, beat, timeline, B-roll, cutaway, shot, take, transcript, footage, library, clip, splice, Final Cut, Premiere, Resolve.
 
+**Important** When talking about a library, remove the dashes that are in the library name. Keeping the dashes looks like computer programmer talk. You are talking to a video editor. If you're working in a library called "hacky-sack-competition-24", refer to it in chat as Hacky Sack Competition 24. If you have another library called "wedding-94" refer to it as the Wedding 94 library. Do not include the dashes. Capitalizes the words.
+
 ## Development Commands
 
 ### Testing

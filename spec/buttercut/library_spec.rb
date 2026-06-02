@@ -314,6 +314,13 @@ RSpec.describe Library do
       expect(lib.field_path('summary', 'DJI_0123')).to eq(File.join(library_dir, 'summaries', 'summary_DJI_0123.md'))
     end
 
+    it 'strips the clip extension so a basename with or without it resolves identically' do
+      lib = Library.find(library_name)
+      expect(lib.field_path('summary', 'P1055017.mov'))
+        .to eq(lib.field_path('summary', 'P1055017'))
+        .and eq(File.join(library_dir, 'summaries', 'summary_P1055017.md'))
+    end
+
     it 'raises for unknown fields' do
       expect { Library.find(library_name).field_path('bogus', 'x') }
         .to raise_error(ArgumentError, /unknown field/)
@@ -325,6 +332,14 @@ RSpec.describe Library do
       write_library(videos: [video_entry('a.mov'), video_entry('b.mov')])
       videos = Library.find(library_name).videos
       expect(videos.map { |v| v['path'] }).to eq(['/tmp/a.mov', '/tmp/b.mov'])
+    end
+
+    it 'exposes a derived filename without persisting it to library.yaml' do
+      write_library(videos: [video_entry('a.mov')])
+      library = Library.find(library_name)
+
+      expect(library.videos.first['filename']).to eq('a.mov')
+      expect(YAML.safe_load_file(library_yaml_path)['videos'].first).not_to have_key('filename')
     end
 
     it 'returns an empty array when there are no videos' do
@@ -390,6 +405,21 @@ RSpec.describe Library do
       lib = Library.find(library_name)
       expect(lib.update_metadata!(footage_summary: 'x')).to be(lib)
     end
+
+    it 'updates the config fields (language, editor, transcript_refinement)' do
+      write_library(videos: [], language: '', editor: '', transcript_refinement: nil)
+      Library.find(library_name).update_metadata!(language: 'english', editor: 'fcpx', transcript_refinement: false)
+      reloaded = load_yaml
+      expect(reloaded['language']).to eq('english')
+      expect(reloaded['editor']).to eq('fcpx')
+      expect(reloaded['transcript_refinement']).to be(false)
+    end
+
+    it 'writes transcript_refinement: false without treating it as "omitted"' do
+      write_library(videos: [], transcript_refinement: true)
+      Library.find(library_name).update_metadata!(transcript_refinement: false)
+      expect(load_yaml['transcript_refinement']).to be(false)
+    end
   end
 
   describe '#incomplete_videos' do
@@ -424,6 +454,34 @@ RSpec.describe Library do
                     ])
       expect(Library.find(library_name).incomplete_videos.first['missing'])
         .to eq(%w[transcript contact_sheet])
+    end
+  end
+
+  describe '#pending' do
+    it 'returns records only for clips missing the named field' do
+      write_library(videos: [
+                      video_entry('a.mov', transcript: 'a.json'),
+                      video_entry('b.mov', transcript: ''),
+                      video_entry('c.mov', transcript: 'c.json')
+                    ])
+      result = Library.find(library_name).pending('transcript')
+      expect(result.map { |r| r['filename'] }).to eq(['b.mov'])
+      expect(result.first).to include('path' => '/tmp/b.mov', 'duration' => '00:00:05')
+    end
+
+    it 'is independent per field' do
+      write_library(videos: [
+                      video_entry('a.mov', transcript: 'a.json', contact_sheet: ''),
+                      video_entry('b.mov', transcript: '', contact_sheet: 'b_full.jpg')
+                    ])
+      library = Library.find(library_name)
+      expect(library.pending('transcript').map { |r| r['filename'] }).to eq(['b.mov'])
+      expect(library.pending('contact_sheet').map { |r| r['filename'] }).to eq(['a.mov'])
+    end
+
+    it 'raises on an unknown field' do
+      write_library(videos: [])
+      expect { Library.find(library_name).pending('nonsense') }.to raise_error(ArgumentError, /unknown field/)
     end
   end
 
@@ -596,6 +654,37 @@ RSpec.describe Library do
     end
   end
 
+  describe '#reset_metadata!' do
+    before do
+      write_library(
+        videos: [video_entry('a.mov')],
+        created_date: '2026-05-30', last_updated: '2026-05-30',
+        language: 'english', editor: 'fcpx', transcript_refinement: true,
+        footage_summary: 'A vlog about Ruby meetups.', user_context: 'Subject is named Andrew.'
+      )
+    end
+
+    it 'clears setup choices and analysis-derived context to an unconfigured state' do
+      Library.find(library_name).reset_metadata!
+      yaml = load_yaml
+      expect(yaml.values_at('language', 'editor', 'footage_summary', 'user_context')).to eq(['', '', '', ''])
+      expect(yaml['transcript_refinement']).to be_nil
+      expect(yaml.key?('transcript_refinement')).to be(true) # key kept so 002 migration treats it as set
+    end
+
+    it 'keeps video records and dates' do
+      Library.find(library_name).reset_metadata!
+      yaml = load_yaml
+      expect(yaml['videos'].map { |v| v['path'] }).to eq(['/tmp/a.mov'])
+      expect(yaml.values_at('created_date', 'last_updated')).to eq(['2026-05-30', '2026-05-30'])
+    end
+
+    it 'returns self for chaining' do
+      lib = Library.find(library_name)
+      expect(lib.reset_metadata!).to be(lib)
+    end
+  end
+
   describe '#remove_visual_transcripts!' do
     before do
       write_library(videos: [
@@ -635,6 +724,50 @@ RSpec.describe Library do
     it 'returns self for chaining' do
       lib = Library.find(library_name)
       expect(lib.remove_visual_transcripts!).to be(lib)
+    end
+  end
+
+  describe 'concurrent writers (#mutate flock transaction)' do
+    # The real-world scenario this guards: `process_footage.rb` runs in the
+    # background recording transcripts via complete!, while the agent updates
+    # footage_summary "as transcripts come in" — two separate OS processes each
+    # doing a full read-modify-write of library.yaml. Without a lock spanning the
+    # whole RMW, the later rename silently drops the other process's change.
+    it 'loses no updates when two processes write library.yaml at once' do
+      skip 'fork unavailable on this platform' unless Process.respond_to?(:fork)
+
+      n = 30
+      clips = Array.new(n) { |i| "clip#{i}.mov" }
+      write_library(videos: clips.map { |c| video_entry(c) }, footage_summary: '')
+      clips.each { |c| touch(File.join(library_dir, 'transcripts', "#{File.basename(c, '.*')}.json")) }
+
+      # Child: record each clip's transcript as its own complete! call.
+      child = fork do
+        clips.each do |c|
+          Library.find(library_name).complete!('transcript', [c], announce: false)
+          sleep(0.001)
+        end
+        exit!(0)
+      end
+
+      # Parent: hammer footage_summary in parallel. Its last write must survive —
+      # complete! reads-and-preserves footage_summary under the same lock, so a
+      # concurrent transcript write can never revert it.
+      n.times do |i|
+        Library.find(library_name).update_metadata!(footage_summary: "summary-#{i}")
+        sleep(0.001)
+      end
+      Library.find(library_name).update_metadata!(footage_summary: 'FINAL')
+
+      _, status = Process.wait2(child)
+      expect(status.success?).to be(true)
+
+      yaml = load_yaml
+      # Every transcript landed (child's writes weren't clobbered by the parent)...
+      expect(yaml['videos'].map { |v| v['transcript'] }).to all(satisfy { |t| !t.to_s.empty? })
+      # ...and the parent's final metadata write survived (not reverted by a
+      # concurrent complete!).
+      expect(yaml['footage_summary']).to eq('FINAL')
     end
   end
 
