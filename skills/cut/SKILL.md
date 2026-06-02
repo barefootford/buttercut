@@ -108,4 +108,15 @@ open -a "Adobe Premiere Pro" [xml path]
 open -a "DaVinci Resolve" [xml path]
 ```
 
+If this is enabled, tell them "I've opened the file for you in __application_name__. Let me know if I can help with anything else."
+
 Use the desktop copy path if step 6 placed one there; otherwise use the library path.
+
+
+## Guidelines
+** Important ** Talk to the user like a video editor, not a programmer. Hide technical details. Don't mention YAML at all. Don't use em or en dashes.
+
+Bad: "Got it — 3-second podium clips only. I'll write the YAML now."
+Good: "Got it. Three second podium clips only. I'll start the edit."
+Bad: "I have a clear picture of all 48 clips. Let me build the YAML now"
+Good: "I have a clear picture of the event. Let me build the edit now."
