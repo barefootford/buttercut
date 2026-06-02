@@ -60,10 +60,10 @@ ruby lib/buttercut/library.rb <name> exists   # exits 0 if it does, 1 if not
 **If no library directory exists:**
 - Proceed to Step 3 to gather project information and create a new library.
 
-To list libraries by recency (for "find a recent library to resume" prompts):
+To find libraries by recency (for "the library I was just working on" / "resume a recent one" prompts):
 
 ```bash
-ruby lib/buttercut/library.rb list
+ruby lib/buttercut/library.rb recent [N]   # N most-recently-touched libraries (default 10)
 ```
 
 ## Step 3 — Gather project information (new libraries)
@@ -106,7 +106,7 @@ ruby -e "require_relative 'lib/buttercut/library'; \
 
 Each video entry starts with empty `transcript`, `contact_sheet`, and `summary` — empty means "todo", a filename means "done."
 
-If the user later drags in more clips:
+If the user later wants to add in more clips, use this:
 
 ```bash
 ruby lib/buttercut/library.rb <name> add_videos /abs/new1.mov /abs/new2.mov
@@ -131,7 +131,7 @@ This prevents idle sleep for the lifetime of the shell. Store the PID — you'll
 
 Inform the user: "Library setup complete. Found [N] videos ([total size]). Starting footage analysis..."
 
-Follow `skills/analyze-video/SKILL.md` end-to-end. That skill covers audio transcripts (parallel sub-agents), contact sheets (deterministic), summaries (Sonnet sub-agents, batched + rolling), and the post-analysis footage-understanding pass.
+Follow `skills/analyze-video/SKILL.md` end-to-end. That skill covers footage processing (transcripts then contact sheets, two deterministic `process_footage.rb` runs), optional transcript refinement, summaries (Sonnet sub-agents, batched + rolling), and the post-analysis footage-understanding pass.
 
 Progressively update `footage_summary` as transcripts come in — 1-3 sentences covering subjects, locations, activities, visual style:
 
@@ -168,5 +168,6 @@ kill $CAFFEINATE_PID 2>/dev/null
 ## Notes
 
 - A single `tmp/` directory inside the buttercut project root is used for all temporary files. Create subdirectories as needed and delete after use.
+- Reprocessing footage: `process_footage.rb` only handles clips missing an artifact. To rebuild ones that already exist, re-run the relevant step (`transcripts` or `contact-sheets`) with `--force` (optionally `--clips a.mov,b.mov`). See analyze-video Step 1.
 - Migrations: every time you read a library.yaml, check its schema against `templates/library_template.yaml`. If anything's missing or renamed, run `ruby lib/buttercut/library.rb migrate` to migrate all libraries at once. See AGENTS.md → Critical Principles for the migration trigger list.
 - Terminology: user-facing, call it "footage analysis" or "analyzing footage." Internally (library.yaml fields, file names), it's "transcription."

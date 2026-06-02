@@ -342,6 +342,20 @@ class ContactSheet
     self.class.format_hms(seconds)
   end
 
+  # Inverse of format_hms, shared with ContactSheetJob and the CLI. Accepts a
+  # Numeric, bare seconds ("12.5"), MM:SS, or HH:MM:SS — returns seconds as a Float.
+  def self.parse_hms(value)
+    return value.to_f if value.is_a?(Numeric)
+    return value.to_f unless value.to_s.include?(':')
+
+    parts = value.to_s.split(':').map(&:to_f)
+    case parts.length
+    when 3 then (parts[0] * 3600) + (parts[1] * 60) + parts[2]
+    when 2 then (parts[0] * 60) + parts[1]
+    else parts[0]
+    end
+  end
+
   def report(range)
     puts "Contact sheet written to #{@output_path}"
     puts "  #{@frames} frames (#{@cols}x#{@rows}) covering #{format_hms(@start_time)}-#{format_hms(@end_time)} (#{format_hms(range)})"
@@ -354,18 +368,6 @@ class ContactSheet
 end
 
 if __FILE__ == $PROGRAM_NAME
-  parse_time = lambda do |value|
-    next value.to_f if value.is_a?(Numeric)
-    next value.to_f unless value.to_s.include?(':')
-
-    parts = value.to_s.split(':').map(&:to_f)
-    case parts.length
-    when 3 then parts[0] * 3600 + parts[1] * 60 + parts[2]
-    when 2 then parts[0] * 60 + parts[1]
-    else parts[0]
-    end
-  end
-
   options = { library: nil, output: nil }
 
   parser = OptionParser.new do |opts|
@@ -391,8 +393,8 @@ if __FILE__ == $PROGRAM_NAME
   begin
     ContactSheet.extract(
       video_path,
-      start_arg && parse_time.call(start_arg),
-      end_arg && parse_time.call(end_arg),
+      start_arg && ContactSheet.parse_hms(start_arg),
+      end_arg && ContactSheet.parse_hms(end_arg),
       library_dir: options[:library],
       output_path: options[:output]
     )
