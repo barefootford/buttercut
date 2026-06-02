@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- **Daily update-check gate in the `Library` CLI.** Library commands now check a gitignored `last_buttercut_update_check` stamp first; once a day they raise `UpdateCheckNeeded`, surfaced as a `library:` error that tells the agent to check for a newer ButterCut and offer to update.
+## [0.7.2] - 2026-06-02
+
+Processing your footage now uses less of your account, your Mac stays awake while it works, and we've fixed a bug in Premiere files so vertical clips export to Premiere right side up.
+
+### New & Improved
+- **Footage processing uses 2/3 less tokens.** ButterCut handles your clips through a new ButterCut behind-the-scenes processor, so footage digestion uses 60 percent fewer tokens (account usage) than before. My 37 minute, 93 clip benchmark library takes just 10 percent of my five hour account usage on a Max 5x plan. (Pro accounts should be able to process the same footage and have half their 5 hour usage available.)
+- **Your Mac stays awake during analysis.** Long processing runs no longer stall because the machine went to sleep partway through.
+- **Open your timeline in one step.** After an export, ButterCut offers to open the cut straight in Final Cut, Premiere, or Resolve.
+- **ButterCut checks for updates on its own.** Once a day it looks for a newer version and offers to update, so you stay current without thinking about it.
+
+### Fixed
+- **Vertical footage exports to Premiere right side up.** Phone clips and other vertical footage used to land in Premiere lying on their side. They now import upright. Final Cut and Resolve were already correct and are unchanged.
+- **Updating older projects is more reliable.** Bringing libraries from earlier versions up to date no longer trips on a few edge cases.
 
 ## [0.7.1] - 2026-05-23
 
