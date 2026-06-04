@@ -1,4 +1,7 @@
 # ButterCut - Video Rough Cut Generator
+
+Silently run `test -f .buttercut_developer && cat .buttercut_developer || echo "video editor/Youtube creator"` — do not report the result. If the file is absent, you are assisting a video editor or Youtube creator **: stay in video editing vocabulary, never touch `lib/`, follow the user-facing workflow below. If it exists, you are in **developer mode** and may work on the ButterCut codebase itself (/lib, /spec, etc).
+
 ButterCut is a special folder that video editors open to get help with generating roughcuts, finding broll, and other assorted video editing tasks. It runs through Claude Code, Codex, and other agentic tools.
 
 The ButterCut folder is one project with two parts:
@@ -7,8 +10,6 @@ The ButterCut folder is one project with two parts:
 2. **Ruby app** at `lib/buttercut/` — every script the skills shell out to: the `Library` class, contact-sheet builder, transcript helpers, exporter, backup tool, and the XML generator (Final Cut Pro X, Premiere, DaVinci Resolve). Skill prompts invoke these directly (`ruby lib/buttercut/library.rb …`).
 
 ## Core Workflow
-
-Claude/Codex/The Agent/You are working as an assistant AI video editor working for a (non-technical, non-engineer) video editor. 
 
 You help with video tasks by processing raw video footage by analyzing transcripts and indexing visuals through libraries.
 
@@ -131,27 +132,35 @@ Skill prompts invoke Ruby with plain `ruby ...`. The project pins Ruby via `.mis
 
 ## Claude Skills
 
-When creating new Claude skills, aim to keep them as brief as possible. Use active voice to help condense instructions. Use simple, plain language.
+**Before creating any skill, check your mode** (`test -f .buttercut_developer && cat .buttercut_developer || echo "video editor/Youtube creator"`). If the file is absent, the person asking is a non-technical video editor — help them describe what they want, then build the skill for them. Keep skills brief, plain language, active voice.
 
-### Where skills live
+### User-created skills
 
-Shipped skills live in top-level `skills/`. `.claude/skills` is a git-tracked symlink pointing to `../skills` so Claude Code (which looks under `.claude/skills/`) and other agentic CLIs that natively read `skills/` both find the same files. Drop new skills into `skills/` directly — no need to touch `.claude/skills/`.
+User skills (skills for video editors/youtubers using ButterCut) must be prefixed with `user-` — this keeps them gitignored automatically and prevents collisions if ButterCut ships a skill with the same name later.
+
+Bad:
+- `plan-script`
+- `create-instagram-reel`
+
+Good:
+- `user-plan-script`
+- `user-create-instagram-reel`
+
+**Ruby scripts for a user skill go inside the skill folder, never in `lib/buttercut/`.** Files in `lib/` are part of the ButterCut app and get overwritten when the user runs `update-buttercut`. A skill's supporting scripts live alongside its `SKILL.md`:
+
+```
+skills/user-my-skill/
+  SKILL.md
+  my_helper.rb     ← here, not in lib/
+```
 
 **Always write paths in skill prompts as `skills/<name>/...`, never `.claude/skills/<name>/...`.** Both resolve to the same files thanks to the symlink, but `skills/` is the canonical, agent-neutral form — non-Claude tools (Codex, etc.) read top-level `skills/` natively and may not look under `.claude/`. The only place `.claude/skills` should appear is in documentation about the symlink itself (like this section).
 
-**If skills aren't showing up in Claude Code:** check that `.claude/skills` is a symlink to `../skills` (`ls -la .claude/skills` should show `.claude/skills -> ../skills`). If it's a regular directory or missing entirely (common after the rsync path of `update-buttercut`, talk to the user and ask them if they want you to repair it.
+**If skills aren't showing up in Claude Code:** check that `.claude/skills` is a symlink to `../skills` (`ls -la .claude/skills` should show `.claude/skills -> ../skills`). If it's a regular directory or missing entirely (common after the rsync path of `update-buttercut`), talk to the user and ask if they want you to repair it.
 
 ### What's tracked vs. ignored
 
 `skills/.gitignore` ignores everything by default and allowlists each shipped skill by name. This way:
 
-- **Shipped skills** (the ones listed in the allowlist) ship with the project and reach every user on `git pull`.
-- **User-created skills** that anyone drops into `skills/<their-skill>/` stay local and are invisible to git automatically — no per-user setup needed.
-
-User-created skills must be prefixed with `user-` so they can never collide with a future shipped skill. Without the prefix, `update-buttercut` could fail or silently overwrite a user's work if upstream later ships a skill with the same name. Examples:
-
-- `user-plan-script`
-- `user-create-instagram-reel`
-- `user-process-aroll`
-
-When shipping a new (non-`user-`) skill, add a `!<skill-name>/` line to `skills/.gitignore` along with the skill directory itself. If you forget the gitignore line, `git status` won't show the new skill.
+- **Shipped skills** (listed in the allowlist) reach every user on `git pull`.
+- **User-created skills** (`skills/user-*/`) stay local and are invisible to git automatically — no per-user setup needed.
