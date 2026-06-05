@@ -1,6 +1,6 @@
 # Planning a Roughcut
 
-This is the planning flow for the **Roughcut** path of the `cut` skill. By the time you're here, the user has already chosen "Roughcut" as the task type and the editor is already resolved — your job is to shape the editorial direction with them and save an approved plan markdown file at `libraries/[library-name]/plans/plan_[short-name]_[YYYYMMDD_HHMMSS].md`. Step 4 of SKILL.md hands that plan to the build sub-agent.
+This is the planning flow for the **Roughcut** path of the `cut` skill. By the time you're here, the user has already chosen "Roughcut" as the task type and the editor is already resolved — your job is to shape the editorial direction with them and save an approved plan markdown file at `libraries/[library-name]/plans/plan_[short-name]_[YYYYMMDD_HHMMSS].md`. Step 2 of roughcut_path.md hands that plan to the build sub-agent.
 
 The library's `footage_summary`, `user_context`, and individual summaries already capture the broad creative context — those are filled in during footage analysis (see "Start Footage Analysis" in AGENTS.md).
 
@@ -28,4 +28,4 @@ Ask questions one at a time so you don't end up asking the user questions that d
 8. **Save the plan** — only after the explicit yes. Copy `templates/plan_template.md` to `libraries/[library-name]/plans/plan_[short-name]_[YYYYMMDD_HHMMSS].md` and fill it in.
 
 ## Complete the planning
-Return to step 4 of `SKILL.md` and launch the build sub-agent with the saved plan.
+Return to step 2 of `roughcut_path.md` and launch the build sub-agent with the saved plan.

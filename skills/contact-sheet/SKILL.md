@@ -45,7 +45,7 @@ ruby lib/buttercut/contact_sheet.rb <video-path> <start> <end> --library librari
 
 Options: `--library DIR`, `--output PATH` (exact path; overrides `--library`).
 
-Frame count is chosen automatically: 16 frames in a 4x4 grid for clips longer than 10 seconds, 4 frames in a 2x2 grid for clips of 10 seconds or less (avoids duplicates).
+Frame count is chosen automatically: 16 frames in a 4x4 grid for clips longer than 10 seconds, 8 frames in a 4x2 grid for clips of 10 seconds or less (avoids duplicates).
 
 Portrait clips (iPhone, etc.) are auto-rotated using the source's container rotation metadata so timestamps land right-side-up. Variable-frame-rate sources (screen recordings, some action cams) are detected and routed through the slower seek-and-grab path automatically.
 

@@ -9,19 +9,23 @@ Exports all spoken dialogue from a library's audio transcripts into a single `fu
 
 ## Run
 
+This pulls each clip's audio transcript, so run it after the library's footage has been processed. Clips without a transcript are skipped, so on an unprocessed library you'll get an empty file.
+
 ```bash
 ruby lib/buttercut/full_transcript.rb <library-name>
 ```
 
 ## Output
 
-`libraries/<library-name>/full_transcript.txt` — one block per clip:
+`libraries/<library-name>/full_transcript.txt` — one block per clip: the filename, an optional `// summary:` line (the clip's one-line overview, present only when the clip has been summarized), then the dialogue.
 
 ```
 filename.mov
+// summary: One-line overview of the clip.
 Dialogue text from that clip.
 
 filename2.mov
+// summary: One-line overview of the next clip.
 More dialogue from the next clip.
 ```
 

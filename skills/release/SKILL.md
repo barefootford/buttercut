@@ -60,15 +60,13 @@ class ButterCut
 end
 ```
 
-### 5. Update Gemfile.lock
+### 5. Refresh Gemfile.lock
 
-Run `bundle install` so `Gemfile.lock` reflects the new version:
+Run `bundle install` to keep the lock file in sync. The app version lives only in `lib/buttercut/version.rb` — the `buttercut` gem is no longer published, so there's no version entry in `Gemfile.lock` to check.
 
 ```bash
 bundle install
 ```
-
-Verify the version updated in `Gemfile.lock` before proceeding.
 
 ### 6. Gather Changelog Notes
 
