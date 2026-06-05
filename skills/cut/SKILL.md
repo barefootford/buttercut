@@ -19,13 +19,9 @@ ruby lib/buttercut/library.rb <name> ready
 Exit code `0` means the library is ready for cut building (`Library.ready?` is the source of truth on what that means — don't re-derive the criteria here). If it exits non-zero, stop. Run `ruby lib/buttercut/library.rb <name> summary` to surface the incomplete clips and tell the user the library needs to finish processing (point them at the `process-library` skill). Don't try to cut around missing clips.
 
 ## 2. Determine Task Type
-Ask the user with `AskUserQuestion` tool if available. Otherwise ask in text in this order.
+Ask with `AskUserQuestion` if available, otherwise in text. **You must ask, even when the user already said "roughcut"** — that's loose trained vocabulary, not a confirmed choice. Present the four options plainly and let them pick; don't explain why you're asking or apologize for re-asking.
 
-Ask plainly. "Roughcut" in the user's opening request is trained vocabulary, not a confirmed choice — present the four options and let them pick. Don't explain to the user why you're asking, and don't apologize for re-asking; the question stands on its own.
-
-You're going to be tempted here to just move forward and assume the user really wants a story shaped roughcut, but they're just using this term loosely. You **absolutely must** tell them the next statement and question before moving forward:
-
-If the library is processed, tell them that it's ready and the number of clips that are processed. Then ask them what kind of cut they want. Again, they probably said "roughcut", but we've just trained them on that word. **You must ask.**
+If the library is processed, lead with that: confirm it's ready and the clip count, then ask what kind of cut they want.
 
 Example framing: "Library is ready. (93/93 clips fully processed.). What kind of cut do you want to build — scene, selects, roughcut, or custom?"
 

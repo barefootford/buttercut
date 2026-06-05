@@ -93,7 +93,7 @@ Read the `editor` from `libraries/settings.yaml` — you'll pass it into the cre
 
 ## Step 4 — Create the library
 
-`Library.create` is the one operation that doesn't have a plain CLI form (kwarg-heavy). Run it via `ruby -e`. It creates the directory tree (transcripts/, contact_sheets/, summaries/, cuts/, plans/), ffprobes each video for duration, and writes library.yaml in one call:
+`Library.create` is the one operation without a plain CLI form (kwarg-heavy), so run it via `ruby -e`. It sets up the library in one call — directory tree, per-video durations, and library.yaml:
 
 ```bash
 ruby -e "require_relative 'lib/buttercut/library'; \
@@ -155,7 +155,7 @@ If it exits non-zero, run `ruby lib/buttercut/library.rb <name> summary` to list
 
 ## Step 8 — Backup
 
-After all analysis completes, automatically create a backup using the `backup-library` skill, scoped to just the library you processed: `ruby lib/buttercut/backup_libraries.rb --library <library-name>`. This writes a single archive under `~/Documents/buttercut-video-editor-backups/<library-name>/` (or wherever `backups_dir` in `libraries/settings.yaml` points). If `backups_dir` isn't set yet, the script silently uses the default — don't prompt during process-library.
+After all analysis completes, automatically back up just the library you processed (per the `backup-library` skill): `ruby lib/buttercut/backup_libraries.rb --library <library-name>`. Don't prompt for a backups folder during process-library — the script uses the configured or default location.
 
 ## Step 9 — Stop caffeinate
 

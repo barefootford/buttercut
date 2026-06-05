@@ -26,7 +26,7 @@ This is destructive. Tell the user, in plain terms, what will happen:
 
 - Contact sheets, summaries, and any legacy `visual_*.json` transcripts will be deleted.
 - Audio transcripts are kept — no re-transcription.
-- `cuts/`, `plans/`, and library metadata (footage_summary, user_context, editor, etc.) are untouched.
+- Your cuts, plans, notes, settings, and editor choice stay untouched.
 
 Use `AskUserQuestion` with a clear yes/no before proceeding. Don't reset on assumption.
 
@@ -46,7 +46,7 @@ If a clip is missing its audio transcript (some libraries predate even that), th
 
 ## Step 5 — Re-run analysis
 
-Hand off to `skills/analyze-video/SKILL.md` end-to-end. Skip step 1 (audio transcripts) for any clip that already has `transcript` set in the snapshot; run steps 2 (contact sheets) and 3 (summaries) for every clip. Step 4 (confirm footage understanding) is still worth doing — the new summaries may surface details the old visual_transcripts missed.
+Run `skills/analyze-video/SKILL.md`, adapted: the audio transcripts already exist, so skip Step 1a (transcription) for any clip that already has `transcript` set. Run Step 1b (contact sheets) and Step 3 (summaries) for every clip, and skip Step 2 (refinement) — it already ran on these transcripts. Still do Step 4 (confirm footage understanding); the fresh summaries may surface details the old visual_transcripts missed.
 
 Verify readiness before reporting done:
 

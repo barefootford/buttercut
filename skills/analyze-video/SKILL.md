@@ -35,7 +35,7 @@ In the public chat, refer to these non-technical steps. Keep the technical work 
 
 (If you reached this skill directly rather than via `process-library`, first tell the user: "Found [N] videos ([total size]). Starting footage analysis...")
 
-This is two mechanical commands you run **one after the other** — transcripts first, contact sheets second. **Never run them at once**: WhisperX is RAM-hungry, and overlapping the two is what we're avoiding. Don't hand-roll either with sub-agents; each runs identically every time, ~2 clips at a time, recording each clip into library.yaml the moment it finishes. Both are idempotent — they only touch clips still missing that artifact — so a re-run finishes only what's left. They will run in a minature Sidekiq-like job service. You'll run the command and then watch the log file that will be returned to watch progress.
+Two mechanical commands, run **one after the other** — transcripts first, contact sheets second. **Never run them at once** (WhisperX is RAM-hungry). Don't hand-roll either with sub-agents; both are idempotent — they only touch clips still missing that artifact and record each into library.yaml as it finishes, so a re-run just completes what's left. Run the command, then watch the returned log file for progress.
 
 **Step 1a — Transcripts.** If using Claude Code, run with `run_in_background: true` on the Bash tool.
 
@@ -53,7 +53,7 @@ tail -f tmp/logs/processing/<library-name>/$(date +%Y-%m-%d).log | grep --line-b
 ruby lib/buttercut/library.rb <name> pending transcript   # JSON list; done = N − its length
 ```
 
-Update "Create transcripts 5/20" ie, number_of_clips_complete/total_number_of_clips as clips finish so the user can see progress. When the background task completes it exits non-zero if any clip failed. On failure, re-run once. If it fails again, investigate and then either create a fix so we handle it elegantlyy or inform the user about the problem with the clip and potentially pull it from the library.
+Update the public "Create transcripts N/total" count as clips finish. The background task exits non-zero if any clip failed; on failure, re-run once. If it fails again, fix the handling or tell the user that clip is a problem and may need pulling from the library.
 
 **Wait for 1a to finish before starting 1b.**
 
@@ -71,9 +71,7 @@ Tuning (optional): both steps read `parallel_jobs` from `libraries/settings.yaml
 
 ## Step 2 — Refine transcripts (judgment — only if `transcript_refinement: true`)
 
-Refinement is the one part of transcription that's a judgment call — fixing misheard proper nouns from library context — so it stays a model step, run *after* the mechanical pass. **Skip this entire step if the library's `transcript_refinement` is `false`.**
-
-When it's `true`, dispatch refinement sub-agents (2-4 in parallel, rolling) over the transcripts Step 1a just wrote. Inline `skills/transcribe-audio/refine_instructions.md` as each sub-agent's prompt and pass, inline:
+**Skip this entire step when the library's `transcript_refinement` is `false`.** When it's `true`: refinement fixes misheard proper nouns from library context — a judgment call, so it runs *after* the mechanical pass. Dispatch refinement sub-agents (2-4 in parallel, rolling) over the transcripts Step 1a just wrote. Inline `skills/transcribe-audio/refine_instructions.md` as each sub-agent's prompt and pass, inline:
 
 - `transcript_path` — absolute path to the clip's transcript JSON under `libraries/<library>/transcripts/`
 - `user_context` and `footage_summary` — current values from `ruby lib/buttercut/library.rb <name> summary` (empty strings are fine; refinement still catches nonsense-token and self-witness fixes)
@@ -84,7 +82,7 @@ Sub-agents edit the transcript JSON in place and return a short list of correcti
 
 Dispatch `analyze-video` sub-agents on the **Sonnet model**. Sonnet reads the contact sheet with noticeably more visual specificity than Haiku (catches clothing, architecture, camera framing) — worth it since the summaries feed every later cut decision.
 
-**Batch 10 clips per sub-agent, up to 10 sub-agents in parallel, with rolling dispatch.** Each sub-agent processes its 10 clips sequentially; batching amortizes the ~5–10s per-agent dispatch overhead. For a 93-clip library that's ~10 sub-agents total instead of 93. Start the next sub-agent as soon as one returns — don't wait for the whole wave of 10 to finish, or you give up ~30% of wall-clock to whichever agent in the wave is slowest.
+**Batch 10 clips per sub-agent, up to 10 sub-agents in parallel, with rolling dispatch.** Each sub-agent works its 10 clips sequentially. Start the next sub-agent as soon as one returns — don't wait for the whole wave, or the slowest agent in it gates the rest.
 
 For each sub-agent, pass a list of 10 clip records inline. Each clip record needs:
 
@@ -123,20 +121,7 @@ After all analysis completes, automatically create a backup using the `backup-li
 
 ## Parallel sub-agent pattern (reference)
 
-Used in steps 2 and 3.
-
-**Parent agent responsibilities:**
-- Read `library.yaml` and `settings.yaml` once to gather all values needed by sub-agents.
-- Launch Task agents passing all needed values **inline in the prompt**.
-- Update library.yaml sequentially as agents complete (via the `Library` API — see AGENTS.md).
-- Handle errors and retries.
-
-**Child agent responsibilities:**
-- Process its assigned clip(s) using only the inputs passed inline by the parent.
-- Refine a transcript JSON in place (refinement) or read the pre-generated contact sheet, extract dialogue from the transcript via `script_extractor.rb`, and write the summary markdown in one Write call (analyze-video). (WhisperX is no longer a sub-agent — `process_footage.rb transcripts` runs it in Step 1a.)
-- Return a short structured response with file paths.
-
-Each skill's `agent_prompt.md` documents its own IO contract — including whether the sub-agent reads or writes library.yaml. (Spoiler: it never writes library.yaml. Only the parent writes, via the `Library` API.)
+Used in steps 2 and 3. The parent gathers all values from `library.yaml`/`settings.yaml` once, launches Task agents with everything passed **inline in the prompt**, handles retries, and is the **only** writer of library.yaml (sequentially, via the `Library` API — see AGENTS.md). Sub-agents work only from their inline inputs and return file paths; they **never** read or write library.yaml. Each skill's `agent_prompt.md` documents its own IO contract.
 
 ## If the user requests a rough cut before analysis completes
 

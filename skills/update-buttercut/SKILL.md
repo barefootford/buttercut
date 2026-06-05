@@ -5,7 +5,7 @@ description: A skill to automatically download and install the latest ButterCut 
 
 # Skill: Update ButterCut
 
-Updates ButterCut to the latest version via `git pull`. Users of this project are video editors — Claude sometimes edits code on its own and may even leave the repo on a side branch. This skill resets that state cleanly: stash anything dirty, switch to `main`, pull, restore deps.
+Updates ButterCut via `git pull`. Because Claude sometimes edits code or leaves the repo on a side branch, this skill resets state cleanly first: stash anything dirty, switch to `main`, pull, restore deps.
 
 ## Workflow
 

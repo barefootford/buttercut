@@ -17,9 +17,7 @@ Backups default to `~/Documents/buttercut-video-editor-backups`. Each library ge
 
 ## Step 1 — Resolve the destination
 
-Read `backups_dir` from `libraries/settings.yaml`. If the key is missing, ask the user with `AskUserQuestion` whether to use the default (`~/Documents/buttercut-video-editor-backups`, recommended) or a custom folder, and save the answer to `libraries/settings.yaml` under `backups_dir`. If `libraries/settings.yaml` doesn't exist yet, create it from `templates/settings_template.yaml` first.
-
-When invoked from another skill that must stay non-interactive (e.g. `process-library` auto-backup) and `backups_dir` isn't set, skip the prompt and use the default — the user can change it later.
+The script already falls back to the default (`~/Documents/buttercut-video-editor-backups`) when `backups_dir` isn't set, so a backup never blocks on this. Running interactively with the key missing, you can offer the user a custom folder via `AskUserQuestion` and save it to `backups_dir` in `libraries/settings.yaml` (creating that file from `templates/settings_template.yaml` if needed). When invoked non-interactively (e.g. `process-library` auto-backup), skip the prompt and let the default apply.
 
 ## Step 2 — Run the backup
 
@@ -35,7 +33,7 @@ ruby lib/buttercut/backup_libraries.rb
 
 The script reads `backups_dir` from `libraries/settings.yaml` (falling back to the default). Pass `--backups-dir <path>` to override for one run.
 
-Apple Archive (`.aar`) is used when the macOS `aa` CLI is available — hardware-accelerated on Apple Silicon, Finder handles double-click extract. Falls back to `.zip` otherwise.
+Archives use Apple Archive (`.aar`) when the macOS `aa` CLI is available, falling back to `.zip` otherwise.
 
 After a successful `backup_all` run, the script removes the legacy in-project `backups/` directory (the old single-archive layout) if it still exists and the resolved `backups_dir` is somewhere else. Per-library runs leave it alone.
 

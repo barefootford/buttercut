@@ -9,22 +9,13 @@ Builds a contact sheet from a slice of a video clip: 16 evenly spaced frames lai
 
 ## Prerequisite: ffmpeg with drawtext
 
-This skill burns timestamps onto frames with ffmpeg's `drawtext` filter. The stock Homebrew `ffmpeg` formula frequently ships without it — runs fail with `No such filter: 'drawtext'`. If you hit that error, or want to check up front:
+This skill burns timestamps onto frames with ffmpeg's `drawtext` filter. If a run fails with `No such filter: 'drawtext'`, your ffmpeg was built without it. Confirm with:
 
 ```bash
 ffmpeg -hide_banner -filters 2>/dev/null | grep ' drawtext '
 ```
 
-If nothing prints, replace ffmpeg with the full build from the `homebrew-ffmpeg/ffmpeg` tap so it becomes the only ffmpeg on the machine through brew:
-
-```bash
-brew list ffmpeg >/dev/null 2>&1 && brew uninstall --ignore-dependencies ffmpeg || true
-brew tap homebrew-ffmpeg/ffmpeg
-brew install homebrew-ffmpeg/ffmpeg/ffmpeg
-brew link --overwrite homebrew-ffmpeg/ffmpeg/ffmpeg
-```
-
-Re-run the grep above to confirm `drawtext` is present, then retry the contact sheet.
+If nothing prints, install the `homebrew-ffmpeg/ffmpeg` tap build (full install + verify steps are in `skills/setup/simple-setup.md`, Step 5), then retry.
 
 ## Run
 
