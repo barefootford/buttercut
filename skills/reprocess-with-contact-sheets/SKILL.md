@@ -42,11 +42,11 @@ One command wipes contact sheets, summaries, and legacy visual transcripts and c
 ruby lib/buttercut/library.rb <name> reset_all_except_audio_transcripts
 ```
 
-If a clip is missing its audio transcript (some libraries predate even that), the analyze-video skill's step 1 will fill it in on the next step — no special handling here.
+If a clip is missing its audio transcript (some libraries predate even that), the analyze-video skill's footage-processing step (transcripts) will fill it in on the next step — no special handling here.
 
 ## Step 5 — Re-run analysis
 
-Hand off to `skills/analyze-video/SKILL.md` end-to-end. Skip step 1 (audio transcripts) for any clip that already has `transcript` set in the snapshot; run steps 2 (contact sheets) and 3 (summaries) for every clip. Step 4 (confirm footage understanding) is still worth doing — the new summaries may surface details the old visual_transcripts missed.
+Hand off to `skills/analyze-video/SKILL.md` end-to-end. Skip the audio-transcript pass for any clip that already has `transcript` set in the snapshot; run contact sheets and summaries for every clip. The confirm-footage-understanding pass is still worth doing — the new summaries may surface details the old visual_transcripts missed.
 
 Verify readiness before reporting done:
 
