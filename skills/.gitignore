@@ -26,6 +26,8 @@
 !full-transcript/**
 !contact-sheet/
 !contact-sheet/**
+!create-library/
+!create-library/**
 !process-library/
 !process-library/**
 !reprocess-with-contact-sheets/

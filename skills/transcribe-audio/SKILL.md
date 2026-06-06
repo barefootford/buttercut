@@ -5,7 +5,7 @@ description: Transcribes video audio using WhisperX, preserving original timesta
 
 # Skill: Transcribe Audio (parent brief)
 
-> **Note:** In the library pipeline, transcription runs mechanically via `ruby lib/buttercut/process_footage.rb transcripts <library>` (using `TranscribeJob`), not by dispatching this sub-agent — so footage analysis comes out identical across models. The WhisperX command lives in exactly one place, `lib/buttercut/transcribe_job.rb`, which also runs standalone: `ruby lib/buttercut/transcribe_job.rb <video_path> <output_dir> <language_code> <whisper_model>`. `refine_instructions.md` remains the playbook for the separate (judgment) refinement step that `analyze-video` Step 2 dispatches.
+> **Note:** In the library pipeline, transcription runs mechanically via `ruby lib/buttercut/process_footage.rb transcripts <library>` (using `TranscribeJob`), not by dispatching this sub-agent — so footage analysis comes out identical across models. The WhisperX command lives in exactly one place, `lib/buttercut/transcribe_job.rb`, which also runs standalone: `ruby lib/buttercut/transcribe_job.rb <video_path> <output_dir> <language_code> <whisper_model>`. `refine_instructions.md` remains the playbook for the separate (judgment) refinement step that `analyze-video` Step 3 dispatches.
 
 Transcribes video audio using WhisperX and produces a clean JSON transcript with word-level timing.
 

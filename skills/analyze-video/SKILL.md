@@ -19,25 +19,40 @@ This is the main thread's playbook for the **Analyze Video** workflow step. Run 
 - Library setup is complete (`library.yaml` exists, schema is current — run migrations from AGENTS.md if not).
 - Read `libraries/settings.yaml` directly for `whisper_model`. For library fields, read the snapshot via `ruby lib/buttercut/library.rb <name> summary` and pull the values you need from the JSON — don't parse library.yaml inline.
 
-At this point, create a todo list, visible to the user, with high-level, non-technical steps so they can follow the overall plan for processing the library, e.g.:
+At this point, create a todo list, visible to the user, with high-level, non-technical steps so they can follow the overall plan for processing the library. Include caffeination steps only if they've opted in. e.g.:
 
 ```
+- [ ] Keep Mac Awake with Caffeinate 
 - [ ] Create transcripts (0/30)
 - [ ] Analyze footage (0/30)
+- [ ] Turn off Mac Caffeinate 
 - [ ] Review the footage together
 ```
 
-These three public todos map onto the steps below: "Create transcripts" covers the mechanical run in Step 1 plus the optional refinement pass in Step 2 (advance its count from Step 1's `[transcript …]` progress lines; hold it in-progress through Step 2 when refinement is on); "Analyze footage" tracks the summaries in Step 3 (advance its count as clips are summarized, *not* after contact sheets); "Review the footage together" is Step 4.
+These public todos map onto the steps below: "Keep Mac Awake with Caffeinate" is Step 1 and "Turn off Mac Caffeinate" is Step 6; "Create transcripts" covers the mechanical run in Step 2 plus the optional refinement pass in Step 3 (advance its count from Step 2's `[transcript …]` progress lines; hold it in-progress through Step 3 when refinement is on); "Analyze footage" tracks the summaries in Step 4 (advance its count as clips are summarized, *not* after contact sheets); "Review the footage together" is Step 5.
 
 In the public chat, refer to these non-technical steps. Keep the technical work (WhisperX, contact-sheet generation, Sonnet summaries) behind the scenes.
 
-## Step 1 — Process footage (transcripts, then contact sheets)
+## Step 1 — Prevent sleep during processing
+
+Before starting analysis, ask the user (via `AskUserQuestion`): "Processing can take a while — want me to keep your computer awake until it's done?" Options: "Yes (Recommended)" and "No".
+
+If yes, start caffeinate in the background:
+
+```bash
+caffeinate -i -w $$ &
+CAFFEINATE_PID=$!
+```
+
+This prevents idle sleep for the lifetime of the shell. Store the PID — you'll kill it in Step 6 once analysis is finished. (Backup is handled by the calling skill — `process-library` — after this skill returns.)
+
+## Step 2 — Process footage (transcripts, then contact sheets)
 
 (If you reached this skill directly rather than via `process-library`, first tell the user: "Found [N] videos ([total size]). Starting footage analysis...")
 
 This is two mechanical commands you run **one after the other** — transcripts first, contact sheets second. **Never run them at once**: WhisperX is RAM-hungry, and overlapping the two is what we're avoiding. Don't hand-roll either with sub-agents; each runs identically every time, ~2 clips at a time, recording each clip into library.yaml the moment it finishes. Both are idempotent — they only touch clips still missing that artifact — so a re-run finishes only what's left. They will run in a minature Sidekiq-like job service. You'll run the command and then watch the log file that will be returned to watch progress.
 
-**Step 1a — Transcripts.** If using Claude Code, run with `run_in_background: true` on the Bash tool.
+**Step 2a — Transcripts.** If using Claude Code, run with `run_in_background: true` on the Bash tool. Otherwise use correct tool/argument to run in background.
 
 ```bash
 ruby lib/buttercut/process_footage.rb transcripts <library-name>
@@ -55,32 +70,32 @@ ruby lib/buttercut/library.rb <name> pending transcript   # JSON list; done = N 
 
 Update "Create transcripts 5/20" ie, number_of_clips_complete/total_number_of_clips as clips finish so the user can see progress. When the background task completes it exits non-zero if any clip failed. On failure, re-run once. If it fails again, investigate and then either create a fix so we handle it elegantlyy or inform the user about the problem with the clip and potentially pull it from the library.
 
-**Wait for 1a to finish before starting 1b.**
+**Wait for 2a to finish before starting 2b.**
 
-**Step 1b — Contact sheets.** Once transcripts are done, build the sheets (a fast ffmpeg pass — foreground is fine):
+**Step 2b — Contact sheets.** Once transcripts are done, build the sheets (a fast ffmpeg pass — foreground is fine):
 
 ```bash
 ruby lib/buttercut/process_footage.rb contact-sheets <library-name>
 ```
 
-Contact sheets stay behind the scenes — don't surface them as a public count. Mark "Create transcripts" done once 1a has finished and any refinement (Step 2) is complete.
+Contact sheets stay behind the scenes — don't surface them as a public count. Mark "Create transcripts" done once 2a has finished and any refinement (Step 3) is complete.
 
 Tuning (optional): both steps read `parallel_jobs` from `libraries/settings.yaml` (default 2); override for one run with `--jobs N`. Each writes a timestamped log under `tmp/logs/processing/<library>/` for after-the-fact review.
 
 **Reprocessing.** Each step skips clips that already have its artifact. To redo one — say a transcript that misheard a name — re-run that step with `--force --clips NAME.mov`. `--force` alone rebuilds every clip.
 
-## Step 2 — Refine transcripts (judgment — only if `transcript_refinement: true`)
+## Step 3 — Refine transcripts (judgment — only if `transcript_refinement: true`)
 
 Refinement is the one part of transcription that's a judgment call — fixing misheard proper nouns from library context — so it stays a model step, run *after* the mechanical pass. **Skip this entire step if the library's `transcript_refinement` is `false`.**
 
-When it's `true`, dispatch refinement sub-agents (2-4 in parallel, rolling) over the transcripts Step 1a just wrote. Inline `skills/transcribe-audio/refine_instructions.md` as each sub-agent's prompt and pass, inline:
+When it's `true`, dispatch refinement sub-agents (2-4 in parallel, rolling) over the transcripts Step 2a just wrote. Inline `skills/transcribe-audio/refine_instructions.md` as each sub-agent's prompt and pass, inline:
 
 - `transcript_path` — absolute path to the clip's transcript JSON under `libraries/<library>/transcripts/`
 - `user_context` and `footage_summary` — current values from `ruby lib/buttercut/library.rb <name> summary` (empty strings are fine; refinement still catches nonsense-token and self-witness fixes)
 
-Sub-agents edit the transcript JSON in place and return a short list of corrections. They do NOT touch library.yaml — Step 1a already set the `transcript` field. Mark the public "Create transcripts" todo done once refinement completes.
+Sub-agents edit the transcript JSON in place and return a short list of corrections. They do NOT touch library.yaml — Step 2a already set the `transcript` field. Mark the public "Create transcripts" todo done once refinement completes.
 
-## Step 3 — Summaries (Sonnet sub-agents, batched, rolling)
+## Step 4 — Summaries (Sonnet sub-agents, batched, rolling)
 
 Dispatch `analyze-video` sub-agents on the **Sonnet model**. Sonnet reads the contact sheet with noticeably more visual specificity than Haiku (catches clothing, architecture, camera framing) — worth it since the summaries feed every later cut decision.
 
@@ -90,8 +105,8 @@ For each sub-agent, pass a list of 10 clip records inline. Each clip record need
 
 - `video_filename` — basename of the video (used in the summary header and reply line)
 - `duration` — duration string from library.yaml (e.g. `00:01:19`); the agent renders it in the summary header
-- `contact_sheet_path` — absolute path to the `_full.jpg` (from step 1)
-- `transcript_path` — absolute path to the audio transcript JSON (from step 1); the sub-agent extracts dialogue on demand via `script_extractor.rb`
+- `contact_sheet_path` — absolute path to the `_full.jpg` (from step 2)
+- `transcript_path` — absolute path to the audio transcript JSON (from step 2); the sub-agent extracts dialogue on demand via `script_extractor.rb`
 - `summary_output_path` — absolute path where the agent should write the summary markdown. Don't hand-build this filename; ask the library for the canonical path: `ruby lib/buttercut/library.rb <name> field_path summary <clip>` (handles the `summaries/summary_<clip>.md` convention for you, with or without the file extension)
 
 As each sub-agent returns its batch, update library.yaml with `summary` for every clip in that batch:
@@ -100,7 +115,7 @@ As each sub-agent returns its batch, update library.yaml with `summary` for ever
 ruby lib/buttercut/library.rb <name> complete summary <filename> [<filename>...]
 ```
 
-The `contact_sheet` field was already populated in step 1, so the sub-agent return only contributes summaries.
+The `contact_sheet` field was already populated in step 2, so the sub-agent return only contributes summaries.
 
 **If a sub-agent returns summaries inline instead of writing them to disk** (sometimes Sonnet hallucinates "the Write tool is blocked" and dumps the markdown into its reply), don't retry blindly — just extract each summary from the agent's response and `Write` it to the matching `summary_output_path` from the parent thread. Then run the `complete summary` command as usual. Faster than redispatching, and the content is already there.
 
@@ -108,7 +123,7 @@ The `contact_sheet` field was already populated in step 1, so the sub-agent retu
 
 Don't move forward until summaries are complete. Advance the "Analyze footage" count as clips are summarized; mark it done when finished.
 
-## Step 4 — Confirm footage understanding with the user
+## Step 5 — Confirm footage understanding with the user
 
 (This is the "Review the footage together" todo.) Once every summary is written, talk through what the footage actually shows — confirm character names, locations, the narrative through-line, any stray or off-thesis clips, and the user's creative intent for this library. Use plain conversation; only reach for `AskUserQuestion` when offering a discrete choice. As you learn things, update:
 
@@ -117,13 +132,17 @@ Don't move forward until summaries are complete. Advance the "Analyze footage" c
 
 This is the one place to do this thorough pass. Every later roughcut planning run inherits the resulting context rather than re-interrogating the library.
 
-## Step 5 — Backup
+## Step 6 — Stop caffeinate
 
-After all analysis completes, automatically create a backup using the `backup-library` skill.
+If you started caffeinate in Step 1, kill it now:
+
+```bash
+kill $CAFFEINATE_PID 2>/dev/null
+```
 
 ## Parallel sub-agent pattern (reference)
 
-Used in steps 2 and 3.
+Used in steps 3 and 4.
 
 **Parent agent responsibilities:**
 - Read `library.yaml` and `settings.yaml` once to gather all values needed by sub-agents.
@@ -133,7 +152,7 @@ Used in steps 2 and 3.
 
 **Child agent responsibilities:**
 - Process its assigned clip(s) using only the inputs passed inline by the parent.
-- Refine a transcript JSON in place (refinement) or read the pre-generated contact sheet, extract dialogue from the transcript via `script_extractor.rb`, and write the summary markdown in one Write call (analyze-video). (WhisperX is no longer a sub-agent — `process_footage.rb transcripts` runs it in Step 1a.)
+- Refine a transcript JSON in place (refinement) or read the pre-generated contact sheet, extract dialogue from the transcript via `script_extractor.rb`, and write the summary markdown in one Write call (analyze-video). (WhisperX is no longer a sub-agent — `process_footage.rb transcripts` runs it in Step 2a.)
 - Return a short structured response with file paths.
 
 Each skill's `agent_prompt.md` documents its own IO contract — including whether the sub-agent reads or writes library.yaml. (Spoiler: it never writes library.yaml. Only the parent writes, via the `Library` API.)
