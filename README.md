@@ -57,7 +57,9 @@ Alternatively, you can always *create your own custom skills* (or fork existing 
 #### Legal
 
 When you submit a pull request, you give up any rights or claims to the changes you submit to the ButterCut/TubeSalt project, and you assign the copyright for those changes to TubeSalt LLC.
+
 If you can't or don't want to reassign those rights — for example, your employment contract may not allow it — don't submit a pull request. Instead, open an issue, and someone else can do the work.
+
 In plain terms: when you submit a pull request to us, that code becomes ours. Most of the time, that's what you intend anyway, and we hope it doesn't scare you away from contributing.
 
 ## Thanks
