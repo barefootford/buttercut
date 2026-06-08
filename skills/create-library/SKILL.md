@@ -45,10 +45,11 @@ Ask the user these questions one at a time — never all at once.
    - Examples: "bike-locking-video-series", "raiders-2025-highlights", "yo-yo-techniques"
    - Normalize the name: replace spaces with dashes, lowercase, drop special characters (keep alphanumeric and dashes).
 
-2. **Where are the video files located?**
-   - Ask: "Where are your video files? You can drag folders or individual files directly into the chat."
+2. **Where are the media files located?**
+   - Ask: "Where are your video clips and photos? You can drag folders or individual files directly into the chat."
+   - A library can hold video clips and still images (jpg, png, etc.) together.
    - Verify all files exist before proceeding.
-   - Inform the user of what was found: "Found 5 video files totaling 2.3GB."
+   - Inform the user of what was found: "Found 5 video files and 3 photos totaling 2.3GB."
 
 3. **What language is spoken in these videos?**
    - `AskUserQuestion` with options: "English", "Spanish", and a free-text fallback for other languages.
@@ -62,9 +63,27 @@ Ask the user these questions one at a time — never all at once.
 
 Read the `editor` from `libraries/settings.yaml` — you'll pass it into the create call next.
 
+## Step 2.5 — Convert HEIC/HEIF photos (if any)
+
+iPhone photos are usually **HEIC**, which the editors don't reliably import (and which probes to the wrong dimensions). Convert any `.heic`/`.heif` files to JPEG **before** creating the library — then pass the JPEGs (not the originals) in `media_paths`.
+
+1. Split the gathered files by extension. If none end in `.heic`/`.heif`, skip this step.
+2. **Ask the user where the converted JPEGs should go** (this is their call every time):
+   - `AskUserQuestion`: "I found [N] HEIC photos. Where should I save the converted JPEGs?"
+   - Options: "Next to the originals (Recommended)" and "In the library folder". (Beside-the-original keeps them with the user's other files; the library folder keeps them out of the user's way.)
+3. Convert each one with ButterCut (uses `sips`, so it works even without ffmpeg HEVC support and gets the full-resolution image):
+   ```bash
+   ruby lib/buttercut/media.rb convert /abs/IMG_0001.heic /abs/dest/IMG_0001.jpg
+   ```
+   - "Next to the originals" → same directory and basename, `.jpg` extension.
+   - "In the library folder" → `libraries/<name>/converted/IMG_0001.jpg` (create the dir first).
+4. Use the resulting `.jpg` paths in place of the `.heic` paths from here on. The originals are never modified.
+
+Other still formats (jpg, png, gif, tif, webp, bmp) and the video containers go through unchanged.
+
 ## Step 3 — Create the library
 
-`Library.create` is the one operation that doesn't have a plain CLI form (kwarg-heavy). Run it via `ruby -e`. It creates the directory tree (transcripts/, contact_sheets/, summaries/, cuts/, plans/), ffprobes each video for duration, and writes library.yaml in one call:
+`Library.create` is the one operation that doesn't have a plain CLI form (kwarg-heavy). Run it via `ruby -e`. It creates the directory tree (transcripts/, contact_sheets/, summaries/, cuts/, plans/), ffprobes each video for duration (images skip the probe), and writes library.yaml in one call. Pass video clips and images together in `media_paths`, in shoot order:
 
 ```bash
 ruby -e "require_relative 'lib/buttercut/library'; \
@@ -72,10 +91,10 @@ ruby -e "require_relative 'lib/buttercut/library'; \
     language: 'en', \
     editor: 'fcpx', \
     transcript_refinement: true, \
-    video_paths: ['/abs/foo.mov', '/abs/bar.mov'])"
+    media_paths: ['/abs/foo.mov', '/abs/photo.png', '/abs/bar.mov'])"
 ```
 
-Each video entry starts with empty `transcript`, `contact_sheet`, and `summary` — empty means "todo", filename presence means "done."
+Each video entry starts with empty `transcript`, `contact_sheet`, and `summary` — empty means "todo", filename presence means "done." Image entries start with just an empty `summary` (no `transcript`, `contact_sheet`, or `duration` — those don't apply to a still).
 
 ## Step 4 — Hand off to process-library
 

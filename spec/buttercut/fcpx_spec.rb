@@ -479,6 +479,152 @@ RSpec.describe ButterCut::FCPX do
     end
   end
 
+  # Stills have no audio stream and no source frame rate. The FCPX writer must
+  # flag the asset hasAudio="0" and omit audioRate entirely, while still emitting
+  # hasVideo="1". A still that leads the timeline has no source rate to inherit,
+  # so the format falls back to the 24fps default grid, and a still with no in/out
+  # holds for the 4s default. Video assets in the same timeline keep their audio.
+  describe 'still images' do
+    let(:image_path) { '/tmp/fcpx_still.png' }
+    let(:video_path) { '/tmp/fcpx_clip.mov' }
+
+    let(:video_metadata) { build_metadata(frame_rate: '24000/1001', duration_seconds: 6.0) }
+
+    before do
+      allow_any_instance_of(ButterCut::FCPX).to receive(:extract_metadata_from_ffprobe) do |_instance, path|
+        path == image_path ? image_metadata : video_metadata
+      end
+    end
+
+    let(:image_doc) { Nokogiri::XML(ButterCut::FCPX.new([{ path: image_path }]).to_xml) }
+
+    it 'flags the image asset hasAudio="0" / hasVideo="1" and omits audioRate' do
+      asset = image_doc.at_xpath('//resources/asset')
+      expect(asset['hasAudio']).to eq('0')
+      expect(asset['hasVideo']).to eq('1')
+      expect(asset.attribute('audioRate')).to be_nil
+    end
+
+    it 'emits the still as a single <video> element on the spine, not an asset-clip' do
+      expect(image_doc.xpath('//spine/video').length).to eq(1)
+      expect(image_doc.xpath('//spine/asset-clip')).to be_empty
+    end
+
+    it 'falls back to the 24fps default grid when a still leads the timeline' do
+      expect(image_doc.at_xpath('//resources/format')['frameDuration']).to eq('1/24s')
+    end
+
+    it 'holds the still for the default 4s (asset, <video>, and sequence all 4/1s)' do
+      asset = image_doc.at_xpath('//resources/asset')
+      clip  = image_doc.at_xpath('//spine/video')
+      expect(asset['duration']).to eq('4/1s')
+      expect(clip['duration']).to eq('4/1s')
+      expect(image_doc.at_xpath('//sequence')['duration']).to eq('4/1s')
+    end
+
+    it 'falls back to the 4s default for a zero-length (in==out) still rather than a 0-frame clip' do
+      doc  = Nokogiri::XML(ButterCut::FCPX.new([{ path: image_path, start_at: 0.0, duration: 0.0 }]).to_xml)
+      clip = doc.at_xpath('//spine/video')
+      expect(clip['duration']).to eq('4/1s')
+      expect(doc.at_xpath('//resources/asset')['duration']).to eq('4/1s')
+    end
+
+    it 'anchors the still at 0s with no embedded timecode' do
+      asset = image_doc.at_xpath('//resources/asset')
+      clip  = image_doc.at_xpath('//spine/video')
+      expect(asset['start']).to eq('0s')
+      expect(clip['start']).to eq('0s')
+      expect(clip['offset']).to eq('0s')
+    end
+
+    # Regression guard for an FCP import crash (SIGABRT in performAudioPreflightCheck).
+    # Final Cut runs an audio preflight on every <asset-clip> in the spine and aborts
+    # when the referenced asset is hasAudio="0" (a still). Stripping audioRole and
+    # <adjust-volume> is NOT enough — the preflight fires on the element type alone.
+    # A still must therefore be emitted as a <video> element (FCPXML's video-only
+    # story element, whose content model has no audio components), never an asset-clip.
+    it 'emits the still as a <video> element, never an asset-clip' do
+      expect(image_doc.at_xpath('//spine/video')).not_to be_nil
+      expect(image_doc.at_xpath('//spine/asset-clip')).to be_nil
+
+      video = image_doc.at_xpath('//spine/video')
+      expect(video.attribute('audioRole')).to be_nil
+      expect(video.at_xpath('adjust-volume')).to be_nil
+    end
+
+    context 'a timeline mixing a video and a still' do
+      let(:doc) do
+        Nokogiri::XML(ButterCut::FCPX.new([{ path: video_path }, { path: image_path }]).to_xml)
+      end
+      let(:assets) { doc.xpath('//resources/asset') }
+      let(:video_asset) { assets.find { |a| a['name'] == 'fcpx_clip.mov' } }
+      let(:image_asset) { assets.find { |a| a['name'] == 'fcpx_still.png' } }
+
+      it 'keeps audioRate + hasAudio="1" on the video asset only' do
+        expect(video_asset['hasAudio']).to eq('1')
+        expect(video_asset['audioRate']).to eq('48000')
+      end
+
+      it 'flags the still asset hasAudio="0" with no audioRate' do
+        expect(image_asset['hasAudio']).to eq('0')
+        expect(image_asset.attribute('audioRate')).to be_nil
+      end
+
+      it 'places both clips on the spine in order: video as asset-clip, still as <video>' do
+        elements = doc.xpath('//spine/*')
+        expect(elements.map(&:name)).to eq(%w[asset-clip video])
+        expect(elements.map { |c| c['name'] }).to eq(%w[fcpx_clip.mov fcpx_still.png])
+      end
+
+      it 'keeps audioRole + adjust-volume on the video asset-clip; the still is a bare <video>' do
+        video_clip = doc.at_xpath('//spine/asset-clip')
+        image_clip = doc.at_xpath('//spine/video')
+
+        expect(video_clip['name']).to eq('fcpx_clip.mov')
+        expect(video_clip['audioRole']).to eq('dialogue')
+        expect(video_clip.at_xpath('adjust-volume')).not_to be_nil
+
+        expect(image_clip['name']).to eq('fcpx_still.png')
+        expect(image_clip.attribute('audioRole')).to be_nil
+        expect(image_clip.at_xpath('adjust-volume')).to be_nil
+      end
+    end
+  end
+
+  # A silent video (no audio stream) has a real frame rate and duration, but no
+  # audio — so it must be handled like a still for audio purposes: hasAudio=0, no
+  # audioRate, and emitted as <video> (an <asset-clip> would trip FCP's audio
+  # preflight on a hasAudio=0 asset). It keeps its own frame rate/duration.
+  describe 'silent video (no audio stream)' do
+    let(:silent_path) { '/tmp/fcpx_silent.mov' }
+
+    before do
+      allow_any_instance_of(ButterCut::FCPX).to receive(:extract_metadata_from_ffprobe) do |_instance, _path|
+        silent_metadata(frame_rate: '24/1', duration: '5.0')
+      end
+    end
+
+    let(:doc) { Nokogiri::XML(ButterCut::FCPX.new([{ path: silent_path }]).to_xml) }
+
+    it 'flags the asset hasAudio="0" and omits audioRate (like a still)' do
+      asset = doc.at_xpath('//resources/asset')
+      expect(asset['hasAudio']).to eq('0')
+      expect(asset['hasVideo']).to eq('1')
+      expect(asset.attribute('audioRate')).to be_nil
+    end
+
+    it 'emits the silent video as a <video> element, never an audio-preflighted asset-clip' do
+      expect(doc.xpath('//spine/video').length).to eq(1)
+      expect(doc.xpath('//spine/asset-clip')).to be_empty
+    end
+
+    it 'still uses the video\'s own frame rate (not the still 24fps fallback path)' do
+      # 24/1 source → frameDuration 1/24s; a 5s source, not the 4s image default.
+      expect(doc.at_xpath('//resources/format')['frameDuration']).to eq('1/24s')
+      expect(doc.at_xpath('//resources/asset')['duration']).to eq('5/1s')
+    end
+  end
+
   describe 'full project exports', :fixtures do
     let(:media_paths) do
       %w[
@@ -523,6 +669,46 @@ RSpec.describe ButterCut::FCPX do
       expected = expected_full_xml('full_media_last_second', generator, media_paths)
 
       expect(xml.strip).to eq(expected.strip)
+    end
+  end
+
+  # Real ffprobe sees a still differently from the mocked metadata above: a PNG
+  # reports r_frame_rate="25/1" and carries no format duration at all. Detection
+  # is by extension (Media.image?), so the writer must still treat it as a still.
+  # This runs the genuine ffprobe path end to end on the committed PNG fixture.
+  describe 'still images through real ffprobe', :fixtures do
+    let(:image_path) { File.expand_path('../fixtures/media/still_image.png', __dir__) }
+    let(:video_file) { File.expand_path('../fixtures/media/MVI_0323_720p.mov', __dir__) }
+
+    it 'builds an image-only timeline: hasAudio=0, no audioRate, real dimensions' do
+      doc = Nokogiri::XML(ButterCut::FCPX.new([{ path: image_path }]).to_xml)
+      asset = doc.at_xpath('//resources/asset')
+      # In FCPXML the asset references a <format>; the pixel dimensions live there.
+      format = doc.at_xpath('//resources/format')
+
+      expect(asset['hasAudio']).to eq('0')
+      expect(asset['hasVideo']).to eq('1')
+      expect(asset.attribute('audioRate')).to be_nil
+      expect(format['width']).to eq('1920')
+      expect(format['height']).to eq('1080')
+      expect(doc.xpath('//spine/video').length).to eq(1)
+      expect(doc.xpath('//spine/asset-clip')).to be_empty
+      expect(doc.at_xpath('//sequence')['duration']).to eq('4/1s')
+    end
+
+    it 'builds a mixed video+image timeline with audio only on the video asset' do
+      doc = Nokogiri::XML(ButterCut::FCPX.new([{ path: video_file }, { path: image_path }]).to_xml)
+      assets = doc.xpath('//resources/asset')
+      video_asset = assets.find { |a| a['name'] == 'MVI_0323_720p.mov' }
+      image_asset = assets.find { |a| a['name'] == 'still_image.png' }
+
+      expect(video_asset['hasAudio']).to eq('1')
+      expect(video_asset.attribute('audioRate')).not_to be_nil
+      expect(image_asset['hasAudio']).to eq('0')
+      expect(image_asset.attribute('audioRate')).to be_nil
+      # Mixed timeline: the video is an <asset-clip>, the still is a <video>.
+      expect(doc.xpath('//spine/asset-clip').length).to eq(1)
+      expect(doc.xpath('//spine/video').length).to eq(1)
     end
   end
 

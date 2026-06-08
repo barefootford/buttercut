@@ -50,8 +50,11 @@ def migrate_library(library_path)
   new_content = lines.join
 
   # Sanity check: parse the result to make sure we didn't produce invalid YAML.
+  # Accept either key name: under the canonical `migrate` order this runs before
+  # 005 (clips live under `videos:`), but tolerate `media:` too so running 003 on
+  # its own against an already-renamed library doesn't refuse a valid write.
   parsed = YAML.load(new_content, permitted_classes: [Date, Time, Symbol])
-  unless parsed.is_a?(Hash) && parsed['videos'].is_a?(Array)
+  unless parsed.is_a?(Hash) && (parsed['videos'].is_a?(Array) || parsed['media'].is_a?(Array))
     puts "  ✗ Insert produced unexpected YAML; refusing to write"
     return false
   end

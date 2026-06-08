@@ -101,13 +101,25 @@ Dispatch `analyze-video` sub-agents on the **Sonnet model**. Sonnet reads the co
 
 **Batch 10 clips per sub-agent, up to 10 sub-agents in parallel, with rolling dispatch.** Each sub-agent processes its 10 clips sequentially; batching amortizes the ~5–10s per-agent dispatch overhead. For a 93-clip library that's ~10 sub-agents total instead of 93. Start the next sub-agent as soon as one returns — don't wait for the whole wave of 10 to finish, or you give up ~30% of wall-clock to whichever agent in the wave is slowest.
 
-For each sub-agent, pass a list of 10 clip records inline. Each clip record needs:
+For each sub-agent, pass a list of 10 clip records inline. Every record carries `filename` and `summary_output_path`; the remaining fields depend on the clip type.
 
-- `video_filename` — basename of the video (used in the summary header and reply line)
+**Every record:**
+
+- `filename` — basename of the clip, video or image (used in the summary header and reply line)
+- `summary_output_path` — absolute path where the agent should write the summary markdown. Don't hand-build this filename; ask the library for the canonical path: `ruby lib/buttercut/library.rb <name> field_path summary <clip>` (handles the `summaries/summary_<clip>.md` convention for you, with or without the file extension)
+
+**Video clips additionally carry:**
+
 - `duration` — duration string from library.yaml (e.g. `00:01:19`); the agent renders it in the summary header
 - `contact_sheet_path` — absolute path to the `_full.jpg` (from step 2)
 - `transcript_path` — absolute path to the audio transcript JSON (from step 2); the sub-agent extracts dialogue on demand via `script_extractor.rb`
-- `summary_output_path` — absolute path where the agent should write the summary markdown. Don't hand-build this filename; ask the library for the canonical path: `ruby lib/buttercut/library.rb <name> field_path summary <clip>` (handles the `summaries/summary_<clip>.md` convention for you, with or without the file extension)
+
+**Images instead carry** (stills got no transcript or contact sheet in Step 2 — they only need a summary, written from the image itself):
+
+- `image_path` — absolute path to the still; the sub-agent reads it directly
+- (no `duration`, `contact_sheet_path`, or `transcript_path`)
+
+Images appear in `summary`'s incomplete list and in `pending summary`, so dispatch them the same way — just with the image record shape. (`pending transcript` / `pending contact_sheet` never list stills, so Step 2 already passed over them.)
 
 As each sub-agent returns its batch, update library.yaml with `summary` for every clip in that batch:
 

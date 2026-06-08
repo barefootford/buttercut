@@ -39,6 +39,8 @@ The roughcut path runs a deeper flow because the agent needs to explore the libr
 ## 3. Build the Cut (produces YAML)
 Both paths produce a YAML at `libraries/[library-name]/cuts/[slug]_[YYYYMMDD_HHMMSS].yaml`. The export in step 5 is the same regardless of which path you take.
 
+A library can hold **still images** alongside video; they go on the timeline like any other clip. A still has no intrinsic duration, so you decide how long it holds by its `in_point`/`out_point` — start at `00:00:00.00` and set `out_point` to the hold length (**guideline: ~1 second per still**, adjustable per shot). Leave `dialogue` empty. See `skills/cut/cut_yaml_schema.md` → "Still images on the timeline."
+
 ### Roughcut path
 Read `skills/cut/roughcut_path.md` and follow it.
 

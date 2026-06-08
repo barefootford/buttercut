@@ -22,7 +22,7 @@ ruby lib/buttercut/library.rb <name> exists   # exits 0 if it does, 1 if not
 ```
 
 **If it exists:**
-- Read the snapshot — one call gives you top-level metadata plus the clip-completion breakdown (`video_count`, `incomplete_count`, and the list of incomplete clips with their missing fields):
+- Read the snapshot — one call gives you top-level metadata plus the clip-completion breakdown (`media_count`, `incomplete_count`, and the list of incomplete clips with their missing fields):
   ```bash
   ruby lib/buttercut/library.rb <name> summary
   ```
@@ -44,13 +44,15 @@ ruby lib/buttercut/library.rb recent [N]   # N most-recently-touched libraries (
 
 ## Step 2 — Add new footage
 
-If the user is adding footage new footage to an existing library, append the clips first:
+If the user is adding new footage to an existing library, append the clips first (video clips and/or still images):
 
 ```bash
-ruby lib/buttercut/library.rb <name> add_videos /abs/new1.mov /abs/new2.mov
+ruby lib/buttercut/library.rb <name> add_media /abs/new1.mov /abs/photo.png
 ```
 
-Each new entry starts with empty `transcript`, `contact_sheet`, and `summary` — empty means "todo." The analysis steps below are idempotent and only touch clips missing an artifact, so they'll process just the new clips.
+**Convert HEIC/HEIF photos first.** iPhone photos are usually `.heic`, which the editors don't reliably import. `add_media` rejects a raw HEIC on purpose. If any new files end in `.heic`/`.heif`, follow the conversion procedure in `skills/create-library/SKILL.md` → "Step 2.5 — Convert HEIC/HEIF photos" (ask where the JPEGs should go, convert with `ruby lib/buttercut/media.rb convert`, never modify the originals), then pass the resulting `.jpg` paths to `add_media`.
+
+Each new video entry starts with empty `transcript`, `contact_sheet`, and `summary` — empty means "todo." Image entries start with just an empty `summary` (stills have no transcript or contact sheet). The analysis steps below are idempotent and only touch clips missing an artifact, so they'll process just the new clips — and they skip transcription and contact sheets for images automatically.
 
 If you're simply resuming or processing a freshly created library, skip this step.
 
@@ -59,6 +61,8 @@ If you're simply resuming or processing a freshly created library, skip this ste
 Inform the user: "Found [N] videos ([total size]). Starting footage analysis..."
 
 Follow `skills/analyze-video/SKILL.md` end-to-end. That skill covers keeping the Mac awake during processing (caffeinate), footage processing (transcripts then contact sheets, two deterministic `process_footage.rb` runs), optional transcript refinement, summaries (Sonnet sub-agents, batched + rolling), and the post-analysis footage-understanding pass.
+
+Images are handled automatically: `process_footage.rb` skips transcription and contact sheets for stills (there's no audio and the photo is its own overview), so the only analysis an image needs is a summary, written by the analyze-video sub-agent reading the image directly.
 
 Progressively update `footage_summary` as transcripts come in — 1-3 sentences covering subjects, locations, activities, visual style:
 

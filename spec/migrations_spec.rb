@@ -407,6 +407,19 @@ RSpec.describe 'Migration scripts' do
       expect(data['videos'].first['summary']).to be_nil
     end
 
+    it 'still writes when the clips already live under a media: key (run out of order vs 005)' do
+      write_yaml(<<~YAML)
+        library_name: test-lib
+        media:
+          - path: /tmp/clip.mov
+            transcript: clip.json
+            visual_transcript: visual_clip.json
+      YAML
+
+      expect(migrate).to be true # not refused by the videos:-only sanity check
+      expect(read_yaml['media'].first).to have_key('summary')
+    end
+
     it 'places summary: on the line immediately after visual_transcript:' do
       write_yaml(<<~YAML)
         library_name: test-lib
@@ -718,6 +731,101 @@ RSpec.describe 'Migration scripts' do
     end
   end
 
+  # ─── 005: videos: → media: ───
+
+  describe '005_migrate_videos_to_media' do
+    before(:context) { load File.expand_path('../scripts/005_migrate_videos_to_media.rb', __dir__) }
+
+    def migrate(name = 'test-lib')
+      migrate_library(library_yaml_path(name))
+    end
+
+    it 'renames the top-level videos: key to media:' do
+      write_yaml(<<~YAML)
+        library_name: test-lib
+        videos:
+          - path: /tmp/a.mov
+            duration: "00:05:00"
+            transcript: a.json
+      YAML
+
+      expect(migrate).to be true
+
+      data = read_yaml
+      expect(data).to have_key('media')
+      expect(data).not_to have_key('videos')
+      expect(data['media'].first['path']).to eq('/tmp/a.mov')
+    end
+
+    it 'preserves the clip entries (video + image) unchanged under the new key' do
+      write_yaml(<<~YAML)
+        library_name: test-lib
+        videos:
+          - path: /tmp/a.mov
+            duration: "00:05:00"
+            transcript: a.json
+            contact_sheet: a_full.jpg
+            summary: summary_a.md
+          - path: /tmp/photo.png
+            summary: summary_photo.md
+      YAML
+
+      migrate
+      media = read_yaml['media']
+      expect(media.size).to eq(2)
+      expect(media[0]).to include('duration' => '00:05:00', 'transcript' => 'a.json',
+                                  'contact_sheet' => 'a_full.jpg', 'summary' => 'summary_a.md')
+      expect(media[1]).to eq('path' => '/tmp/photo.png', 'summary' => 'summary_photo.md')
+    end
+
+    it 'is idempotent — no change on a second run' do
+      write_yaml(<<~YAML)
+        library_name: test-lib
+        videos:
+          - path: /tmp/a.mov
+            duration: "00:05:00"
+      YAML
+
+      migrate
+      first_pass = read_raw
+      expect(migrate).to be false
+      expect(read_raw).to eq(first_pass)
+    end
+
+    it 'leaves an already-media library untouched' do
+      content = <<~YAML
+        library_name: test-lib
+        media:
+          - path: /tmp/a.mov
+            duration: "00:05:00"
+      YAML
+      write_yaml(content)
+
+      expect(migrate).to be false
+      expect(read_raw).to eq(content)
+    end
+
+    it 'only renames the top-level key, not the word inside a quoted value' do
+      write_yaml(<<~YAML)
+        library_name: test-lib
+        user_context: "lots of videos: cooking and travel"
+        videos:
+          - path: /tmp/a.mov
+            duration: "00:05:00"
+      YAML
+
+      migrate
+      data = read_yaml
+      expect(data['user_context']).to eq('lots of videos: cooking and travel')
+      expect(data).to have_key('media')
+      expect(data).not_to have_key('videos')
+    end
+
+    it 'returns false for a missing file' do
+      expect(migrate_library('/nonexistent/library.yaml')).to be false
+    end
+  end
+
   # ─── migrate_all.rb orchestrator ───
 
   describe 'migrate_all' do
@@ -732,13 +840,14 @@ RSpec.describe 'Migration scripts' do
         expect(output).to include('002_migrate_add_transcript_refinement.rb')
         expect(output).to include('003_migrate_add_summary.rb')
         expect(output).to include('004_migrate_roughcuts_to_cuts.rb')
+        expect(output).to include('005_migrate_videos_to_media.rb')
       end
     end
 
     it 'runs scripts in numeric order' do
       Dir.chdir(repo_root) do
         output = `ruby #{script_path} 2>&1`
-        positions = %w[001 002 003 004].map { |n| output.index(n) }
+        positions = %w[001 002 003 004 005].map { |n| output.index(n) }
         expect(positions).to eq(positions.sort)
       end
     end
@@ -823,6 +932,12 @@ RSpec.describe 'Migration scripts' do
       expect(File.directory?(File.join(library_dir, 'roughcuts'))).to be false
       expect(File.read(File.join(library_dir, 'cuts', 'first_draft.xml'))).to eq('<timeline/>')
 
+      # Run 005: videos: → media:
+      load File.expand_path('../scripts/005_migrate_videos_to_media.rb', __dir__)
+      expect(migrate_library(library_yaml_path)).to be true
+      expect(read_yaml).to have_key('media')
+      expect(read_yaml).not_to have_key('videos')
+
       # Verify final state
       final = read_yaml
       expect(final['library_name']).to eq('legacy-project')
@@ -830,9 +945,9 @@ RSpec.describe 'Migration scripts' do
       expect(final['transcript_refinement']).to be false
       expect(final['user_context']).to eq('The woman in red is Maria')
 
-      # All three videos still present with correct data
-      expect(final['videos'].size).to eq(3)
-      expect(final['videos'].map { |v| v['path'] }).to eq([
+      # All three clips still present with correct data, now under `media`
+      expect(final['media'].size).to eq(3)
+      expect(final['media'].map { |v| v['path'] }).to eq([
         '/Volumes/SSD/wedding/DJI_0001.mov',
         '/Volumes/SSD/wedding/DJI_0002.mov',
         '/Volumes/SSD/wedding/DJI_0003.mov'
@@ -848,6 +963,8 @@ RSpec.describe 'Migration scripts' do
       migrate_library(library_yaml_path)
       load File.expand_path('../scripts/004_migrate_roughcuts_to_cuts.rb', __dir__)
       migrate_library(library_dir)
+      load File.expand_path('../scripts/005_migrate_videos_to_media.rb', __dir__)
+      migrate_library(library_yaml_path)
       expect(read_raw).to eq(snapshot)
     end
 

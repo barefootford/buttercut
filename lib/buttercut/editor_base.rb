@@ -5,6 +5,7 @@ require 'json'
 require 'digest'
 require 'shellwords'
 require_relative 'rotation_metadata'
+require_relative 'media'
 require_relative 'media_tools'
 
 class ButterCut
@@ -15,6 +16,17 @@ class ButterCut
     DEFAULT_START_TIME = "0s"
     DEFAULT_INITIAL_OFFSET = "0s"
     DEFAULT_VOLUME_ADJUSTMENT = "-13.100000000000001db"
+
+    # Stills have no source frame rate or audio. When a still leads the timeline
+    # (so there's no video to inherit the format from) the sequence falls back to
+    # a plain 24fps grid, and a still clip given no in/out holds for this long.
+    # The 4s hold is a safety net, not the planning default — cut YAMLs set an
+    # explicit in/out per still (see skills/cut/cut_yaml_schema.md, which
+    # documents this fallback), so it fires only for a missing/zero-length span.
+    DEFAULT_FRAME_RATE = "24/1"
+    DEFAULT_FRAME_DURATION = "1/24s"
+    DEFAULT_NOMINAL_FRAME_RATE = 24
+    DEFAULT_IMAGE_DURATION = 4.0 # seconds
 
     attr_reader :clips, :initial_offset, :volume_adjustment
 
@@ -40,10 +52,12 @@ class ButterCut
       @initial_offset = DEFAULT_INITIAL_OFFSET
       @volume_adjustment = DEFAULT_VOLUME_ADJUSTMENT
 
+      # ||= so a source that appears at several points on the timeline (common
+      # for a reused still) is probed once, not once per occurrence.
       @metadata_cache = {}
       @clips.each do |clip|
         path = clip[:path]
-        @metadata_cache[path] = extract_metadata_from_ffprobe(path)
+        @metadata_cache[path] ||= extract_metadata_from_ffprobe(path)
       end
     end
 
@@ -96,8 +110,10 @@ class ButterCut
       "#{denominator}/#{numerator}s"
     end
 
+    # nil when the source has no audio stream (e.g. a still image), so callers
+    # can fall back rather than crash on a missing stream.
     def audio_sample_rate(video_path)
-      audio_stream(video_path)['sample_rate']
+      audio_stream(video_path)&.[]('sample_rate')
     end
 
     def nominal_frame_rate(video_path)
@@ -208,32 +224,43 @@ class ButterCut
       "#{duration_num / divisor}/#{duration_denom / divisor}s"
     end
 
+    # The first clip drives the timeline format (frame rate, dimensions, …).
+    def first_clip_path = @clips.first[:path]
+
+    # True when a still leads the timeline. A still has no source frame rate or
+    # dimensions, so a leading still makes the format fall back to defaults here
+    # (and makes Premiere skip its rotation swap).
+    def leading_image? = Media.image?(first_clip_path)
+
     def format_width
-      video_width(@clips.first[:path])
+      video_width(first_clip_path)
     end
 
     def format_height
-      video_height(@clips.first[:path])
+      video_height(first_clip_path)
     end
 
+    # The timeline format follows the first clip. A still has no source frame
+    # rate, so when it leads, fall back to the 24fps default; later stills then
+    # inherit this timeline rate via build_asset_map.
     def format_frame_duration
-      frame_duration(@clips.first[:path])
+      leading_image? ? DEFAULT_FRAME_DURATION : frame_duration(first_clip_path)
     end
 
     def format_frame_rate
-      frame_rate(@clips.first[:path])
+      leading_image? ? DEFAULT_FRAME_RATE : frame_rate(first_clip_path)
     end
 
     def format_nominal_frame_rate
-      nominal_frame_rate(@clips.first[:path])
+      leading_image? ? DEFAULT_NOMINAL_FRAME_RATE : nominal_frame_rate(first_clip_path)
     end
 
     def format_color_space
-      color_space(@clips.first[:path])
+      color_space(first_clip_path)
     end
 
     def format_audio_rate
-      audio_sample_rate(@clips.first[:path])
+      audio_sample_rate(first_clip_path)
     end
 
     # Greatest Common Divisor (GCD): the largest whole number that divides two
@@ -356,34 +383,86 @@ class ButterCut
     def build_asset_map
       file_to_asset = {}
       @clips.each do |clip_def|
-        video_file_path = clip_def[:path]
-        abs_path = get_absolute_path(video_file_path)
+        media_file_path = clip_def[:path]
+        abs_path = get_absolute_path(media_file_path)
         next if file_to_asset.key?(abs_path)
 
-        asset_id = deterministic_asset_id(abs_path)
-        asset_uid = deterministic_asset_uid(abs_path)
-        filename = get_filename(video_file_path)
-        file_url = path_to_file_url(video_file_path)
+        filename = get_filename(media_file_path)
+        image = Media.image?(media_file_path)
+
+        # A still has no source frame rate or audio. Give it the timeline's frame
+        # grid (so frame math stays valid), drop the audio rate, and size the
+        # intrinsic duration to cover the clip(s) that use it rather than reading
+        # a (nonexistent) container duration.
+        asset_frame_duration = image ? format_frame_duration : frame_duration(media_file_path)
+        asset_frame_rate     = image ? format_frame_rate     : frame_rate(media_file_path)
+
+        # `audio_rate` is nil whenever the source has no audio stream — a still
+        # (no audio at all) AND a silent video both fall out of audio_sample_rate
+        # as nil, so no type branch is needed here. `has_audio` (below) drives
+        # every audio branch in the writers, so a silent video is treated like a
+        # still for audio purposes (hasAudio=0, no audioRate, no audio
+        # clipitem/link) rather than emitting a dangling/empty audio rate.
+        # Frame-rate, duration, and rotation still branch on `image`, since a
+        # silent video — unlike a still — does have a real source frame rate and
+        # intrinsic length.
+        audio_rate = audio_sample_rate(media_file_path)
 
         file_to_asset[abs_path] = {
-          asset_id: asset_id,
-          asset_uid: asset_uid,
+          asset_id: deterministic_asset_id(abs_path),
+          asset_uid: deterministic_asset_uid(abs_path),
           abs_path: abs_path,
           filename: filename,
           basename: get_basename(filename),
-          file_url: file_url,
-          asset_duration: duration_to_fraction(video_file_path),
-          audio_rate: audio_sample_rate(video_file_path),
-          timecode: clip_timecode_fraction(video_file_path),
-          frame_duration: frame_duration(video_file_path),
-          frame_rate: frame_rate(video_file_path),
-          width: video_width(video_file_path),
-          height: video_height(video_file_path),
-          rotation: video_rotation(video_file_path),
-          color_space: color_space(video_file_path)
+          file_url: path_to_file_url(media_file_path),
+          image: image,
+          has_audio: !audio_rate.nil?,
+          asset_duration: image ? image_asset_duration(abs_path, asset_frame_duration) : duration_to_fraction(media_file_path),
+          audio_rate: audio_rate,
+          timecode: clip_timecode_fraction(media_file_path),
+          frame_duration: asset_frame_duration,
+          frame_rate: asset_frame_rate,
+          width: video_width(media_file_path),
+          height: video_height(media_file_path),
+          rotation: video_rotation(media_file_path),
+          color_space: color_space(media_file_path)
         }
       end
       file_to_asset
+    end
+
+    # A still's asset has no intrinsic length, so size it to cover the longest
+    # clip that references it (start offset + on-spine duration). That keeps every
+    # clip's source in/out inside the asset bounds. (A clip with no explicit
+    # duration contributes the default hold — see image_hold_seconds.)
+    def image_asset_duration(abs_path, frame_duration_fraction)
+      @clips_by_abs_path ||= @clips.group_by { |c| get_absolute_path(c[:path]) }
+      spans = @clips_by_abs_path.fetch(abs_path).map do |clip_def|
+        seconds_value(clip_def[:start_at]) + image_hold_seconds(clip_def)
+      end
+      round_to_frame_boundary(spans.max, frame_duration_fraction)
+    end
+
+    # A still's on-screen hold, in seconds: the cut's in/out span when it's
+    # positive, else DEFAULT_IMAGE_DURATION. The fallback covers both no in/out at
+    # all and a zero-length in==out span (0.0 is truthy in Ruby, so it can't be
+    # caught by a plain `clip_def[:duration] ? …`). compute_clip_duration and
+    # image_asset_duration share this rule so the clip's hold and the asset it
+    # references stay the same length.
+    def image_hold_seconds(clip_def)
+      seconds = seconds_value(clip_def[:duration])
+      seconds.positive? ? seconds : DEFAULT_IMAGE_DURATION
+    end
+
+    # Seconds from a clip time value that may be a Numeric (seconds) or a
+    # fraction string ("N/Ds" / "Ns" / "0s"); nil → 0. The Numeric fast path is
+    # deliberate: routing through fraction_to_rational would quantize to 1/10000s
+    # (seconds_to_fraction), while to_f keeps the value exact.
+    def seconds_value(value)
+      return 0.0 if value.nil?
+      return value.to_f if value.is_a?(Numeric)
+
+      fraction_to_rational(value).to_f
     end
 
     def build_timeline_clips(asset_map, timeline_frame_duration)
@@ -452,7 +531,11 @@ class ButterCut
     end
 
     def compute_clip_duration(clip_def, asset_info, start_at, asset_frame_duration, timeline_frame_duration)
-      duration = if clip_def[:duration]
+      duration = if asset_info[:image]
+        # A still has no source length; its hold is the cut's in/out span, or the
+        # default when that span is missing or zero-length (see image_hold_seconds).
+        image_hold_seconds(clip_def)
+      elsif clip_def[:duration]
         clip_def[:duration]
       elsif clip_def[:start_at] && !time_value_zero?(clip_def[:start_at])
         subtract_fractions(asset_info[:asset_duration], start_at)

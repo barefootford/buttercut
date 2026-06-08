@@ -33,18 +33,21 @@ class ButterCut
             )
 
             asset_map.each_value do |asset|
-              xml.asset(
+              # An asset with no audio stream (a still, or a silent video) flags
+              # hasAudio=0 and omits audioRate entirely — audio_rate is nil
+              # exactly then, so compact drops just that attribute.
+              xml.asset(**{
                 id: asset[:asset_id],
                 name: asset[:filename],
                 uid: asset[:asset_uid],
                 src: asset[:file_url],
                 start: asset[:timecode],
                 audioRate: asset[:audio_rate],
-                hasAudio: '1',
+                hasAudio: asset[:has_audio] ? '1' : '0',
                 hasVideo: '1',
                 format: FORMAT_ID,
                 duration: asset[:asset_duration]
-              )
+              }.compact)
             end
           end
 
@@ -54,15 +57,30 @@ class ButterCut
                 xml.sequence(duration: sequence_duration, format: FORMAT_ID, tcStart: '0s', audioRate: '48k') do
                   xml.spine do
                     timeline_clips.each do |clip|
-                      xml.send('asset-clip',
+                      attrs = {
                         name: clip[:filename],
                         ref: clip[:asset_id],
                         start: clip[:start],
                         offset: clip[:timeline_offset],
-                        duration: clip[:duration],
-                        audioRole: 'dialogue'
-                      ) do
-                        xml.send('adjust-volume', amount: volume_adjustment)
+                        duration: clip[:duration]
+                      }
+
+                      # An asset with no audio stream (a still, or a silent video).
+                      # Final Cut runs an audio preflight on every <asset-clip> in
+                      # the spine and aborts the import (SIGABRT in
+                      # performAudioPreflightCheck) when the referenced asset has
+                      # hasAudio="0" — stripping audioRole/adjust-volume is not
+                      # enough, the preflight fires on the element type alone.
+                      # <video> is FCPXML's video-only story element: its content
+                      # model has no audio components, so no preflight runs. Emit
+                      # no-audio assets as <video>; assets with audio stay
+                      # <asset-clip> with a dialogue role and an adjust-volume.
+                      if clip[:asset][:has_audio]
+                        xml.send('asset-clip', **attrs.merge(audioRole: 'dialogue')) do
+                          xml.send('adjust-volume', amount: volume_adjustment)
+                        end
+                      else
+                        xml.video(**attrs)
                       end
                     end
                   end

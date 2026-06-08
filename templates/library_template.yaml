@@ -14,21 +14,35 @@ footage_summary: "No footage analyzed yet."
 # "This footage appears to be wedding footage. It includes the bride and groom getting dressed, preparing for the wedding ceremomy, the ceremony, and the post ceremony dinner and party."
 # "This footage appears to be a vlog. The footage starts in The Richmond District in San Francisco, includes a bus ride on the 38R, and concludes at a Ruby Meetup in downtown San Francisco."
 
-# Video files and analysis status
+# Media files (video clips and still images) and analysis status.
 #
-# Per clip, analysis fills three fields:
+# One mixed array, in shoot/timeline order. The two clip types fill different
+# fields:
+#
+# VIDEO — analysis fills three fields:
 #   transcript     — audio transcript JSON (word-level timing, in transcripts/);
 #                    also the source for on-demand dialogue extraction via
 #                    lib/buttercut/script_extractor.rb
 #   contact_sheet  — _full.jpg visual overview (in contact_sheets/); per-segment
 #                    sheets for clips >10 min live alongside on disk
 #   summary        — markdown overview (in summaries/)
+#   duration       — probed source length ("HH:MM:SS")
+#
+# IMAGE (jpg/png/etc.) — only a summary, written by reading the still itself:
+#   summary        — markdown overview (in summaries/)
+#   No transcript, no contact_sheet (there's no audio and the still IS its own
+#   overview), and NO duration key at all — a still has no intrinsic length. How
+#   long it holds on the timeline is set by the cut via the clip's in/out points,
+#   not stored here. (A missing duration on an image is expected, not unmigrated.)
 #
 # Note: visual_transcript is deprecated. Older libraries may still carry the
 # field; new libraries use the contact_sheet field instead.
-videos:
+media:
   - path: /full/path/to/video_file.mp4
     duration: "00:05:32"
     transcript: # filename only (stored in libraries/[library-name]/transcripts/)
     contact_sheet: # filename only (_full.jpg in libraries/[library-name]/contact_sheets/)
+    summary: # filename only (summary_*.md in libraries/[library-name]/summaries/)
+  - path: /full/path/to/still_image.jpg
+    # images carry no duration, transcript, or contact_sheet — just a summary
     summary: # filename only (summary_*.md in libraries/[library-name]/summaries/)

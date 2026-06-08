@@ -1,41 +1,40 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require 'date'
 require 'json'
-require 'yaml'
+require_relative 'library'
 
 class FullTranscript
-  def self.export(library_name, project_root = Dir.pwd)
-    new(library_name, project_root).export
+  def self.export(library_name)
+    new(library_name).export
   end
 
-  def initialize(library_name, project_root = Dir.pwd)
-    raise ArgumentError, "library_name is required" if library_name.nil? || library_name.strip.empty?
-
-    @project_root = project_root
-    @library_dir = File.join(project_root, 'libraries', library_name)
-    @transcripts_dir = File.join(@library_dir, 'transcripts')
-    @summaries_dir = File.join(@library_dir, 'summaries')
-    @output_path = File.join(@library_dir, 'full_transcript.txt')
+  def initialize(library_name)
+    # Reading through Library (not raw YAML) inherits its normalization —
+    # `media` is always an array, and a legacy `videos:` library fails loudly
+    # with the "run migrate" error instead of producing an all-skipped file.
+    @library = Library.find(library_name)
+    @transcripts_dir = File.join(@library.dir, 'transcripts')
+    @summaries_dir = File.join(@library.dir, 'summaries')
+    @output_path = File.join(@library.dir, 'full_transcript.txt')
   end
 
   def export
-    library = load_library
-    videos = library['videos'] || []
+    clips = @library.media
 
     lines = []
     skipped = 0
 
-    videos.each do |video|
-      transcript_file = video['transcript']
+    clips.each do |clip|
+      transcript_file = clip['transcript']
+      # Stills (and any clip without a transcript) carry no dialogue — skip them.
       unless transcript_file && !transcript_file.empty?
         skipped += 1
         next
       end
 
-      filename = File.basename(video['path'] || transcript_file)
-      description = extract_overview(video['summary'])
+      filename = File.basename(clip['path'] || transcript_file)
+      description = extract_overview(clip['summary'])
       dialogue = extract_dialogue(transcript_file)
 
       lines << filename
@@ -47,18 +46,11 @@ class FullTranscript
     File.write(@output_path, lines.join("\n"))
 
     puts "✅ Full transcript written to #{@output_path}"
-    puts "   #{videos.size - skipped} clips with transcripts, #{skipped} skipped (no transcript)"
+    puts "   #{clips.size - skipped} clips with transcripts, #{skipped} skipped (no transcript)"
     @output_path
   end
 
   private
-
-  def load_library
-    yaml_path = File.join(@library_dir, 'library.yaml')
-    raise "Library not found: #{yaml_path}" unless File.exist?(yaml_path)
-
-    YAML.load(File.read(yaml_path, encoding: 'UTF-8'), permitted_classes: [Date, Time, Symbol])
-  end
 
   def extract_overview(summary_file)
     return nil unless summary_file && !summary_file.empty?

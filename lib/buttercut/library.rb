@@ -11,6 +11,7 @@ require 'json'
 require 'shellwords'
 require 'yaml'
 
+require_relative 'media'
 require_relative 'media_tools'
 
 class Library
@@ -86,7 +87,7 @@ class Library
        .map(&:first)
   end
 
-  def self.create(library_name, language:, editor:, transcript_refinement:, video_paths:)
+  def self.create(library_name, language:, editor:, transcript_refinement:, media_paths:)
     raise ArgumentError, 'library_name is required' if library_name.to_s.strip.empty?
 
     dir = File.join(LIBRARIES_ROOT, library_name)
@@ -103,31 +104,57 @@ class Library
       'transcript_refinement' => transcript_refinement,
       'user_context' => '',
       'footage_summary' => 'No footage analyzed yet.',
-      'videos' => Array(video_paths).map { |path| video_record(path) }
+      'media' => Array(media_paths).map { |path| media_record(path) }
     }
     File.write(File.join(dir, 'library.yaml'), payload.to_yaml)
     find(library_name)
   end
 
-  def self.video_record(path)
-    raise ArgumentError, 'video path is required' if path.to_s.strip.empty?
+  # Build the library.yaml record for one clip. A library holds a mixed array of
+  # videos and stills, so the shape depends on type (classified by extension via
+  # Media):
+  #   - videos carry a probed `duration` (used by the contact-sheet builder);
+  #   - images omit `duration` entirely — a still has no intrinsic length, and
+  #     how long it holds on a timeline is an editorial choice the cut makes via
+  #     the clip's in/out points, not a property of the source. They also skip
+  #     the ffprobe probe.
+  # The extension is validated up front, so an unsupported drop-in is rejected
+  # with a clear message rather than slipping through to ffprobe/transcription.
+  # HEIC/HEIF must be converted to JPEG before they're added (the create-library /
+  # process-library skills do this, asking the user where the JPEG should live);
+  # a raw HEIC here is rejected with that guidance.
+  def self.media_record(path)
+    raise ArgumentError, 'media path is required' if path.to_s.strip.empty?
 
     expanded = File.expand_path(path)
-    raise ArgumentError, "video file not found: #{expanded}" unless File.exist?(expanded)
+    raise ArgumentError, "media file not found: #{expanded}" unless File.exist?(expanded)
 
-    {
-      'path' => expanded,
-      'duration' => probe_duration(expanded),
-      'transcript' => '',
-      'contact_sheet' => '',
-      'summary' => ''
-    }
+    if Media.needs_conversion?(expanded)
+      raise ArgumentError, "#{Media.extname(expanded)} files must be converted to JPEG before being added " \
+                           "(the create-library / process-library skill does this for you): #{expanded}"
+    end
+    unless Media.supported?(expanded)
+      raise ArgumentError, "unsupported media format '#{Media.extname(expanded)}': #{expanded}. " \
+                           "Supported video: #{Media::VIDEO_EXTENSIONS.join(' ')}. " \
+                           "Supported images: #{Media::IMAGE_EXTENSIONS.join(' ')}."
+    end
+
+    record = { 'path' => expanded }
+    if Media.video?(expanded)
+      record.merge!('transcript' => '', 'contact_sheet' => '', 'summary' => '',
+                    'duration' => probe_duration(expanded))
+    else
+      # Images carry only a summary — no transcript, contact_sheet, or duration
+      # keys at all (the shape the template and `required_fields` describe).
+      record['summary'] = ''
+    end
+    record
   end
 
   # The basename used everywhere to refer to a clip. Derived from the full
   # `path` and never stored in library.yaml — one owner so reads, lookups, and
-  # the `videos` reader all agree on what a clip is called.
-  def self.filename_of(video) = File.basename(video['path'].to_s)
+  # the `media` reader all agree on what a clip is called.
+  def self.filename_of(media) = File.basename(media['path'].to_s)
 
   def self.probe_duration(path)
     output = `#{Shellwords.escape(MediaTools.ffprobe)} -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 #{Shellwords.escape(path)} 2>&1`
@@ -196,14 +223,14 @@ class Library
     File.join(@library_dir, spec[:subdir], spec[:namer].call(File.basename(clipname, '.*')))
   end
 
-  def add_videos(video_paths)
-    records = Array(video_paths).map { |path| self.class.video_record(path) }
+  def add_media(media_paths)
+    records = Array(media_paths).map { |path| self.class.media_record(path) }
     mutate do |library|
-      existing = library['videos'].map { |v| v['path'] }
+      existing = library['media'].map { |m| m['path'] }
       records.each do |record|
-        raise ArgumentError, "video already in library: #{record['path']}" if existing.include?(record['path'])
+        raise ArgumentError, "media already in library: #{record['path']}" if existing.include?(record['path'])
       end
-      library['videos'].concat(records)
+      library['media'].concat(records)
     end
     self
   end
@@ -220,21 +247,21 @@ class Library
     count = 0
     mutate do |library|
       pairs = Array(video_filenames).map do |filename|
-        video = find_video!(library, filename)
+        clip = find_media!(library, filename)
         path = field_path(field, filename)
         raise ArgumentError, "#{field} file does not exist: #{path}" unless File.exist?(path)
 
-        [video, File.basename(path)]
+        [clip, File.basename(path)]
       end
-      pairs.each { |video, stored_filename| video[field] = stored_filename }
+      pairs.each { |clip, stored_filename| clip[field] = stored_filename }
       count = pairs.size
     end
-    puts "#{@name}: #{field} set for #{count} #{pluralize(count, 'video')}" if announce
+    puts "#{@name}: #{field} set for #{count} #{pluralize(count, 'clip')}" if announce
     self
   end
 
   # Destructive: for each named field, delete every file in its subdir and
-  # clear the field on every video. Pass several names to wipe several phases
+  # clear the field on every clip. Pass several names to wipe several phases
   # in one call. The transcripts/ sweep leaves `visual_*.json` alone so
   # `remove_visual_transcripts!` stays the explicit tool for legacy cleanup.
   def reset!(*fields)
@@ -244,7 +271,7 @@ class Library
 
   # Destructive: clear library-level metadata back to an unconfigured state —
   # both the setup choices and the analysis-derived context (see
-  # CLEARED_METADATA). Video records and dates are kept. Part of `reset_all`'s
+  # CLEARED_METADATA). Clip records and dates are kept. Part of `reset_all`'s
   # factory reset, so a re-run starts setup and footage analysis from scratch.
   def reset_metadata!
     mutate { |library| CLEARED_METADATA.each { |key, value| library[key] = value } }
@@ -253,7 +280,7 @@ class Library
   end
 
   # Delete every `transcripts/visual_*.json` file and clear the
-  # `visual_transcript` field on every video. Legacy cleanup for libraries
+  # `visual_transcript` field on every clip. Legacy cleanup for libraries
   # that predate the contact-sheet pipeline.
   def remove_visual_transcripts!
     dir = File.join(@library_dir, 'transcripts')
@@ -276,10 +303,10 @@ class Library
 
     cleared = 0
     mutate do |library|
-      library['videos'].each do |video|
-        next unless present?(video['visual_transcript'])
+      library['media'].each do |clip|
+        next unless present?(clip['visual_transcript'])
 
-        video['visual_transcript'] = ''
+        clip['visual_transcript'] = ''
         cleared += 1
       end
     end
@@ -291,7 +318,7 @@ class Library
   # Each record carries the stored fields plus a derived `filename` (basename of
   # `path`). The merge returns copies, so the convenience key never reaches the
   # write path — mutations load and persist via `load_library` directly.
-  def videos = load_library['videos'].map { |v| v.merge('filename' => self.class.filename_of(v)) }
+  def media = load_library['media'].map { |m| m.merge('filename' => self.class.filename_of(m)) }
   def language = load_library['language']
   def transcript_refinement = load_library['transcript_refinement']
   def user_context = load_library['user_context'].to_s
@@ -312,10 +339,12 @@ class Library
     self
   end
 
-  # True when every video is ready for roughcut work under either pipeline.
-  # Current: transcript + summary. Legacy: visual_transcript + summary.
+  # True when every clip is ready for cut work under either pipeline.
+  # Videos — current: transcript + summary; legacy: visual_transcript + summary.
+  # Images need only a summary — there is no audio to transcribe and no contact
+  # sheet (the summary is written from the still itself).
   # `contact_sheet` is intentionally not required — new libraries always have
-  # them, and the roughcut sub-agent can generate sheets on demand for legacy
+  # them, and the cut sub-agent can generate sheets on demand for legacy
   # libraries when it needs to "see" a clip.
   #
   # Raises if a legacy `roughcuts/` directory is still present — the cut skill
@@ -329,38 +358,60 @@ class Library
             'or just rename roughcuts/ to cuts/ manually.'
     end
 
-    vids = videos
-    return false if vids.empty?
+    clips = media
+    return false if clips.empty?
 
-    vids.all? do |v|
-      present?(v['summary']) && (present?(v['transcript']) || present?(v['visual_transcript']))
+    clips.all? do |clip|
+      present?(clip['summary']) &&
+        (Media.image?(clip['path']) || present?(clip['transcript']) || present?(clip['visual_transcript']))
     end
   end
 
-  def incomplete_videos = incomplete_from(videos)
+  def incomplete_media = incomplete_from(media)
 
   # Clips still missing one specific artifact, as records the JobRunner can turn
-  # straight into jobs. Unlike `incomplete_videos` (missing ANY field), this is
+  # straight into jobs. Unlike `incomplete_media` (missing ANY field), this is
   # scoped to a single field so the runner can build one independent batch per
-  # phase — transcripts and contact sheets don't depend on each other.
+  # phase — transcripts and contact sheets don't depend on each other. Clips for
+  # which the field doesn't apply are skipped: an image needs no transcript or
+  # contact sheet, so `pending('transcript')` / `pending('contact_sheet')`
+  # never surface stills and the processor never builds those jobs for them.
   def pending(field)
     field_spec(field) # validate the field name up front
-    videos.filter_map { |video| clip_record(video) unless present?(video[field]) }
+    media.filter_map do |clip|
+      next unless required_fields(clip).include?(field)
+
+      clip_record(clip) unless present?(clip[field])
+    end
   end
 
   # Every clip as a job-ready record, in the same shape as `pending` but
-  # unfiltered. FootageProcessor's --force path uses this to rebuild artifacts
-  # that already exist; keeping it here means the record shape has one owner.
-  def clip_records = videos.map { |video| clip_record(video) }
+  # without the completeness filter. FootageProcessor's --force path uses this
+  # to rebuild artifacts that already exist; keeping it here means the record
+  # shape has one owner. Pass a field to keep only clips the field applies to
+  # (per `required_fields`) — so `--force` never queues a transcript or contact
+  # sheet for a still, by the same rule `pending` uses.
+  def clip_records(field = nil)
+    scoped = media
+    if field
+      field_spec(field) # validate the field name up front
+      scoped = scoped.select { |clip| required_fields(clip).include?(field) }
+    end
+    scoped.map { |clip| clip_record(clip) }
+  end
 
   # Per-clip artifact status for the live "follow along" view: every clip with a
   # boolean per field (transcript, contact_sheet, summary). Read-only, so it's
   # safe to poll from a separate process (the status server) while the JobRunner
   # records progress — atomic writes keep each read whole.
   def clip_statuses
-    videos.map do |video|
-      FIELDS.keys.each_with_object('filename' => self.class.filename_of(video)) do |field, row|
-        row[field] = present?(video[field])
+    media.map do |clip|
+      required = required_fields(clip)
+      FIELDS.keys.each_with_object('filename' => self.class.filename_of(clip)) do |field, row|
+        # Fields that don't apply to this clip's type (transcript/contact_sheet
+        # for an image) read as done, so the follow-along view shows an image
+        # complete once its summary lands instead of stuck at 1/3 forever.
+        row[field] = required.include?(field) ? present?(clip[field]) : true
       end
     end
   end
@@ -369,8 +420,8 @@ class Library
   # clip-completion breakdown. `incomplete_count == 0` means ready for roughcut.
   def summary
     data = load_library
-    vids = data['videos']
-    incomplete = incomplete_from(vids)
+    clips = data['media']
+    incomplete = incomplete_from(clips)
 
     {
       'name' => @name,
@@ -381,8 +432,8 @@ class Library
       'transcript_refinement' => data['transcript_refinement'],
       'user_context' => data['user_context'].to_s,
       'footage_summary' => data['footage_summary'].to_s,
-      'video_count' => vids.size,
-      'complete_count' => vids.size - incomplete.size,
+      'media_count' => clips.size,
+      'complete_count' => clips.size - incomplete.size,
       'incomplete_count' => incomplete.size,
       'incomplete' => incomplete
     }
@@ -398,24 +449,36 @@ class Library
 
   def pluralize(count, word) = "#{word}#{'s' unless count == 1}"
 
-  def incomplete_from(vids)
-    vids.filter_map do |video|
-      missing = FIELDS.keys.reject { |f| present?(video[f]) }
+  def incomplete_from(clips)
+    clips.filter_map do |clip|
+      missing = required_fields(clip).reject { |f| present?(clip[f]) }
       next if missing.empty?
 
-      clip_record(video).merge('missing' => missing)
+      clip_record(clip).merge('missing' => missing)
     end
+  end
+
+  # Which artifact fields a clip must have to count as complete, by type. Videos
+  # need the full set (transcript, contact_sheet, summary); images need only a
+  # summary — there's no audio to transcribe and no contact sheet (the summary
+  # is written from the still itself). Single owner of the rule so `incomplete`,
+  # the `summary` counts, and `pending(field)` all agree on what each type owes.
+  def required_fields(clip)
+    Media.image?(clip['path']) ? %w[summary] : FIELDS.keys
   end
 
   # The job-ready shape of one clip: just what a Job constructor (and the
   # JobRunner / status callers) need. Single owner of this hash so `pending`,
-  # `clip_records`, and `incomplete_from` stay in lockstep.
-  def clip_record(video)
-    {
-      'filename' => self.class.filename_of(video),
-      'path' => video['path'],
-      'duration' => video['duration']
+  # `clip_records`, and `incomplete_from` stay in lockstep. `duration` is a
+  # video-only field, so it's included only when the record carries one — an
+  # image record has no `duration` key (rather than a nil one).
+  def clip_record(clip)
+    record = {
+      'filename' => self.class.filename_of(clip),
+      'path' => clip['path']
     }
+    record['duration'] = clip['duration'] if clip.key?('duration')
+    record
   end
 
   def reset_field!(field)
@@ -426,14 +489,14 @@ class Library
     errors = []
 
     mutate do |library|
-      library['videos'].each do |video|
-        filename = video[field]
+      library['media'].each do |clip|
+        filename = clip[field]
         next unless present?(filename)
 
         begin
           path = File.join(dir, filename)
           File.delete(path) if File.file?(path)
-          video[field] = ''
+          clip[field] = ''
           cleared += 1
         rescue StandardError => e
           errors << "#{filename}: #{e.message}"
@@ -466,16 +529,27 @@ class Library
   end
 
   def format_reset_summary(label, cleared, swept, errors)
-    msg = "#{@name}: #{label} (#{cleared} #{pluralize(cleared, 'video')} cleared, #{swept} #{pluralize(swept, 'file')} swept)"
+    msg = "#{@name}: #{label} (#{cleared} #{pluralize(cleared, 'clip')} cleared, #{swept} #{pluralize(swept, 'file')} swept)"
     msg += "; #{errors.size} #{pluralize(errors.size, 'error')}: #{errors.join('; ')}" unless errors.empty?
     msg
   end
 
-  # `videos` is guaranteed to be an array on the returned hash so callers can
+  # `media` is guaranteed to be an array on the returned hash so callers can
   # iterate without defensive `|| []` checks.
+  #
+  # A library that predates the videos: → media: rename stores footage under a
+  # legacy `videos:` key. Without this guard every read would silently see zero
+  # clips (`media` defaults to []) and the next write would persist a second,
+  # empty `media:` alongside the orphaned `videos:`. Fail loudly instead, the
+  # same way `ready?` does for a legacy roughcuts/ directory — the fix is one
+  # idempotent migrate run.
   def load_library
     data = YAML.safe_load_file(@library_yaml_path, permitted_classes: [Date, Time])
-    data['videos'] ||= []
+    if data.key?('videos') && !data.key?('media')
+      raise "Library '#{@name}' stores footage under a legacy `videos:` key. " \
+            'Run `ruby lib/buttercut/library.rb migrate` to bring it (and all libraries) current.'
+    end
+    data['media'] ||= []
     data
   end
 
@@ -514,9 +588,9 @@ class Library
     File.rename(tmp, @library_yaml_path)
   end
 
-  def find_video!(library, video_filename)
-    library['videos'].find { |v| self.class.filename_of(v) == video_filename } ||
-      raise(ArgumentError, "video not found in library.yaml: #{video_filename}")
+  def find_media!(library, filename)
+    library['media'].find { |m| self.class.filename_of(m) == filename } ||
+      raise(ArgumentError, "clip not found in library.yaml: #{filename}")
   end
 end
 
@@ -532,13 +606,13 @@ if __FILE__ == $PROGRAM_NAME
     Existence + status (no library load required for `exists`):
       <name> exists                                   — exits 0 if library exists, 1 otherwise
       <name> summary                                  — JSON snapshot
-      <name> incomplete_videos                        — JSON array of incomplete clips
+      <name> incomplete_media                         — JSON array of incomplete clips
       <name> pending <field>                          — JSON array of clips still missing one field
-      <name> ready                                    — exits 0 if every video is ready for roughcut, 1 otherwise
+      <name> ready                                    — exits 0 if every clip is ready for a cut, 1 otherwise
       <name> field_path <field> <clip>                — canonical path for a clip's artifact (e.g. summary → summaries/summary_<clip>.md)
 
     Writes:
-      <name> add_videos <video_path>...               — append video records
+      <name> add_media <media_path>...                — append clip records (video or image files)
       <name> update_metadata <key> <value...>         — set footage_summary, user_context, language, editor, or transcript_refinement
       <name> complete <field> <files>                 — mark files done for one field
       <name> reset <field> [<field>...]               — wipe one or more phases
@@ -554,7 +628,7 @@ if __FILE__ == $PROGRAM_NAME
     Library.create is not exposed via the CLI (kwarg-heavy). From bash:
       ruby -e "require_relative 'lib/buttercut/library'; \\
         Library.create('my-lib', language: 'en', editor: 'fcpx', \\
-                       transcript_refinement: true, video_paths: ['/abs/a.mov'])"
+                       transcript_refinement: true, media_paths: ['/abs/a.mov', '/abs/photo.png'])"
   USAGE
 
   # Agent records that it just checked for updates (see check_for_update!). Kept
@@ -606,8 +680,8 @@ if __FILE__ == $PROGRAM_NAME
     case action
     when 'summary'
       puts JSON.pretty_generate(library.summary)
-    when 'incomplete_videos'
-      puts JSON.pretty_generate(library.incomplete_videos)
+    when 'incomplete_media'
+      puts JSON.pretty_generate(library.incomplete_media)
     when 'pending'
       field, = rest
       raise ArgumentError, 'pending requires <field>' if field.nil?
@@ -620,10 +694,10 @@ if __FILE__ == $PROGRAM_NAME
       raise ArgumentError, 'field_path requires <field> <clip>' if field.nil? || clip.nil?
 
       puts library.field_path(field, clip)
-    when 'add_videos'
-      raise ArgumentError, 'add_videos requires <video_path>...' if rest.empty?
+    when 'add_media'
+      raise ArgumentError, 'add_media requires <media_path>...' if rest.empty?
 
-      library.add_videos(rest)
+      library.add_media(rest)
     when 'update_metadata'
       key, *value_parts = rest
       raise ArgumentError, 'update_metadata requires <key> <value>' if key.nil? || value_parts.empty?

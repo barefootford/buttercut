@@ -152,4 +152,42 @@ RSpec.describe ButterCut::Premiere do
       expect(xml).not_to include('<name>Basic Motion</name>')
     end
   end
+
+  # Stills carry no rotation flag and no audio, and a still can lead the timeline.
+  # The Premiere writer must not try a quarter-turn swap on an image-led sequence,
+  # must bake no rotation for the still, and must keep per-clip rotation working
+  # for a rotated video that follows an image.
+  describe 'still images' do
+    let(:image_path) { '/tmp/premiere_still.png' }
+
+    before do
+      allow_any_instance_of(ButterCut::EditorBase).to receive(:extract_metadata_from_ffprobe) do |_instance, path|
+        path == image_path ? image_metadata : metadata_by_path.fetch(path)
+      end
+    end
+
+    it 'writes no Basic Motion rotation filter for a still' do
+      xml = described_class.new([{ path: image_path }]).to_xml
+      expect(xml).not_to include('<name>Basic Motion</name>')
+      expect(xml).not_to include('<parameterid>rotation</parameterid>')
+    end
+
+    it 'orients the sequence to the image dimensions without a quarter-turn swap' do
+      xml = described_class.new([{ path: image_path }]).to_xml
+      format = xml[%r{<format>.*?</format>}m]
+      expect(format).to include('<width>1920</width>')
+      expect(format).to include('<height>1080</height>')
+    end
+
+    it 'emits no audio clipitem for the still but keeps one for a following video' do
+      doc = Nokogiri::XML(described_class.new([{ path: image_path }, { path: upright_clip_path }]).to_xml)
+      expect(doc.xpath('//clipitem[starts-with(@id, "clipitem-video")]').length).to eq(2)
+      expect(doc.xpath('//clipitem[starts-with(@id, "clipitem-audio")]').length).to eq(1)
+    end
+
+    it 'still bakes rotation into a rotated video that follows an image' do
+      xml = described_class.new([{ path: image_path }, { path: rotated_clip_path }]).to_xml
+      expect(xml.scan('<name>Basic Motion</name>').length).to eq(1)
+    end
+  end
 end

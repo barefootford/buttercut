@@ -85,10 +85,12 @@ class FootageProcessor
   end
 
   # Clips to (re)process for one field. Default: only those still missing the
-  # artifact. With --force: every clip, so existing artifacts get rebuilt.
-  # --clips narrows either set to the named clips.
+  # artifact. With --force: every clip the field applies to, so existing
+  # artifacts get rebuilt. --clips narrows either set to the named clips.
+  # Stills never appear: both paths filter by the library's `required_fields`
+  # rule, and transcripts/contact sheets don't apply to an image.
   def candidates(field)
-    records = @force ? @library.clip_records : @library.pending(field)
+    records = @force ? @library.clip_records(field) : @library.pending(field)
     return records unless @clips
 
     records.select { |r| @clips.include?(r['filename']) }
@@ -97,7 +99,7 @@ class FootageProcessor
   def validate_clips!
     return unless @clips
 
-    known = @library.videos.map { |v| File.basename(v['path'].to_s) }
+    known = @library.media.map { |m| File.basename(m['path'].to_s) }
     unknown = @clips - known
     raise "clip(s) not in library: #{unknown.join(', ')}" unless unknown.empty?
   end

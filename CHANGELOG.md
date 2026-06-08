@@ -7,10 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+You can now use still photos in your edits, not just video.
+
+### Added
+- **Still images in your libraries.** Drop photos (jpg, png, gif, tif, webp, bmp) into a library right alongside your video, and use them in a cut. ButterCut skips transcription and contact sheets for images — there's no audio and the photo is its own overview — and just writes a short summary by looking at the picture. How long a still holds on screen is the cut's call: it's set by the still's in/out points (about a second each by default, adjustable per shot), so you control the pacing.
+- **iPhone (HEIC) photos are converted automatically.** Drop in `.heic`/`.heif` photos and ButterCut converts them to JPEG at the full resolution before adding them — the editors don't reliably import HEIC, and it otherwise probes to the wrong size. You're asked once where the converted JPEGs should go (next to the originals by default); your originals are never changed.
+- **Clearer "unsupported file" handling.** ButterCut now recognizes an explicit list of video formats (mov, mp4, m4v, avi, mkv, mts, m2ts, ts, mxf, mpg, mpeg, m2v, wmv, flv, webm, 3gp, r3d, braw) and image formats. A stray non-media file dropped into a footage folder is rejected with a clear message instead of being run through transcription.
+
 ### Changed
+- **Library schema:** the per-library `videos:` list is now `media:` — one list holding video clips and images together, in shoot order. Image entries carry only a `summary` (no transcript, contact sheet, or duration; a still has no intrinsic length). Existing libraries are brought current automatically.
 - A missing ffmpeg/ffprobe now fails fast with a clear "run the setup skill" error instead of a cryptic command-not-found buried in subprocess output. The contact-sheet skill's repair instructions point at the `setup` skill accordingly.
 - Setup now pins WhisperX to the tested combination (`whisperx==3.4.2`, `pyannote-audio==3.4.0` — matching `requirements.txt`), so fresh installs can't drift onto untested releases (`pyannote-audio` 4.x breaks whisperx 3.4.2).
 - ffmpeg/ffprobe calls now resolve through `MediaTools`: static builds placed in the gitignored `dependencies/` directory take precedence, falling back to PATH. Nothing changes if you don't use `dependencies/` — existing installs keep their PATH ffmpeg.
+
+### Fixed
+- **Premiere: audio stayed linked to its video when a photo came first.** A video placed after a still image was importing into Premiere with its audio un-linked (move the clip and the audio stayed behind). Final Cut and Resolve were unaffected; both are now correct.
+- **Silent videos (no audio track) now export cleanly.** A clip with no audio — a drone shot, a screen recording — was writing a broken/empty audio rate (and could fail Final Cut's import check). Clips with no audio are now handled the same way photos are: video only, no phantom audio.
+
+### Migration
+Libraries created before this release store their footage under a `videos:` key. Bring them up to date with:
+
+```bash
+ruby lib/buttercut/library.rb migrate
+```
+
+This runs `scripts/005_migrate_videos_to_media.rb` (among the others), renaming `videos:` → `media:` in every library. It's idempotent and safe to re-run.
 
 ## [0.7.2] - 2026-06-02
 

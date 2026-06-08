@@ -17,15 +17,18 @@ ruby lib/buttercut/library.rb <library_name> <action> [args...]
 
 ## Fields and on-disk layout
 
-Completeness tracks three per-video fields. Each field's subdir, filename
-pattern, and orphan-sweep filter live in the `FIELDS` table at the top of
-`library.rb`:
+A library holds a mixed `media:` array of video clips and still images.
+Completeness depends on type: a **video** needs all three fields below; an
+**image** needs only a `summary` (no audio to transcribe, no contact sheet —
+the still is its own overview — and no `duration`, which is a video-only field).
+Each field's subdir, filename pattern, and orphan-sweep filter live in the
+`FIELDS` table at the top of `library.rb`:
 
-| Field           | Subdir            | Filename pattern    |
-|-----------------|-------------------|---------------------|
-| `transcript`    | `transcripts/`    | `<clip>.json`       |
-| `contact_sheet` | `contact_sheets/` | `<clip>_full.jpg`   |
-| `summary`       | `summaries/`      | `summary_<clip>.md` |
+| Field           | Subdir            | Filename pattern    | Applies to     |
+|-----------------|-------------------|---------------------|----------------|
+| `transcript`    | `transcripts/`    | `<clip>.json`       | video          |
+| `contact_sheet` | `contact_sheets/` | `<clip>_full.jpg`   | video          |
+| `summary`       | `summaries/`      | `summary_<clip>.md` | video + image  |
 
 `complete` validates each batch atomically: every clip must exist in
 `library.yaml` AND its file must exist on disk before any YAML is written.
@@ -44,8 +47,8 @@ ruby lib/buttercut/library.rb recent [N]          # N most recent libraries by d
 ruby lib/buttercut/library.rb migrate             # run all migrations across every library (idempotent)
 ruby lib/buttercut/library.rb <name> exists       # exit 0 if it exists, 1 if not
 ruby lib/buttercut/library.rb <name> summary      # JSON: metadata + clip-completion breakdown
-ruby lib/buttercut/library.rb <name> incomplete_videos
-ruby lib/buttercut/library.rb <name> ready        # exit 0 if every video is ready for roughcut, 1 if not
+ruby lib/buttercut/library.rb <name> incomplete_media
+ruby lib/buttercut/library.rb <name> ready        # exit 0 if every clip is ready for a cut, 1 if not
 ruby lib/buttercut/library.rb update_checked      # record that you just checked GitHub for a newer ButterCut
 ```
 
@@ -55,19 +58,25 @@ user.
 
 `recent` is the right tool for "which library was the user most recently working on?" — it sees activity across `transcripts/`, `contact_sheets/`, `summaries/`, and `cuts/`, not just `library.yaml`. `list` is fine when you want the full set.
 
-`summary` is the snapshot to call when picking up a library — full metadata plus a clip-completion breakdown. `ready` is the one-shot pre-flight before building a cut: it's legacy-aware (a clip with `summary` + either `transcript` or `visual_transcript` counts as ready, even without a `contact_sheet`), so it doesn't block roughcut work on libraries that predate the contact-sheet pipeline. The roughcut sub-agent generates contact sheets on demand when it needs to see a clip.
+`summary` is the snapshot to call when picking up a library — full metadata plus a clip-completion breakdown (the `media_count` is videos + images). `ready` is the one-shot pre-flight before building a cut. It's type- and legacy-aware: a video clip counts as ready with `summary` + either `transcript` or `visual_transcript` (even without a `contact_sheet`, so it doesn't block work on libraries that predate the contact-sheet pipeline), and an image counts as ready with just a `summary`. The cut sub-agent generates contact sheets on demand when it needs to see a clip.
 
 Use `summary` when you want to look at *what's* missing; use `ready` when you only need a yes/no gate.
 
 ### Add and update
 ```bash
-ruby lib/buttercut/library.rb <name> add_videos /abs/a.mov /abs/b.mov
+ruby lib/buttercut/library.rb <name> add_media /abs/a.mov /abs/photo.png   # video and/or image files
+ruby lib/buttercut/media.rb convert /abs/IMG_0001.heic /abs/IMG_0001.jpg   # HEIC/HEIF must be converted first
 ruby lib/buttercut/library.rb <name> update_metadata footage_summary       "subjects, locations, activities"
 ruby lib/buttercut/library.rb <name> update_metadata user_context          "creative intent, characters"
 ruby lib/buttercut/library.rb <name> update_metadata language              english
 ruby lib/buttercut/library.rb <name> update_metadata editor                fcpx        # fcpx | premiere | resolve
 ruby lib/buttercut/library.rb <name> update_metadata transcript_refinement false       # true | false
 ```
+
+`add_media` accepts the video and image extensions in `Media` (see
+`lib/buttercut/media.rb`). It rejects an unsupported extension, and rejects a raw
+`.heic`/`.heif` with a pointer to convert it first — run `media.rb convert`
+(uses `sips`) to produce a JPEG and add that instead. Originals are never modified.
 
 `update_metadata` edits one field per call. Beyond the two free-text fields
 (`footage_summary`, `user_context`) it can also set the setup choices
@@ -100,7 +109,7 @@ ruby lib/buttercut/library.rb <name> remove_visual_transcripts   # legacy cleanu
 ```
 
 `reset` deletes every file in each named field's subdir and clears the
-field on every video. The `transcripts/` sweep leaves `visual_*.json`
+field on every clip. The `transcripts/` sweep leaves `visual_*.json`
 alone — that's what `remove_visual_transcripts` is for.
 
 `reset_all` is a **factory reset**: on top of wiping all three artifact
@@ -108,7 +117,7 @@ fields it also clears library-level metadata — the setup choices
 (`language`, `editor`, `transcript_refinement`) and the analysis-derived
 context (`footage_summary`, `user_context`). Strings go blank and
 `transcript_refinement` goes nil ("unset"), so a re-run starts setup and
-footage analysis from scratch. Video records and dates are kept.
+footage analysis from scratch. Clip records and dates are kept.
 `reset_all_except_audio_transcripts` does **not** touch metadata — it stays
 a narrow artifact reset.
 
@@ -123,5 +132,9 @@ ruby -e "require_relative 'lib/buttercut/library'; \
     language: 'en', \
     editor: 'fcpx', \
     transcript_refinement: true, \
-    video_paths: ['/abs/a.mov', '/abs/b.mov'])"
+    media_paths: ['/abs/a.mov', '/abs/photo.png'])"
 ```
+
+`media_paths` accepts video clips and still images, in shoot order. Image
+entries are stored with just a `summary` field (no `duration`, `transcript`,
+or `contact_sheet`).

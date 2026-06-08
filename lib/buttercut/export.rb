@@ -5,6 +5,7 @@ require 'date'
 require 'optparse'
 require 'yaml'
 require_relative '../buttercut'
+require_relative 'library'
 
 class Export
   EDITOR_LABELS = {
@@ -29,9 +30,8 @@ class Export
 
   def perform
     roughcut    = load_yaml(@roughcut_path)
-    library     = load_library(@roughcut_path)
-    video_paths = index_video_paths(library)
-    clips       = build_clips(roughcut, video_paths)
+    media_paths = index_media_paths(find_library(@roughcut_path))
+    clips       = build_clips(roughcut, media_paths)
 
     write_xml(clips, @editor)
     validate_fcpxml(@output_path) if @editor == :fcpx
@@ -46,26 +46,26 @@ class Export
     YAML.load_file(path, permitted_classes: [Date, Time, Symbol])
   end
 
-  def load_library(roughcut_path)
+  def find_library(roughcut_path)
     match = roughcut_path.match(%r{libraries/([^/]+)/cuts})
     raise "Could not extract library name from path: #{roughcut_path}" unless match
 
-    library_yaml = "libraries/#{match[1]}/library.yaml"
-    raise "Library file not found: #{library_yaml}" unless File.exist?(library_yaml)
-
-    load_yaml(library_yaml)
+    Library.find(match[1])
   end
 
-  def index_video_paths(library)
-    library['videos'].each_with_object({}) do |video, map|
-      map[File.basename(video['path'])] = video['path']
+  # Reading through Library (not raw YAML) inherits its normalization: `media`
+  # is always an array, and a legacy `videos:` library fails loudly with the
+  # "run migrate" error instead of silently matching zero clips here.
+  def index_media_paths(library)
+    library.media.each_with_object({}) do |clip, map|
+      map[clip['filename']] = clip['path']
     end
   end
 
-  def build_clips(roughcut, video_paths)
+  def build_clips(roughcut, media_paths)
     roughcut['clips'].filter_map do |clip|
       source = clip['source_file']
-      path   = video_paths[source]
+      path   = media_paths[source]
 
       unless path
         warn "Warning: Source file not found in library data: #{source}"
@@ -75,6 +75,9 @@ class Export
       start_at = timecode_to_seconds(clip['in_point'])
       duration = timecode_to_seconds(clip['out_point']) - start_at
 
+      # The editor re-derives image-vs-video from the path in build_asset_map, so
+      # we don't thread an `image:` flag through here — it would just be a second,
+      # ignored source of truth.
       { path: path, start_at: start_at.to_f, duration: duration.to_f }
     end
   end

@@ -80,6 +80,8 @@ class ButterCut
                 end
                 xml.track do
                   clip_payloads.each do |payload|
+                    next unless payload[:asset][:has_audio]
+
                     build_audio_clipitem(xml, payload)
                   end
                 end
@@ -99,8 +101,16 @@ class ButterCut
     end
 
     def build_clip_payloads(timeline_clips, timeline_frame_duration)
+      # Assets with no audio stream (stills, silent videos) get no audio clipitem,
+      # so the audio track is a subset of the video track. `audio_index` is the
+      # clip's 1-based position within that audio track — what the audio <link>'s
+      # clipindex must reference. Using the video-track index there points past
+      # the audio track whenever a no-audio clip precedes one with audio, which
+      # breaks A/V linking on import (Premiere).
+      audio_index = 0
       timeline_clips.each_with_index.map do |clip, index|
         asset = clip[:asset]
+        audio_index += 1 if asset[:has_audio]
         asset_rate_num, asset_rate_denom = asset[:frame_rate].split('/').map(&:to_i)
         asset_timebase = (asset_rate_num.to_f / asset_rate_denom).round
         asset_ntsc = ntsc_flag_for(asset_rate_denom)
@@ -119,6 +129,7 @@ class ButterCut
 
         {
           index: index + 1,
+          audio_index: audio_index,
           clip: clip,
           asset: asset,
           video_clip_id: "clipitem-video-#{index + 1}",
@@ -180,10 +191,12 @@ class ButterCut
                 xml.fielddominance 'none'
               end
             end
-            xml.audio do
-              xml.samplecharacteristics do
-                xml.samplerate asset_audio_rate(asset)
-                xml.sampledepth 16
+            if asset[:has_audio]
+              xml.audio do
+                xml.samplecharacteristics do
+                  xml.samplerate asset_audio_rate(asset)
+                  xml.sampledepth 16
+                end
               end
             end
           end
@@ -248,11 +261,17 @@ class ButterCut
         xml.trackindex 1
         xml.clipindex payload[:index]
       end
+      # No audio clipitem to link to (still or silent video), so skip the audio
+      # link rather than leave a dangling reference.
+      return unless payload[:asset][:has_audio]
+
       xml.link do
         xml.linkclipref payload[:audio_clip_id]
         xml.mediatype 'audio'
         xml.trackindex 1
-        xml.clipindex payload[:index]
+        # Position within the audio track (stills excluded), NOT the video-track
+        # index — otherwise a video after a still links to the wrong/missing slot.
+        xml.clipindex payload[:audio_index]
         xml.groupindex 1
       end
     end
