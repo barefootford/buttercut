@@ -107,7 +107,7 @@ mkdir -p ~/.buttercut
 python3 -m venv ~/.buttercut/venv
 source ~/.buttercut/venv/bin/activate
 pip install --upgrade pip
-pip install whisperx
+pip install 'whisperx==3.4.2' 'pyannote-audio==3.4.0'
 deactivate
 
 # Create wrapper script
@@ -128,7 +128,7 @@ echo 'export PATH="$HOME/.buttercut:$PATH"' >> ~/.zshrc
 If you manage Python environments yourself and want whisperx globally available:
 
 ```bash
-pip install whisperx
+pip install 'whisperx==3.4.2' 'pyannote-audio==3.4.0'
 ```
 
 Ensure `whisperx` is in your PATH.

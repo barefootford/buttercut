@@ -160,9 +160,11 @@ fi
 
 source ~/.buttercut/venv/bin/activate
 pip install --upgrade pip
-pip install whisperx
+pip install 'whisperx==3.4.2' 'pyannote-audio==3.4.0'
 deactivate
 ```
+
+(The versions are pinned to the combination ButterCut is tested against — `pyannote-audio` 4.x breaks whisperx 3.4.2, so don't install newer versions even if pip suggests them.)
 
 ## Step 7: WhisperX Wrapper Script
 
