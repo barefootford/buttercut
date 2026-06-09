@@ -3,7 +3,9 @@ require 'pathname'
 require 'cgi'
 require 'json'
 require 'digest'
+require 'shellwords'
 require_relative 'rotation_metadata'
+require_relative 'media_tools'
 
 class ButterCut
   # Shared functionality for editor-specific generators.
@@ -440,7 +442,7 @@ class ButterCut
     protected
 
     def extract_metadata_from_ffprobe(video_path)
-      json_output = `ffprobe -v quiet -print_format json -show_format -show_streams "#{video_path}" 2>&1`
+      json_output = `#{Shellwords.escape(MediaTools.ffprobe)} -v quiet -print_format json -show_format -show_streams "#{video_path}" 2>&1`
 
       if $?.exitstatus != 0
         raise "Failed to extract metadata from #{video_path}: #{json_output}"
