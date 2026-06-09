@@ -46,7 +46,10 @@ class TranscribeJob < Job
     # WhisperX decodes audio by running a bare `ffmpeg` from PATH (see
     # whisperx/audio.py load_audio), so the subprocess gets MediaTools'
     # dependencies-first precedence via PATH — without this, installs whose
-    # only ffmpeg is the dependencies/ static build can't transcribe.
+    # only ffmpeg is the dependencies/ static build can't transcribe. The
+    # resolve call is a preflight: no ffmpeg anywhere raises MediaTools'
+    # clear error here instead of a cryptic decode failure inside whisperx.
+    MediaTools.ffmpeg
     env = { 'PATH' => [MediaTools::DEPENDENCIES_DIR, ENV.fetch('PATH', '')].join(':') }
     output, status = Open3.capture2e(
       env,

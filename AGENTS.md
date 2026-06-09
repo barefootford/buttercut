@@ -98,7 +98,7 @@ Writes (`add_videos`, `complete`, `update_metadata`), destructive resets, legacy
 - `skills/` - Skills for AI-powered workflow (symlinked from `.claude/skills/` so Claude Code, Codex, and other agents that read top-level `skills/` natively all find them)
 - `spec/` - RSpec test suite
 - `templates/` - Library and project templates
-- `dependencies/` - Optional static ffmpeg/ffprobe binaries (gitignored). `lib/buttercut/media_tools.rb` resolves binaries here first, then falls back to PATH.
+- `dependencies/` - Optional static ffmpeg/ffprobe binaries (gitignored). `lib/buttercut/media_tools.rb` resolves binaries here first, then falls back to PATH; if a binary is in neither place it raises a clear error pointing at the `setup` skill.
 - `libraries/` - Working directory for user's video projects (gitignored)
 - `libraries/settings.yaml` - User settings (editor, whisper_model, backups_dir) — created from template on first library setup
 - Library backups default to `~/Documents/buttercut-video-editor-backups` (outside the repo, override with `backups_dir` in `libraries/settings.yaml`)
