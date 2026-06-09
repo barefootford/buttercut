@@ -7,6 +7,9 @@
 /backups
 /spec/assets
 
+# Optional static binaries (ffmpeg/ffprobe) — resolved first by MediaTools
+/dependencies
+
 # Ruby
 *.gem
 .bundle/

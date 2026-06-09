@@ -96,7 +96,7 @@ RSpec.describe ContactSheet, 'codec coverage', :fixtures do
       sheet = build_sheet('hevc_portrait_native.mov', :portrait_native)
       output = sheet.extract
       expect(sheet.rotation).to eq(0)
-      width, height = `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 #{Shellwords.escape(output)}`.strip.split(',').map(&:to_i)
+      width, height = `#{Shellwords.escape(MediaTools.ffprobe)} -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 #{Shellwords.escape(output)}`.strip.split(',').map(&:to_i)
       expect(height).to be > width
     end
 

@@ -11,6 +11,8 @@ require 'json'
 require 'shellwords'
 require 'yaml'
 
+require_relative 'media_tools'
+
 class Library
   LIBRARIES_ROOT = File.expand_path('../../libraries', __dir__)
 
@@ -128,7 +130,7 @@ class Library
   def self.filename_of(video) = File.basename(video['path'].to_s)
 
   def self.probe_duration(path)
-    output = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 #{Shellwords.escape(path)} 2>&1`
+    output = `#{Shellwords.escape(MediaTools.ffprobe)} -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 #{Shellwords.escape(path)} 2>&1`
     raise ArgumentError, "ffprobe failed for #{path}: #{output.strip}" unless $CHILD_STATUS.success?
 
     Time.at(Float(output.strip).to_i).utc.strftime('%H:%M:%S')

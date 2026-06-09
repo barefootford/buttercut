@@ -5,6 +5,7 @@ require 'English'
 require 'json'
 require 'optparse'
 require 'shellwords'
+require_relative 'media_tools'
 require_relative 'rotation_metadata'
 
 class ContactSheet
@@ -117,7 +118,7 @@ class ContactSheet
   # codec/pix_fmt for #clip_class, frame-rate fields for VFR detection, and rotation
   # (legacy `tags.rotate` or modern displaymatrix side_data) for orientation correction.
   def probe
-    cmd = "ffprobe -v error -select_streams v:0 -show_format -show_streams -of json " \
+    cmd = "#{Shellwords.escape(MediaTools.ffprobe)} -v error -select_streams v:0 -show_format -show_streams -of json " \
           "#{Shellwords.escape(@video_path)}"
     data = JSON.parse(`#{cmd}`)
     stream = (data['streams'] || []).first || {}
@@ -324,7 +325,7 @@ class ContactSheet
   end
 
   def run_ffmpeg(args)
-    full = ['ffmpeg', '-hide_banner', '-loglevel', 'error', '-nostdin', '-y'] + args
+    full = [MediaTools.ffmpeg, '-hide_banner', '-loglevel', 'error', '-nostdin', '-y'] + args
     stderr = `#{full.map { |a| Shellwords.escape(a) }.join(' ')} 2>&1 >/dev/null`
     raise "ffmpeg failed:\n  cmd: #{full.join(' ')}\n  stderr: #{stderr.strip}" unless $CHILD_STATUS.success?
 

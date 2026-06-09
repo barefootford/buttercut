@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- ffmpeg/ffprobe calls now resolve through `MediaTools`: static builds placed in the gitignored `dependencies/` directory take precedence, falling back to PATH. Nothing changes if you don't use `dependencies/` — existing installs keep their PATH ffmpeg.
+
 ## [0.7.2] - 2026-06-02
 
 Processing your footage now uses less of your account, your Mac stays awake while it works, and we've fixed a bug in Premiere files so vertical clips export to Premiere right side up.

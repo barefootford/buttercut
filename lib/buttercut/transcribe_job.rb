@@ -6,6 +6,7 @@ require 'fileutils'
 require 'json'
 require 'open3'
 require_relative 'job'
+require_relative 'media_tools'
 
 # Transcribe one clip's audio with WhisperX, then slim the JSON with
 # prepare_audio_script.rb. Pure mechanics — the exact commands that used to live
@@ -42,7 +43,13 @@ class TranscribeJob < Job
   # Returns true if whisperx produced a real transcript, false if it rescued a
   # silent clip by writing an empty one. Raises on any other failure.
   def run_whisperx
+    # WhisperX decodes audio by running a bare `ffmpeg` from PATH (see
+    # whisperx/audio.py load_audio), so the subprocess gets MediaTools'
+    # dependencies-first precedence via PATH — without this, installs whose
+    # only ffmpeg is the dependencies/ static build can't transcribe.
+    env = { 'PATH' => [MediaTools::DEPENDENCIES_DIR, ENV.fetch('PATH', '')].join(':') }
     output, status = Open3.capture2e(
+      env,
       'whisperx', @video_path,
       '--language', @language_code,
       '--model', @whisper_model,
