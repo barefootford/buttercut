@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- A missing ffmpeg/ffprobe now fails fast with a clear "run the setup skill" error instead of a cryptic command-not-found buried in subprocess output. The contact-sheet skill's repair instructions point at the `setup` skill accordingly.
 - Setup now pins WhisperX to the tested combination (`whisperx==3.4.2`, `pyannote-audio==3.4.0` — matching `requirements.txt`), so fresh installs can't drift onto untested releases (`pyannote-audio` 4.x breaks whisperx 3.4.2).
 - ffmpeg/ffprobe calls now resolve through `MediaTools`: static builds placed in the gitignored `dependencies/` directory take precedence, falling back to PATH. Nothing changes if you don't use `dependencies/` — existing installs keep their PATH ffmpeg.
 
