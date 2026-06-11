@@ -14,10 +14,6 @@ whisper_model: small
 # higher values can exhaust RAM on smaller machines. Leave blank to use 2.
 parallel_jobs: 2
 
-# Default hold length (seconds) for a still image in a cut when the clip
-# doesn't specify its own `duration:`. Leave blank to use 5 seconds.
-# still_duration: 5
-
 # After exporting a roughcut, also drop a copy of the XML on the Desktop for easy import
 save_to_desktop_after_export: true
 
