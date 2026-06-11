@@ -1057,4 +1057,15 @@ RSpec.describe Library do
       expect { Library.check_for_update!(repo_root: @repo_root) }.not_to raise_error
     end
   end
+
+  describe 'CLI edition command' do
+    # Asserted against the constant (not a literal) so this spec file stays
+    # byte-identical across the core and pro editions.
+    it 'prints ButterCut::EDITION and exits 0' do
+      cli = File.expand_path('../../lib/buttercut/library.rb', __dir__)
+      out = `ruby #{Shellwords.escape(cli)} edition`
+      expect($CHILD_STATUS.exitstatus).to eq(0)
+      expect(out.strip).to eq(ButterCut::EDITION.to_s)
+    end
+  end
 end
