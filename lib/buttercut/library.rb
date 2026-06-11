@@ -12,6 +12,7 @@ require 'shellwords'
 require 'yaml'
 
 require_relative 'media_tools'
+require_relative 'version'
 
 class Library
   LIBRARIES_ROOT = File.expand_path('../../libraries', __dir__)
@@ -682,6 +683,7 @@ if __FILE__ == $PROGRAM_NAME
       ruby library.rb recent [N]                      — N most recent libraries by deepest file mtime (default 10)
       ruby library.rb migrate                         — run all migrations across every library
       ruby library.rb update_checked                  — record that you just checked for a newer ButterCut
+      ruby library.rb edition                         — print which ButterCut edition this is (core or pro)
       ruby library.rb <library_name> <action> [args]
 
     Existence + status (no library load required for `exists`):
@@ -718,6 +720,13 @@ if __FILE__ == $PROGRAM_NAME
   # ahead of the daily gate below so recording a check is never itself gated.
   if ARGV.first == 'update_checked'
     Library.record_update_check!
+    exit 0
+  end
+
+  # Which edition this install is (:core open source, :pro). The update skill
+  # branches on this; like update_checked it must never hit the daily gate.
+  if ARGV.first == 'edition'
+    puts ButterCut::EDITION
     exit 0
   end
 

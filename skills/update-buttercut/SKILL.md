@@ -1,11 +1,13 @@
 ---
 name: update-buttercut
-description: A skill to automatically download and install the latest ButterCut version from GitHub while preserving libraries. Use when user wants to check for updates or update their installation for new features.
+description: A skill to automatically download and install the latest ButterCut version while preserving libraries. Use when user wants to check for updates or update their installation for new features.
 ---
 
 # Skill: Update ButterCut
 
 Updates ButterCut to the latest version via `git pull`, then recaps what's new in plain video-editor language. Users of this project are video editors — Claude sometimes edits code on its own and may even leave the repo on a side branch. This skill resets that state cleanly: stash anything dirty, switch to `main`, pull, restore deps.
+
+**ButterCut Pro:** first check which edition this is — `ruby lib/buttercut/library.rb edition` prints `core` or `pro` (never gated). If it prints `pro`, this install updates over an authenticated connection — read @pro-update.md in this skill's directory before starting; it adds a license step before the pull and replaces the pull-failure guidance in step 3. `core` means open-source ButterCut: nothing extra to do.
 
 ## Workflow
 
@@ -25,7 +27,7 @@ Always run this — it's a no-op if the working tree is clean. `libraries/` is g
 git checkout main
 GIT_TERMINAL_PROMPT=0 git pull origin main
 ```
-**If the pull (or the daily gate's `git fetch origin main`) fails:** updates come from the public GitHub repo and need no credentials, so a failure means network trouble or GitHub being unreachable. Tell the user and suggest trying again later — don't retry in a loop.
+**If the pull (or the daily gate's `git fetch origin main`) fails:** on a Pro install (`edition` printed `pro`), follow the failure guidance in @pro-update.md instead of this paragraph. Open-source updates come from the public GitHub repo and need no credentials, so a failure means network trouble or GitHub being unreachable. Tell the user and suggest trying again later — don't retry in a loop.
 
 **4. Reinstall dependencies:**
 ```bash
