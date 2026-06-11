@@ -215,8 +215,9 @@ class Library
 
     raise UpdateCheckNeeded,
       "it's been over a day since ButterCut last checked for updates. " \
-      'Call `git fetch origin main` then `git log --oneline HEAD..origin/main`. ' \
-      'If `main` is ahead, use the update-buttercut skill. ' \
+      'Call `GIT_TERMINAL_PROMPT=0 git fetch origin main` then `git log --oneline HEAD..origin/main`. ' \
+      'If `main` is ahead, use the update-buttercut skill; if the fetch fails, ' \
+      'follow the failure guidance in that skill. ' \
       'Then run `ruby lib/buttercut/library.rb update_checked` to record the check ' \
       'and re-run your command.'
   end
@@ -680,7 +681,7 @@ if __FILE__ == $PROGRAM_NAME
       ruby library.rb list                            — every library, newest first (library.yaml mtime)
       ruby library.rb recent [N]                      — N most recent libraries by deepest file mtime (default 10)
       ruby library.rb migrate                         — run all migrations across every library
-      ruby library.rb update_checked                  — record that you just checked GitHub for a newer ButterCut
+      ruby library.rb update_checked                  — record that you just checked for a newer ButterCut
       ruby library.rb <library_name> <action> [args]
 
     Existence + status (no library load required for `exists`):
