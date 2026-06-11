@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### New & Improved
+- **Add photos to your libraries.** Libraries now hold still images (JPEG and PNG) alongside your video footage. Drop them into the same library, give them a quick summary like any clip, and use them in a cut. Add them when you create a library or to an existing one.
+- **Put stills in your cuts.** Drop a photo, screenshot, or title card into any cut and set how long it holds on screen (five seconds by default). It exports to Final Cut, Premiere, and Resolve right alongside your video, sized and placed correctly even when the photo is a different shape than your timeline.
+- **Set your timeline's frame rate and size.** A cut can now spell out the frame rate and resolution it should export at, which matters for a cut made entirely of photos (where there is no video to copy those settings from). For normal cuts nothing changes: the settings still follow your footage.
+
 ### Changed
 - A missing ffmpeg/ffprobe now fails fast with a clear "run the setup skill" error instead of a cryptic command-not-found buried in subprocess output. The contact-sheet skill's repair instructions point at the `setup` skill accordingly.
 - Setup now pins WhisperX to the tested combination (`whisperx==3.4.2`, `pyannote-audio==3.4.0` — matching `requirements.txt`), so fresh installs can't drift onto untested releases (`pyannote-audio` 4.x breaks whisperx 3.4.2).
