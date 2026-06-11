@@ -1,11 +1,13 @@
 require 'securerandom'
 require 'pathname'
 require 'cgi'
+require 'erb'
 require 'json'
 require 'digest'
 require 'shellwords'
 require_relative 'rotation_metadata'
 require_relative 'media_tools'
+require_relative 'library'
 
 class ButterCut
   # Shared functionality for editor-specific generators.
@@ -18,7 +20,11 @@ class ButterCut
 
     attr_reader :clips, :initial_offset, :volume_adjustment
 
-    def initialize(clips)
+    # `timeline:` is an optional explicit output format (from the cut YAML's
+    # `timeline:` block): frame_rate (fraction string or number), width,
+    # height. Anything not given falls back to the first video clip, and —
+    # for image-only timelines — to 24fps 1920×1080.
+    def initialize(clips, timeline: nil)
       raise ArgumentError, "No clips provided" if clips.nil? || clips.empty?
 
       clips.each_with_index do |clip, index|
@@ -28,15 +34,19 @@ class ButterCut
         unless clip.key?(:path)
           raise ArgumentError, "Clip at index #{index} must have a 'path' key"
         end
+        if image_clip?(clip) && clip[:duration].nil?
+          raise ArgumentError, "Image clip at index #{index} (#{clip[:path]}) must have a 'duration' key — stills are timeless"
+        end
       end
 
       relative_paths = clips.select { |clip| !Pathname.new(clip[:path]).absolute? }
       unless relative_paths.empty?
         paths = relative_paths.map { |clip| clip[:path] }.join(', ')
-        raise ArgumentError, "All video file paths must be absolute paths. Relative paths found: #{paths}"
+        raise ArgumentError, "All media file paths must be absolute paths. Relative paths found: #{paths}"
       end
 
       @clips = clips
+      @timeline = normalize_timeline(timeline)
       @initial_offset = DEFAULT_INITIAL_OFFSET
       @volume_adjustment = DEFAULT_VOLUME_ADJUSTMENT
 
@@ -46,6 +56,15 @@ class ButterCut
         @metadata_cache[path] = extract_metadata_from_ffprobe(path)
       end
     end
+
+    # A clip's media type: explicit :type wins (Export sets it), otherwise
+    # inferred from the extension via the registry's one owner. Unknown
+    # extensions read as video, matching Library's lenient-read rule.
+    def clip_type(clip)
+      (clip[:type] || Library.media_type_of(clip[:path]) || 'video').to_s
+    end
+
+    def image_clip?(clip) = clip_type(clip) == 'image'
 
     def save(filename)
       File.write(filename, to_xml)
@@ -96,8 +115,10 @@ class ButterCut
       "#{denominator}/#{numerator}s"
     end
 
+    # nil when the source has no audio stream (stills, video-only recordings) —
+    # callers fall back to the 48000 default.
     def audio_sample_rate(video_path)
-      audio_stream(video_path)['sample_rate']
+      audio_stream(video_path)&.fetch('sample_rate', nil)
     end
 
     def nominal_frame_rate(video_path)
@@ -208,32 +229,71 @@ class ButterCut
       "#{duration_num / divisor}/#{duration_denom / divisor}s"
     end
 
+    # The first video (not image) clip on the timeline — the source the output
+    # format is derived from when the cut YAML doesn't pin one explicitly.
+    # nil for image-only timelines.
+    def first_video_path
+      @first_video_path ||= @clips.find { |clip| !image_clip?(clip) }&.fetch(:path)
+    end
+
+    # Output format resolution, three tiers: explicit `timeline:` block from
+    # the cut YAML → first video clip → image-only defaults (24fps, 1920×1080,
+    # 48kHz). The cut skill is supposed to always write the block for
+    # image-only cuts, so the last tier is a safety net, not a policy.
     def format_width
-      video_width(@clips.first[:path])
+      @timeline[:width] || source_format_width
     end
 
     def format_height
-      video_height(@clips.first[:path])
+      @timeline[:height] || source_format_height
     end
 
-    def format_frame_duration
-      frame_duration(@clips.first[:path])
+    def source_format_width
+      first_video_path ? video_width(first_video_path) : 1920
+    end
+
+    def source_format_height
+      first_video_path ? video_height(first_video_path) : 1080
     end
 
     def format_frame_rate
-      frame_rate(@clips.first[:path])
+      @timeline[:frame_rate] || (first_video_path ? frame_rate(first_video_path) : '24/1')
+    end
+
+    def format_frame_duration
+      numerator, denominator = format_frame_rate.split('/').map(&:to_i)
+      "#{denominator}/#{numerator}s"
     end
 
     def format_nominal_frame_rate
-      nominal_frame_rate(@clips.first[:path])
+      rate_num, rate_denom = format_frame_rate.split('/').map(&:to_i)
+      return 0 if rate_denom.zero?
+
+      (rate_num.to_f / rate_denom).round
     end
 
     def format_color_space
-      color_space(@clips.first[:path])
+      color_space(first_video_path)
     end
 
     def format_audio_rate
-      audio_sample_rate(@clips.first[:path])
+      (first_video_path && audio_sample_rate(first_video_path)) || '48000'
+    end
+
+    # Accept a frame rate as a fraction string ("30000/1001"), an integer, or
+    # the conventional NTSC decimals (23.976/29.97/59.94) and normalize to the
+    # exact fraction every internal computation expects.
+    def self.frame_rate_fraction(value)
+      str = value.to_s.strip
+      return str if str.include?('/')
+
+      rate = Float(str)
+      { 23.976 => '24000/1001', 29.97 => '30000/1001', 59.94 => '60000/1001' }.each do |decimal, fraction|
+        return fraction if (rate - decimal).abs < 0.005
+      end
+      raise ArgumentError, "frame_rate must be a whole number, an NTSC rate, or a fraction; got #{value.inspect}" unless (rate - rate.round).abs < 0.001
+
+      "#{rate.round}/1"
     end
 
     # Greatest Common Divisor (GCD): the largest whole number that divides two
@@ -343,9 +403,14 @@ class ButterCut
       File.expand_path(path)
     end
 
+    # RFC 2396/3986 file URL: every path segment percent-encoded (UTF-8 bytes,
+    # spaces, parens, #, &, …), slashes preserved. Editors resolve `src` /
+    # `pathurl` strictly — a single unescaped reserved character imports as
+    # offline ("missing") media.
     def path_to_file_url(path)
       abs_path = get_absolute_path(path)
-      "file://#{abs_path.gsub(' ', '%20')}"
+      encoded = abs_path.split('/', -1).map { |segment| ERB::Util.url_encode(segment) }.join('/')
+      "file://#{encoded}"
     end
 
     def escape_xml(str)
@@ -353,35 +418,42 @@ class ButterCut
       CGI.escapeHTML(str).gsub("&#39;", "&apos;")
     end
 
+    # One asset record per unique source file. Stills are timeless: only
+    # dimensions are probed — no duration, audio rate, timecode, frame rate,
+    # or rotation keys at all (generators branch on :type).
     def build_asset_map
       file_to_asset = {}
       @clips.each do |clip_def|
-        video_file_path = clip_def[:path]
-        abs_path = get_absolute_path(video_file_path)
+        media_file_path = clip_def[:path]
+        abs_path = get_absolute_path(media_file_path)
         next if file_to_asset.key?(abs_path)
 
-        asset_id = deterministic_asset_id(abs_path)
-        asset_uid = deterministic_asset_uid(abs_path)
-        filename = get_filename(video_file_path)
-        file_url = path_to_file_url(video_file_path)
-
-        file_to_asset[abs_path] = {
-          asset_id: asset_id,
-          asset_uid: asset_uid,
+        filename = get_filename(media_file_path)
+        asset = {
+          asset_id: deterministic_asset_id(abs_path),
+          asset_uid: deterministic_asset_uid(abs_path),
           abs_path: abs_path,
           filename: filename,
           basename: get_basename(filename),
-          file_url: file_url,
-          asset_duration: duration_to_fraction(video_file_path),
-          audio_rate: audio_sample_rate(video_file_path),
-          timecode: clip_timecode_fraction(video_file_path),
-          frame_duration: frame_duration(video_file_path),
-          frame_rate: frame_rate(video_file_path),
-          width: video_width(video_file_path),
-          height: video_height(video_file_path),
-          rotation: video_rotation(video_file_path),
-          color_space: color_space(video_file_path)
+          file_url: path_to_file_url(media_file_path),
+          type: clip_type(clip_def),
+          width: video_width(media_file_path),
+          height: video_height(media_file_path)
         }
+
+        if asset[:type] != 'image'
+          asset.merge!(
+            asset_duration: duration_to_fraction(media_file_path),
+            audio_rate: audio_sample_rate(media_file_path),
+            timecode: clip_timecode_fraction(media_file_path),
+            frame_duration: frame_duration(media_file_path),
+            frame_rate: frame_rate(media_file_path),
+            rotation: video_rotation(media_file_path),
+            color_space: color_space(media_file_path)
+          )
+        end
+
+        file_to_asset[abs_path] = asset
       end
       file_to_asset
     end
@@ -440,6 +512,19 @@ class ButterCut
     end
 
     protected
+
+    def normalize_timeline(timeline)
+      return {} if timeline.nil?
+
+      normalized = {}
+      frame_rate = timeline[:frame_rate] || timeline['frame_rate']
+      normalized[:frame_rate] = self.class.frame_rate_fraction(frame_rate) if frame_rate
+      width = timeline[:width] || timeline['width']
+      normalized[:width] = Integer(width) if width
+      height = timeline[:height] || timeline['height']
+      normalized[:height] = Integer(height) if height
+      normalized
+    end
 
     def extract_metadata_from_ffprobe(video_path)
       json_output = `#{Shellwords.escape(MediaTools.ffprobe)} -v quiet -print_format json -show_format -show_streams "#{video_path}" 2>&1`

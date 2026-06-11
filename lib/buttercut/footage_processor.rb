@@ -97,7 +97,7 @@ class FootageProcessor
   def validate_clips!
     return unless @clips
 
-    known = @library.videos.map { |v| File.basename(v['path'].to_s) }
+    known = @library.media.map { |m| File.basename(m['path'].to_s) }
     unknown = @clips - known
     raise "clip(s) not in library: #{unknown.join(', ')}" unless unknown.empty?
   end

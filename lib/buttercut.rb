@@ -25,7 +25,10 @@ require_relative 'buttercut/premiere'
 class ButterCut
   SUPPORTED_EDITORS = [:fcpx, :resolve, :premiere].freeze
 
-  def self.new(clips, editor:)
+  # `timeline:` is an optional explicit output format ({frame_rate:, width:,
+  # height:}, any subset) — written by the cut skill into the cut YAML and
+  # passed through Export. Without it the format follows the first video clip.
+  def self.new(clips, editor:, timeline: nil)
     raise ArgumentError, "editor: parameter is required" if editor.nil?
 
     unless SUPPORTED_EDITORS.include?(editor)
@@ -34,11 +37,11 @@ class ButterCut
 
     case editor
     when :fcpx
-      ButterCut::FCPX.new(clips)
+      ButterCut::FCPX.new(clips, timeline: timeline)
     when :resolve
-      ButterCut::Resolve.new(clips)
+      ButterCut::Resolve.new(clips, timeline: timeline)
     when :premiere
-      ButterCut::Premiere.new(clips)
+      ButterCut::Premiere.new(clips, timeline: timeline)
     else
       raise ArgumentError, "Editor #{editor.inspect} is not yet implemented."
     end

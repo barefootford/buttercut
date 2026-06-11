@@ -25,7 +25,8 @@ class ButterCut
       first_path = clips.first[:path]
       sequence_name = "#{get_basename(get_filename(first_path))} #{timestamp_suffix}"
 
-      clip_payloads = build_clip_payloads(timeline_clips, timeline_frame_duration)
+      sequence_rate = { timebase: timebase, ntsc: ntsc_flag, display: display_format }
+      clip_payloads = build_clip_payloads(timeline_clips, timeline_frame_duration, sequence_rate)
       sequence_audio_rate = format_audio_rate || '48000'
 
       builder = Nokogiri::XML::Builder.new(encoding: 'UTF-8') do |xml|
@@ -80,7 +81,7 @@ class ButterCut
                 end
                 xml.track do
                   clip_payloads.each do |payload|
-                    build_audio_clipitem(xml, payload)
+                    build_audio_clipitem(xml, payload) unless payload[:still]
                   end
                 end
               end
@@ -98,49 +99,69 @@ class ButterCut
       rate_denom == 1 ? 'FALSE' : 'TRUE'
     end
 
-    def build_clip_payloads(timeline_clips, timeline_frame_duration)
+    def build_clip_payloads(timeline_clips, timeline_frame_duration, sequence_rate)
+      audio_index = 0
       timeline_clips.each_with_index.map do |clip, index|
         asset = clip[:asset]
-        asset_rate_num, asset_rate_denom = asset[:frame_rate].split('/').map(&:to_i)
-        asset_timebase = (asset_rate_num.to_f / asset_rate_denom).round
-        asset_ntsc = ntsc_flag_for(asset_rate_denom)
-        asset_display = ntsc_drop_frame_rate?(asset_rate_num, asset_rate_denom) ? 'DF' : 'NDF'
+        still = asset[:type] == 'image'
 
         timeline_duration_frames = frames_for_fraction(clip[:duration], timeline_frame_duration)
         timeline_start_frames = frames_for_fraction(clip[:timeline_offset], timeline_frame_duration)
         timeline_end_frames = timeline_start_frames + timeline_duration_frames
 
-        source_in_frames = frames_for_fraction(clip[:source_in], asset[:frame_duration])
-        source_duration_frames = frames_for_fraction(clip[:source_duration], asset[:frame_duration])
-        source_out_frames = source_in_frames + source_duration_frames
-
-        asset_duration_frames = frames_for_fraction(asset[:asset_duration], asset[:frame_duration])
-        asset_timecode_start = frames_for_fraction(asset[:timecode], asset[:frame_duration])
-
-        {
+        payload = {
           index: index + 1,
+          still: still,
           clip: clip,
           asset: asset,
           video_clip_id: "clipitem-video-#{index + 1}",
-          audio_clip_id: "clipitem-audio-#{index + 1}",
           file_id: "file-#{asset[:asset_id]}",
           timeline_start: timeline_start_frames,
           timeline_end: timeline_end_frames,
-          timeline_duration: timeline_duration_frames,
-          source_in: source_in_frames,
-          source_out: source_out_frames,
-          source_duration_frames: source_duration_frames,
-          asset_timebase: asset_timebase,
-          asset_ntsc: asset_ntsc,
-          asset_display: asset_display,
-          asset_duration_frames: asset_duration_frames,
-          asset_timecode_start: asset_timecode_start
+          timeline_duration: timeline_duration_frames
         }
+
+        if still
+          # Stills have no native rate or timecode: the file adopts the
+          # sequence rate, in/out span the timeline duration, and the file
+          # duration matches the cut (settled empirically in the editors).
+          payload.merge!(
+            asset_timebase: sequence_rate[:timebase],
+            asset_ntsc: sequence_rate[:ntsc],
+            asset_display: sequence_rate[:display],
+            source_in: 0,
+            source_out: timeline_duration_frames,
+            source_duration_frames: timeline_duration_frames,
+            asset_duration_frames: timeline_duration_frames,
+            asset_timecode_start: 0
+          )
+        else
+          asset_rate_num, asset_rate_denom = asset[:frame_rate].split('/').map(&:to_i)
+          source_in_frames = frames_for_fraction(clip[:source_in], asset[:frame_duration])
+          source_duration_frames = frames_for_fraction(clip[:source_duration], asset[:frame_duration])
+          audio_index += 1
+
+          payload.merge!(
+            audio_clip_id: "clipitem-audio-#{index + 1}",
+            audio_index: audio_index,
+            asset_timebase: (asset_rate_num.to_f / asset_rate_denom).round,
+            asset_ntsc: ntsc_flag_for(asset_rate_denom),
+            asset_display: ntsc_drop_frame_rate?(asset_rate_num, asset_rate_denom) ? 'DF' : 'NDF',
+            source_in: source_in_frames,
+            source_out: source_in_frames + source_duration_frames,
+            source_duration_frames: source_duration_frames,
+            asset_duration_frames: frames_for_fraction(asset[:asset_duration], asset[:frame_duration]),
+            asset_timecode_start: frames_for_fraction(asset[:timecode], asset[:frame_duration])
+          )
+        end
+
+        payload
       end
     end
 
     def build_video_clipitem(xml, payload)
       asset = payload[:asset]
+      still = payload[:still]
 
       xml.clipitem(id: payload[:video_clip_id]) do
         xml.name asset[:basename]
@@ -150,6 +171,10 @@ class ButterCut
         xml.end_ payload[:timeline_end]
         xml.in_ payload[:source_in]
         xml.out payload[:source_out]
+        # Documented still marker: "Photoshop PSD files, jpeg files, tiff
+        # files, or other still images imported into Final Cut have
+        # stillframe set to TRUE."
+        xml.stillframe 'TRUE' if still
         xml.file(id: payload[:file_id]) do
           xml.name asset[:filename]
           xml.pathurl asset[:file_url]
@@ -158,13 +183,15 @@ class ButterCut
             xml.ntsc payload[:asset_ntsc]
           end
           xml.duration payload[:asset_duration_frames]
-          xml.timecode do
-            xml.rate do
-              xml.timebase payload[:asset_timebase]
-              xml.ntsc payload[:asset_ntsc]
+          unless still
+            xml.timecode do
+              xml.rate do
+                xml.timebase payload[:asset_timebase]
+                xml.ntsc payload[:asset_ntsc]
+              end
+              xml.frame payload[:asset_timecode_start]
+              xml.displayformat payload[:asset_display]
             end
-            xml.frame payload[:asset_timecode_start]
-            xml.displayformat payload[:asset_display]
           end
           xml.media do
             xml.video do
@@ -180,10 +207,12 @@ class ButterCut
                 xml.fielddominance 'none'
               end
             end
-            xml.audio do
-              xml.samplecharacteristics do
-                xml.samplerate asset_audio_rate(asset)
-                xml.sampledepth 16
+            unless still
+              xml.audio do
+                xml.samplecharacteristics do
+                  xml.samplerate asset_audio_rate(asset)
+                  xml.sampledepth 16
+                end
               end
             end
           end
@@ -195,7 +224,8 @@ class ButterCut
           xml.mediatype 'video'
           xml.trackindex 1
         end
-        build_link_entries(xml, payload)
+        # Stills have no audio counterpart to link to.
+        build_link_entries(xml, payload) unless still
       end
     end
 
@@ -241,6 +271,9 @@ class ButterCut
       end
     end
 
+    # clipindex is the clip's position within its own track: the video track
+    # holds every clip (stills included), the audio track only the clips with
+    # sound — hence the separate audio_index counter.
     def build_link_entries(xml, payload)
       xml.link do
         xml.linkclipref payload[:video_clip_id]
@@ -252,7 +285,7 @@ class ButterCut
         xml.linkclipref payload[:audio_clip_id]
         xml.mediatype 'audio'
         xml.trackindex 1
-        xml.clipindex payload[:index]
+        xml.clipindex payload[:audio_index]
         xml.groupindex 1
       end
     end
