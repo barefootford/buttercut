@@ -51,7 +51,9 @@ def migrate_library(library_path)
 
   # Sanity check: parse the result to make sure we didn't produce invalid YAML.
   parsed = YAML.load(new_content, permitted_classes: [Date, Time, Symbol])
-  unless parsed.is_a?(Hash) && parsed['videos'].is_a?(Array)
+  # Accept either key: 005 renames videos: → media:, and this script must stay
+  # re-runnable on already-renamed files.
+  unless parsed.is_a?(Hash) && (parsed['videos'] || parsed['media']).is_a?(Array)
     puts "  ✗ Insert produced unexpected YAML; refusing to write"
     return false
   end

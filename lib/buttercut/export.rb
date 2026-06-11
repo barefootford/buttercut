@@ -27,13 +27,15 @@ class Export
     @editor        = resolve_editor(editor.to_s)
   end
 
+  DEFAULT_STILL_DURATION = 5.0 # seconds; overridable per cut and via libraries/settings.yaml still_duration
+
   def perform
     roughcut    = load_yaml(@roughcut_path)
     library     = load_library(@roughcut_path)
-    video_paths = index_video_paths(library)
-    clips       = build_clips(roughcut, video_paths)
+    media_paths = index_media_paths(library)
+    clips       = build_clips(roughcut, media_paths)
 
-    write_xml(clips, @editor)
+    write_xml(clips, @editor, roughcut['timeline'])
     validate_fcpxml(@output_path) if @editor == :fcpx
     @output_path
   end
@@ -56,32 +58,61 @@ class Export
     load_yaml(library_yaml)
   end
 
-  def index_video_paths(library)
-    library['videos'].each_with_object({}) do |video, map|
-      map[File.basename(video['path'])] = video['path']
+  def index_media_paths(library)
+    library['media'].each_with_object({}) do |media, map|
+      map[File.basename(media['path'])] = media['path']
     end
   end
 
-  def build_clips(roughcut, video_paths)
+  def build_clips(roughcut, media_paths)
     roughcut['clips'].filter_map do |clip|
       source = clip['source_file']
-      path   = video_paths[source]
+      path   = media_paths[source]
 
       unless path
         warn "Warning: Source file not found in library data: #{source}"
         next
       end
 
-      start_at = timecode_to_seconds(clip['in_point'])
-      duration = timecode_to_seconds(clip['out_point']) - start_at
+      type = Library.media_type_of(path)
+      if type.nil?
+        warn "Warning: #{source} is outside the supported formats — the editor may import it as missing media. " \
+             'See "Supported media formats" in AGENTS.md.'
+        type = 'video'
+      end
 
-      { path: path, start_at: start_at.to_f, duration: duration.to_f }
+      if type == 'image'
+        duration = clip['duration'] ? timecode_to_seconds(clip['duration']) : still_duration_default
+        { path: path, type: :image, duration: duration.to_f }
+      else
+        start_at = timecode_to_seconds(clip['in_point'])
+        duration = timecode_to_seconds(clip['out_point']) - start_at
+
+        { path: path, type: :video, start_at: start_at.to_f, duration: duration.to_f }
+      end
     end
   end
 
-  # Accepts HH:MM:SS or HH:MM:SS.s
+  # Per-cut `duration:` wins (handled in build_clips); this is the fallback —
+  # `still_duration` from libraries/settings.yaml, else 5 seconds.
+  def still_duration_default
+    settings_path = 'libraries/settings.yaml'
+    if File.exist?(settings_path)
+      settings = YAML.safe_load_file(settings_path, permitted_classes: [Date, Time]) || {}
+      configured = settings['still_duration']
+      return configured.to_f if configured && configured.to_f.positive?
+    end
+    DEFAULT_STILL_DURATION
+  end
+
+  # Accepts HH:MM:SS or HH:MM:SS.s (also bare numeric seconds, e.g. an
+  # image clip's `duration: 5`).
   def timecode_to_seconds(timecode)
+    return timecode.to_f if timecode.is_a?(Numeric)
+
     hours, minutes, seconds = timecode.split(':')
+    return hours.to_f if minutes.nil?
+
     hours.to_i * 3600 + minutes.to_i * 60 + seconds.to_f
   end
 
@@ -92,9 +123,9 @@ class Export
     raise ArgumentError, "Unknown editor '#{input}'. Use 'fcpx', 'premiere', or 'resolve'"
   end
 
-  def write_xml(clips, editor)
+  def write_xml(clips, editor, timeline)
     puts "Converting #{clips.length} clips to #{EDITOR_LABELS.fetch(editor)}..."
-    ButterCut.new(clips, editor: editor).save(@output_path)
+    ButterCut.new(clips, editor: editor, timeline: timeline).save(@output_path)
     puts "\n✓ Rough cut exported to: #{@output_path}"
   end
 

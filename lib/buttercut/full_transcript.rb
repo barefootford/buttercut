@@ -22,7 +22,9 @@ class FullTranscript
 
   def export
     library = load_library
-    videos = library['videos'] || []
+    # Images have no transcript key, so they fall into the skipped count
+    # naturally — only spoken footage lands in the export.
+    videos = library['media'] || []
 
     lines = []
     skipped = 0

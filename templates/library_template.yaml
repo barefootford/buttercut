@@ -9,14 +9,18 @@ user_context: ""
 # Whenever you ask the user questions about the library, save a summarized version here.
 # ie; The man wearing the dark blue long sleeve shirt is "Andrew". The small brown dog is "Sammy". This footage was shot over one evening.
 
-# Full footage summary - progressively updated after each video is transcribed. This can be up to 10-20 lines summarizing all of the footage we have.
+# Full footage summary - progressively updated after each clip is analyzed. This can be up to 10-20 lines summarizing all of the footage we have.
 footage_summary: "No footage analyzed yet."
 # "This footage appears to be wedding footage. It includes the bride and groom getting dressed, preparing for the wedding ceremomy, the ceremony, and the post ceremony dinner and party."
 # "This footage appears to be a vlog. The footage starts in The Richmond District in San Francisco, includes a bus ride on the 38R, and concludes at a Ruby Meetup in downtown San Francisco."
 
-# Video files and analysis status
+# Media files and analysis status
 #
-# Per clip, analysis fills three fields:
+# Each entry's type (video or image) is inferred from its file extension —
+# never stored here. Videos: mov/mp4/mts/m2ts/mxf/avi. Images: jpg/jpeg/png.
+# (See "Supported media formats" in AGENTS.md.)
+#
+# Per video, analysis fills three fields:
 #   transcript     — audio transcript JSON (word-level timing, in transcripts/);
 #                    also the source for on-demand dialogue extraction via
 #                    lib/buttercut/script_extractor.rb
@@ -24,11 +28,17 @@ footage_summary: "No footage analyzed yet."
 #                    sheets for clips >10 min live alongside on disk
 #   summary        — markdown overview (in summaries/)
 #
+# Per image, analysis fills only `summary` — a short 3-4 sentence greppable
+# description (in summaries/, named summary_<basename>_<ext>.md). Images carry
+# no duration, transcript, or contact_sheet keys at all.
+#
 # Note: visual_transcript is deprecated. Older libraries may still carry the
 # field; new libraries use the contact_sheet field instead.
-videos:
+media:
   - path: /full/path/to/video_file.mp4
     duration: "00:05:32"
     transcript: # filename only (stored in libraries/[library-name]/transcripts/)
     contact_sheet: # filename only (_full.jpg in libraries/[library-name]/contact_sheets/)
     summary: # filename only (summary_*.md in libraries/[library-name]/summaries/)
+  - path: /full/path/to/photo.jpg
+    summary: # filename only (summary_<basename>_<ext>.md in libraries/[library-name]/summaries/)

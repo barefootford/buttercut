@@ -11,15 +11,17 @@ class ButterCut
   # rotation written explicitly into the timeline.
   #
   class Premiere < FCP7
-    # The sequence frame follows the first clip's *display* orientation, so a quarter-turn
-    # source gives a portrait timeline (the stored landscape dimensions swapped) rather than
-    # a landscape one the rotated footage can't fill.
-    def format_width
-      quarter_turn?(@clips.first[:path]) ? video_height(@clips.first[:path]) : super
+    # The sequence frame follows the first video clip's *display* orientation, so a
+    # quarter-turn source gives a portrait timeline (the stored landscape dimensions
+    # swapped) rather than a landscape one the rotated footage can't fill. Stills
+    # carry no rotation flag, so the check keys off the first video clip; an explicit
+    # `timeline:` block still wins (format_width/height in the base check it first).
+    def source_format_width
+      first_video_path && quarter_turn?(first_video_path) ? video_height(first_video_path) : super
     end
 
-    def format_height
-      quarter_turn?(@clips.first[:path]) ? video_width(@clips.first[:path]) : super
+    def source_format_height
+      first_video_path && quarter_turn?(first_video_path) ? video_width(first_video_path) : super
     end
 
     private
