@@ -23,8 +23,9 @@ Always run this — it's a no-op if the working tree is clean. `libraries/` is g
 **3. Switch to main and pull:**
 ```bash
 git checkout main
-git pull origin main
+GIT_TERMINAL_PROMPT=0 git pull origin main
 ```
+**If the pull (or the daily gate's `git fetch origin main`) fails:** updates come from the public GitHub repo and need no credentials, so a failure means network trouble or GitHub being unreachable. Tell the user and suggest trying again later — don't retry in a loop.
 
 **4. Reinstall dependencies:**
 ```bash

@@ -73,7 +73,7 @@ ruby lib/buttercut/library.rb <name> summary      # JSON: metadata + per-type co
 ruby lib/buttercut/library.rb <name> incomplete_media
 ruby lib/buttercut/library.rb <name> unsupported_media   # JSON: entries whose extension no editor imports natively
 ruby lib/buttercut/library.rb <name> ready        # exit 0 if every clip is ready for a cut, 1 if not
-ruby lib/buttercut/library.rb update_checked      # record that you just checked GitHub for a newer ButterCut
+ruby lib/buttercut/library.rb update_checked      # record that you just checked for a newer ButterCut
 ```
 
 **Daily update-check gate.** The Library class has a once-a-day gate to check
