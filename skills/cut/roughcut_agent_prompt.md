@@ -42,10 +42,12 @@ Derive a slug from the plan's working title — the `# ` heading at the top of t
   - For word-level in/out points at a cut boundary: grep the JSON directly for the words you need. Don't read the whole file.
 - **Visual transcript** (`transcripts/visual_*.json`, legacy / optional) — older libraries from the previous pipeline carry these. If present, treat them as extra planning context alongside the contact sheet. Newly-processed libraries won't have them, and you should never generate new ones.
 
+**Images (stills).** A library can hold still images (photos, screenshots, title cards) alongside video — they're the entries whose `source_file` ends in `.jpg`/`.jpeg`/`.png`. An image has only a **summary** (no contact sheet, transcript, or duration); read the summary and, if you need to see it, the image file itself. Place a still as a one-line clip with a `duration:` instead of in/out points (see `cut_yaml_schema.md`). Stills are timeless and silent: pick a hold length that fits the pacing (a title card might sit 2–3s; a hero photo longer), and remember the single-track rule — a still cuts to silence, so don't use one as a cutaway over continuing narration.
+
 For each beat in the plan:
 - Skim summaries to shortlist candidate clips.
-- For shortlisted clips, read the contact sheet and extract the dialogue (`script_extractor.rb`).
-- Set in/out points by grepping the audio transcript for the words at your cut boundaries.
+- For shortlisted **video** clips, read the contact sheet and extract the dialogue (`script_extractor.rb`); set in/out points by grepping the audio transcript for the words at your cut boundaries.
+- For **image** clips, read the summary (and the still itself if useful) and choose a hold `duration`.
 
 **Zoom in when timing matters.** Generate a tighter contact sheet for any clip and any range whenever the existing one leaves you guessing at a cut point:
 

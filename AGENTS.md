@@ -42,11 +42,16 @@ Known migration triggers (match each to a `scripts/NNN_migrate_*.rb` script via 
 - video entries with `summary` missing (added in 0.5.0; missing means "todo", default to empty string)
 - video entries with `transcript_path` / `visual_transcript_path` (renamed to `transcript` / `visual_transcript` in 0.3.0)
 - video entries with `file_size_mb` (removed in 0.3.0)
+- top-level `videos:` key present (renamed to `media:` in 0.8.0, when libraries gained image support). The rename of that one key is the whole migration — every pre-existing entry is a video by definition (type is inferred from the file extension). `Library` refuses to load a `videos:`-keyed library and tells you to migrate, so this trigger is impossible to miss.
 - library has a `roughcuts/` directory (renamed to `cuts/` when the `roughcut` skill became `cut`). This trigger is layout, not YAML — check the directory listing, not the schema.
 
 A missing field is not the same as a field set to the template default — the template default only applies to freshly created libraries. If you see a schema issue not on this list, still check CHANGELOG.md; the list may be behind. After running migrations, re-read the library.yaml and continue with whatever the user asked for.
 
 **`visual_transcript` is deprecated for new analysis.** Don't generate them on new libraries — `transcript` + `contact_sheet` + `summary` is the current pipeline. Dialogue is extracted from the audio transcript JSON on demand via `ruby lib/buttercut/script_extractor.rb <transcript>`; there is no separate script file on disk. Older libraries may still carry `visual_transcript` entries with matching `transcripts/visual_*.json` files; those are fine to use as additional planning context where they exist.
+
+**Images are first-class media.** A library's `media:` array holds videos *and* still images (photos, screenshots, title cards, graphics). The type is inferred from each file's extension — never stored — so there's nothing to set. Images are deliberately lightweight: an image entry carries only a `summary` (3–4 greppable sentences), no `transcript`, no `contact_sheet`, no `duration`. They never go through WhisperX or the contact-sheet pipeline (`pending`/`ready?`/`complete!` only ever hand the processing jobs videos). In a cut, an image is a clip with a `duration:` (the export defaults to 5s, or `still_duration` in `libraries/settings.yaml`); on the timeline it's a held still for that long, and — because ButterCut is single-track — when you cut to a still you cut to silence unless the next clip's audio carries it. To add images to a library, use `add_media` exactly like video (`ruby lib/buttercut/library.rb <name> add_media /path/to/photo.jpg …`).
+
+**Supported media formats.** The add-media allowlist is closed and small on purpose: it's the **intersection** of what Final Cut, Premiere, and Resolve all import natively, so anything ButterCut accepts is guaranteed to open in whichever editor the library targets. Videos: `mov`, `mp4`, `mts`, `m2ts`, `mxf`, `avi`. Images: `jpg`, `jpeg`, `png`. Notable exclusions and why: `mkv`/`webm` (no native Final Cut import), `m4v` (DRM-ambiguous, spotty across editors), `braw`/`r3d`/other camera-raw (need vendor plugins), `heic`/`tiff`/`gif` (inconsistent still support). Remember container ≠ codec: a `.mov` wrapping a codec an editor can't decode still imports as offline media — the allowlist gates containers, not codecs. `add_media` (and `create`) reject an unsupported extension with a message naming the supported sets; **reads stay lenient** — a library that predates the allowlist may hold an odd extension, which reads as video so existing work isn't blocked. Surface those with `ruby lib/buttercut/library.rb <name> unsupported_media`, then offer the user the detect-tell-convert-swap path: tell them which clips are unsupported, offer to `ffmpeg`-convert each to a supported container (remux when the codec is already editor-friendly — fast, lossless; re-encode only when it isn't), `add_media` the converted file, and `remove_media` the original entry (which never touches their source file).
 
 **Read smallest first; grep the rest.** When scanning a library for candidate clips, start with the per-clip summary files in `summaries/` — they're a few paragraphs each and safe to read whole, even across 90+ clips. Contact sheet images are similarly cheap and fine to read for clips you're considering. Transcripts are the heavy ones: a single interview transcript can outweigh every summary in the library combined. Grep into them (`rg "claude code" libraries/<name>/transcripts/`) instead of reading them whole. Direct user requests ("show me transcript X") are fine — the rule is about routine scanning.
 
@@ -73,14 +78,15 @@ ruby lib/buttercut/library.rb migrate                    # runs every scripts/NN
 
 # Status (call summary when picking up a library; ready as the pre-flight before any cut)
 ruby lib/buttercut/library.rb <name> summary             # JSON: metadata + clip-completion breakdown
-ruby lib/buttercut/library.rb <name> incomplete_videos   # JSON: clips still missing artifacts, with which fields are missing
+ruby lib/buttercut/library.rb <name> incomplete_media    # JSON: clips still missing artifacts, with which fields are missing
+ruby lib/buttercut/library.rb <name> unsupported_media   # JSON: entries whose extension no editor imports natively (legacy footage to convert-and-swap)
 ruby lib/buttercut/library.rb <name> ready               # exit 0 = ready to build a cut, 1 = not. Raises if a migration script should be run.
 
 # Understand
 ruby lib/buttercut/script_extractor.rb libraries/<name>/transcripts/<clip>.json   # clean dialogue to stdout: one transcript segment per line, no timing — cheap to skim when you want to know what's said in a clip. Generally these are small, but if editing a podcast or a speech they can be longer.
 ```
 
-Writes (`add_videos`, `complete`, `update_metadata`), destructive resets, legacy cleanup, and `Library.create` via `ruby -e`: see `lib/buttercut/library.md` for full documentation.
+Writes (`add_media`, `remove_media`, `complete`, `update_metadata`), destructive resets, legacy cleanup, and `Library.create` via `ruby -e`: see `lib/buttercut/library.md` for full documentation.
 
 **Daily update-check gate.** Once a day, the first real-work `library.rb` command exits with `library: it's been over a day since ButterCut last checked for updates…`. When you see that: check GitHub (`git fetch origin main` then `git log --oneline HEAD..origin/main`); if `main` is ahead and you're in auto mode, run the `update-buttercut` skill. If you're not in auto mode, ask the user permission to update buttercut using that skill. Either way, run `ruby lib/buttercut/library.rb update_checked` to record it, then re-run your command. Discovery commands (`list`, `recent`, `exists`) are never gated.
 
@@ -107,9 +113,9 @@ Writes (`add_videos`, `complete`, `update_metadata`), destructive resets, legacy
 
 ButterCut is designed to be geared toward working with non technical people using ButterCut via a client, Claude Cowork or Claude Code.
 
-- **Input**: Array of full file paths to video files
+- **Input**: Array of full file paths to media files — videos and still images (see "Supported media formats")
 - **Output**: Working XML file ready to import into the non-technical user's video editor (Final Cut, Premiere, Resolve)
-- **Metadata Extraction**: Uses FFmpeg internally to extract video properties (duration, resolution, frame rate, audio rate, etc.)
+- **Metadata Extraction**: Uses FFmpeg internally to extract video properties (duration, resolution, frame rate, audio rate, etc.); for images only the dimensions are probed (stills are timeless)
 
 ### Vocabulary — talk like an editor, not a developer
 

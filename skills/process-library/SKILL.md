@@ -44,13 +44,13 @@ ruby lib/buttercut/library.rb recent [N]   # N most-recently-touched libraries (
 
 ## Step 2 — Add new footage
 
-If the user is adding footage new footage to an existing library, append the clips first:
+If the user is adding new footage to an existing library, append the clips first. `add_media` takes videos and images together — the type is inferred from each file's extension:
 
 ```bash
-ruby lib/buttercut/library.rb <name> add_videos /abs/new1.mov /abs/new2.mov
+ruby lib/buttercut/library.rb <name> add_media /abs/new1.mov /abs/photo.jpg
 ```
 
-Each new entry starts with empty `transcript`, `contact_sheet`, and `summary` — empty means "todo." The analysis steps below are idempotent and only touch clips missing an artifact, so they'll process just the new clips.
+Each new video entry starts with empty `transcript`, `contact_sheet`, and `summary`; each image entry starts with an empty `summary` only. Empty means "todo." The analysis steps below are idempotent and only touch clips missing an artifact, so they'll process just the new clips — and because the transcript/contact-sheet phases are video-only, images flow straight to the summary step.
 
 If you're simply resuming or processing a freshly created library, skip this step.
 
