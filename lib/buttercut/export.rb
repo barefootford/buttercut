@@ -27,8 +27,6 @@ class Export
     @editor        = resolve_editor(editor.to_s)
   end
 
-  DEFAULT_STILL_DURATION = 5.0 # seconds; overridable per cut and via libraries/settings.yaml still_duration
-
   def perform
     roughcut    = load_yaml(@roughcut_path)
     library     = load_library(@roughcut_path)
@@ -82,7 +80,9 @@ class Export
       end
 
       if type == 'image'
-        duration = clip['duration'] ? timecode_to_seconds(clip['duration']) : still_duration_default
+        raise "Image clip '#{source}' is missing a required 'duration:' field." unless clip['duration']
+
+        duration = timecode_to_seconds(clip['duration'])
         { path: path, type: :image, duration: duration.to_f }
       else
         start_at = timecode_to_seconds(clip['in_point'])
@@ -91,18 +91,6 @@ class Export
         { path: path, type: :video, start_at: start_at.to_f, duration: duration.to_f }
       end
     end
-  end
-
-  # Per-cut `duration:` wins (handled in build_clips); this is the fallback —
-  # `still_duration` from libraries/settings.yaml, else 5 seconds.
-  def still_duration_default
-    settings_path = 'libraries/settings.yaml'
-    if File.exist?(settings_path)
-      settings = YAML.safe_load_file(settings_path, permitted_classes: [Date, Time]) || {}
-      configured = settings['still_duration']
-      return configured.to_f if configured && configured.to_f.positive?
-    end
-    DEFAULT_STILL_DURATION
   end
 
   # Accepts HH:MM:SS or HH:MM:SS.s (also bare numeric seconds, e.g. an
