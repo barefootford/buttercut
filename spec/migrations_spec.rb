@@ -718,6 +718,70 @@ RSpec.describe 'Migration scripts' do
     end
   end
 
+  # ─── 005: rename top-level videos: → media: ───
+
+  describe '005_migrate_videos_to_media' do
+    before(:context) { load File.expand_path('../scripts/005_migrate_videos_to_media.rb', __dir__) }
+
+    def migrate(name = 'test-lib')
+      migrate_library(library_yaml_path(name))
+    end
+
+    it 'renames the top-level videos: key to media:' do
+      write_yaml(<<~YAML)
+        library_name: test-lib
+        videos:
+          - path: /tmp/DJI_0001.mov
+            duration: "00:05:00"
+            transcript: ""
+            contact_sheet: ""
+            summary: ""
+      YAML
+
+      expect(migrate).to be true
+      data = read_yaml
+      expect(data).to have_key('media')
+      expect(data).not_to have_key('videos')
+      expect(data['media'].first['path']).to eq('/tmp/DJI_0001.mov')
+    end
+
+    it 'preserves quote styles and indentation elsewhere — only the key line changes' do
+      original = <<~YAML
+        library_name: test-lib
+        footage_summary: "Wedding footage from São Paulo"
+        videos:
+          - path: /tmp/a.mov
+            duration: "00:05:00"
+      YAML
+      write_yaml(original)
+      migrate
+      expect(read_raw).to eq(original.sub(/^videos:/, 'media:'))
+    end
+
+    it 'is a no-op when already on media: (idempotent)' do
+      write_yaml(<<~YAML)
+        library_name: test-lib
+        media:
+          - path: /tmp/a.mov
+            summary: ""
+      YAML
+      expect(migrate).to be false
+      expect(read_yaml).to have_key('media')
+    end
+
+    it 'is a no-op when there is no videos: key at all' do
+      write_yaml(<<~YAML)
+        library_name: test-lib
+        media: []
+      YAML
+      expect(migrate).to be false
+    end
+
+    it 'returns false for a nonexistent library file' do
+      expect(migrate_library('/nonexistent/library.yaml')).to be false
+    end
+  end
+
   # ─── migrate_all.rb orchestrator ───
 
   describe 'migrate_all' do
@@ -732,13 +796,14 @@ RSpec.describe 'Migration scripts' do
         expect(output).to include('002_migrate_add_transcript_refinement.rb')
         expect(output).to include('003_migrate_add_summary.rb')
         expect(output).to include('004_migrate_roughcuts_to_cuts.rb')
+        expect(output).to include('005_migrate_videos_to_media.rb')
       end
     end
 
     it 'runs scripts in numeric order' do
       Dir.chdir(repo_root) do
         output = `ruby #{script_path} 2>&1`
-        positions = %w[001 002 003 004].map { |n| output.index(n) }
+        positions = %w[001 002 003 004 005].map { |n| output.index(n) }
         expect(positions).to eq(positions.sort)
       end
     end
@@ -823,16 +888,21 @@ RSpec.describe 'Migration scripts' do
       expect(File.directory?(File.join(library_dir, 'roughcuts'))).to be false
       expect(File.read(File.join(library_dir, 'cuts', 'first_draft.xml'))).to eq('<timeline/>')
 
-      # Verify final state
+      # Run 005: videos: → media:
+      load File.expand_path('../scripts/005_migrate_videos_to_media.rb', __dir__)
+      expect(migrate_library(library_yaml_path)).to be true
+
+      # Verify final state — now on the current media: schema
       final = read_yaml
       expect(final['library_name']).to eq('legacy-project')
       expect(final['language']).to eq('english')
       expect(final['transcript_refinement']).to be false
       expect(final['user_context']).to eq('The woman in red is Maria')
+      expect(final).not_to have_key('videos')
 
-      # All three videos still present with correct data
-      expect(final['videos'].size).to eq(3)
-      expect(final['videos'].map { |v| v['path'] }).to eq([
+      # All three clips still present with correct data, under media:
+      expect(final['media'].size).to eq(3)
+      expect(final['media'].map { |v| v['path'] }).to eq([
         '/Volumes/SSD/wedding/DJI_0001.mov',
         '/Volumes/SSD/wedding/DJI_0002.mov',
         '/Volumes/SSD/wedding/DJI_0003.mov'
@@ -848,6 +918,8 @@ RSpec.describe 'Migration scripts' do
       migrate_library(library_yaml_path)
       load File.expand_path('../scripts/004_migrate_roughcuts_to_cuts.rb', __dir__)
       migrate_library(library_dir)
+      load File.expand_path('../scripts/005_migrate_videos_to_media.rb', __dir__)
+      migrate_library(library_yaml_path)
       expect(read_raw).to eq(snapshot)
     end
 
