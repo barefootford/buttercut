@@ -5,13 +5,13 @@ description: A skill to automatically download and install the latest ButterCut 
 
 # Skill: Update ButterCut
 
-Updates ButterCut to the latest version via `git pull`. Users of this project are video editors — Claude sometimes edits code on its own and may even leave the repo on a side branch. This skill resets that state cleanly: stash anything dirty, switch to `main`, pull, restore deps.
+Updates ButterCut to the latest version via `git pull`, then recaps what's new in plain video-editor language. Users of this project are video editors — Claude sometimes edits code on its own and may even leave the repo on a side branch. This skill resets that state cleanly: stash anything dirty, switch to `main`, pull, restore deps.
 
 ## Workflow
 
-**1. Check current version:**
+**1. Note the starting point** — remember this sha; after the pull you'll diff the changelog against it to see what arrived:
 ```bash
-cat lib/buttercut/version.rb
+git rev-parse HEAD
 ```
 
 **2. Stash any local changes (tracked + untracked), tagged so the user can find them later:**
@@ -32,10 +32,16 @@ GIT_TERMINAL_PROMPT=0 git pull origin main
 bundle install
 ```
 
-**5. Verify:**
+**5. Tell the user what they got — in their language:**
 ```bash
-cat lib/buttercut/version.rb
-bundle exec rspec
+git diff <sha-from-step-1>..HEAD -- CHANGELOG.md
 ```
+The added changelog lines are already written for users — recap them in a sentence or two, the way release notes read, leading with what they can do now ("ButterCut now handles photos — drop stills into a library and use them in cuts"). Then:
 
-Show old and new version numbers. If anything was stashed in step 2, tell the user it's saved in `git stash` (reference the stash message) so they can recover it if needed — don't try to reapply it automatically.
+- If the changelog didn't change, say they're up to date with the latest behind-the-scenes improvements — don't enumerate what those were.
+- Never mention branches, commits, shas, tests, version files, migrations, or `main` in the recap.
+- Don't quote version numbers unless the pull brought in a new numbered release section in the changelog. Numbered releases only happen when a batch of changes is publicized as one; between releases the version file lags behind `main` by design, so "still on 0.7.2" is meaningless to the user.
+- **Don't run the test suite after updating.** A wall of test output reads as something being wrong, and "the tests pass" answers a question no video editor asked.
+- If anything was stashed in step 2, mention it once in plain terms ("I set aside a few local file edits before updating; they're saved if you ever want them back") — don't try to reapply it automatically.
+
+(In developer mode — `.buttercut_developer` present — skip the persona rules above and report technically: versions, shas, and running the suite are all fine.)
