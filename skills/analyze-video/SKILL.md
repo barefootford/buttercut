@@ -123,6 +123,8 @@ The `contact_sheet` field was already populated in step 2, so the sub-agent retu
 
 Don't move forward until summaries are complete. Advance the "Analyze footage" count as clips are summarized; mark it done when finished.
 
+**Images.** Still images skip Steps 2–3 entirely (no audio to transcribe, no contact sheet to build) — a `summary` is the only artifact they need, and they show up in `ruby lib/buttercut/library.rb <name> pending summary` right alongside videos. The image *is* the thing to look at, so summarize it directly: read the image file (it's small) from the main thread or a Sonnet sub-agent and write a 3–4 sentence description — subjects, setting, composition, any on-image text — to the canonical path from `ruby lib/buttercut/library.rb <name> field_path summary <image-filename>`. Note image clip keys include the extension (`title-card.png` → `summaries/summary_title-card_png.md`), which `field_path` handles for you. Then record it the same way: `ruby lib/buttercut/library.rb <name> complete summary <image-filename>`.
+
 ## Step 5 — Confirm footage understanding with the user
 
 (This is the "Review the footage together" todo.) Once every summary is written, talk through what the footage actually shows — confirm character names, locations, the narrative through-line, any stray or off-thesis clips, and the user's creative intent for this library. Use plain conversation; only reach for `AskUserQuestion` when offering a discrete choice. As you learn things, update:

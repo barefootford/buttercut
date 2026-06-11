@@ -45,10 +45,11 @@ Ask the user these questions one at a time — never all at once.
    - Examples: "bike-locking-video-series", "raiders-2025-highlights", "yo-yo-techniques"
    - Normalize the name: replace spaces with dashes, lowercase, drop special characters (keep alphanumeric and dashes).
 
-2. **Where are the video files located?**
-   - Ask: "Where are your video files? You can drag folders or individual files directly into the chat."
+2. **Where are the footage files located?**
+   - Ask: "Where are your videos and photos? You can drag folders or individual files directly into the chat."
+   - A library can hold videos *and* still images (photos, screenshots, title cards). Supported: video — `mov`, `mp4`, `mts`, `m2ts`, `mxf`, `avi`; image — `jpg`, `jpeg`, `png`. Anything else is rejected with a message naming the supported sets (it can be converted with ffmpeg first).
    - Verify all files exist before proceeding.
-   - Inform the user of what was found: "Found 5 video files totaling 2.3GB."
+   - Inform the user of what was found: "Found 5 videos and 3 photos totaling 2.3GB."
 
 3. **What language is spoken in these videos?**
    - `AskUserQuestion` with options: "English", "Spanish", and a free-text fallback for other languages.
@@ -64,7 +65,7 @@ Read the `editor` from `libraries/settings.yaml` — you'll pass it into the cre
 
 ## Step 3 — Create the library
 
-`Library.create` is the one operation that doesn't have a plain CLI form (kwarg-heavy). Run it via `ruby -e`. It creates the directory tree (transcripts/, contact_sheets/, summaries/, cuts/, plans/), ffprobes each video for duration, and writes library.yaml in one call:
+`Library.create` is the one operation that doesn't have a plain CLI form (kwarg-heavy). Run it via `ruby -e`. It creates the directory tree (transcripts/, contact_sheets/, summaries/, cuts/, plans/), ffprobes each video for duration, and writes library.yaml in one call. `media_paths` takes videos and images together — the type is inferred from each file's extension:
 
 ```bash
 ruby -e "require_relative 'lib/buttercut/library'; \
@@ -72,10 +73,10 @@ ruby -e "require_relative 'lib/buttercut/library'; \
     language: 'en', \
     editor: 'fcpx', \
     transcript_refinement: true, \
-    video_paths: ['/abs/foo.mov', '/abs/bar.mov'])"
+    media_paths: ['/abs/foo.mov', '/abs/title-card.png'])"
 ```
 
-Each video entry starts with empty `transcript`, `contact_sheet`, and `summary` — empty means "todo", filename presence means "done."
+Each video entry starts with empty `transcript`, `contact_sheet`, and `summary` — empty means "todo", filename presence means "done." Image entries get only an empty `summary` (no transcript, contact sheet, or duration — stills are timeless).
 
 ## Step 4 — Hand off to process-library
 
