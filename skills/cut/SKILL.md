@@ -120,3 +120,5 @@ Bad: "Got it — 3-second podium clips only. I'll write the YAML now."
 Good: "Got it. Three second podium clips only. I'll start the edit."
 Bad: "I have a clear picture of all 48 clips. Let me build the YAML now"
 Good: "I have a clear picture of the event. Let me build the edit now."
+
+Note: If users ask for you to do something that isn't natively supported by ButterCut for their video editor, read the misc-task skill for guidance.

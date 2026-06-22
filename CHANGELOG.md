@@ -11,12 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Add photos to your libraries.** Libraries now hold still images (JPEG and PNG) alongside your video footage. Drop them into the same library, give them a quick summary like any clip, and use them in a cut. Add them when you create a library or to an existing one.
 - **Put stills in your cuts.** Drop a photo, screenshot, or title card into any cut and set how long it holds on screen (five seconds by default). It exports to Final Cut, Premiere, and Resolve right alongside your video, sized and placed correctly even when the photo is a different shape than your timeline.
 - **Set your timeline's frame rate and size.** A cut can now spell out the frame rate and resolution it should export at, which matters for a cut made entirely of photos (where there is no video to copy those settings from). For normal cuts nothing changes: the settings still follow your footage.
+- **Misc tasks now have a home.** Project-tied one-offs (a stray transcription, a thumbnail, quick notes) save into a library's new `misc/` folder; standalone jobs land in a dated `misc/<date>/<task>/` folder; large scratch files go to `tmp/` and finished exports go to your Desktop — never bloating your library.
 
 ### Changed
 - Setup now leaves a small note (`.buttercut_env`) recording how it installed Ruby, Python, and WhisperX on your Mac. Future sessions read it to find those tools even when a fresh terminal hasn't loaded them yet — fewer "command not found" hiccups mid-edit.
 - A missing ffmpeg/ffprobe now fails fast with a clear "run the setup skill" error instead of a cryptic command-not-found buried in subprocess output. The contact-sheet skill's repair instructions point at the `setup` skill accordingly.
 - Setup now pins WhisperX to the tested combination (`whisperx==3.4.2`, `pyannote-audio==3.4.0` — matching `requirements.txt`), so fresh installs can't drift onto untested releases (`pyannote-audio` 4.x breaks whisperx 3.4.2).
 - ffmpeg/ffprobe calls now resolve through `MediaTools`: static builds placed in the gitignored `dependencies/` directory take precedence, falling back to PATH. Nothing changes if you don't use `dependencies/` — existing installs keep their PATH ffmpeg.
+- Libraries now include a `misc/` directory for project-tied one-off artifacts. New libraries get it automatically (it's part of `Library::SUBDIRS`); existing libraries get it created on demand the first time the `misc-task` skill needs it. A new gitignored top-level `misc/` directory holds standalone one-off task output, organized as `misc/<date>/<task>/`.
 
 ## [0.7.2] - 2026-06-02
 

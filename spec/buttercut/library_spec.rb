@@ -186,6 +186,7 @@ RSpec.describe Library do
       expect(lib).to be_a(Library)
       expect(File.directory?(File.join(libraries_root, 'fresh', 'transcripts'))).to be(true)
       expect(File.directory?(File.join(libraries_root, 'fresh', 'cuts'))).to be(true)
+      expect(File.directory?(File.join(libraries_root, 'fresh', 'misc'))).to be(true)
 
       yaml = YAML.safe_load_file(File.join(libraries_root, 'fresh', 'library.yaml'), permitted_classes: [Date, Time])
       expect(yaml).to include(

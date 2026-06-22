@@ -47,7 +47,7 @@ class Library
                  extensions: %w[jpg jpeg png] }.freeze
   }.freeze
 
-  SUBDIRS = %w[transcripts contact_sheets summaries cuts plans].freeze
+  SUBDIRS = %w[transcripts contact_sheets summaries cuts plans misc].freeze
 
   # Library-level metadata cleared by `reset_all`, returning a library to its
   # pre-setup, pre-analysis state: the setup choices (language, editor,
