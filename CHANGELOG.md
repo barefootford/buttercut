@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Set your timeline's frame rate and size.** A cut can now spell out the frame rate and resolution it should export at, which matters for a cut made entirely of photos (where there is no video to copy those settings from). For normal cuts nothing changes: the settings still follow your footage.
 
 ### Changed
+- Setup now leaves a small note (`.buttercut_env`) recording how it installed Ruby, Python, and WhisperX on your Mac. Future sessions read it to find those tools even when a fresh terminal hasn't loaded them yet — fewer "command not found" hiccups mid-edit.
 - A missing ffmpeg/ffprobe now fails fast with a clear "run the setup skill" error instead of a cryptic command-not-found buried in subprocess output. The contact-sheet skill's repair instructions point at the `setup` skill accordingly.
 - Setup now pins WhisperX to the tested combination (`whisperx==3.4.2`, `pyannote-audio==3.4.0` — matching `requirements.txt`), so fresh installs can't drift onto untested releases (`pyannote-audio` 4.x breaks whisperx 3.4.2).
 - ffmpeg/ffprobe calls now resolve through `MediaTools`: static builds placed in the gitignored `dependencies/` directory take precedence, falling back to PATH. Nothing changes if you don't use `dependencies/` — existing installs keep their PATH ffmpeg.

@@ -194,9 +194,51 @@ fi
 bundle install
 ```
 
+## Step 10: Record how this Mac was set up
+
+Simple setup writes its PATH additions (mise activation, `~/.buttercut`, brew)
+to the user's shell profile (`~/.zshrc` / `~/.bash_profile`). However,
+agentic clients (Claude Code, Codex, etc) don't always reliably read those
+profiles so in a fresh session dependencies may be missing from PATH. So create
+a breadcrumb recording the absolute invocation that works regardless of shell,
+so future sessions can quickly recover instead of guessing.
+
+Detect the real paths:
+
+```bash
+MISE="$(command -v mise)"          # e.g. /opt/homebrew/bin/mise
+BREW="$(command -v brew)"
+FFMPEG="$(command -v ffmpeg)"
+```
+
+Then write `.buttercut_env` in the repo root using those resolved absolute
+values. `$HOME` expanded to the real home, `$MISE` to the detected path.:
+
+```
+# How ButterCut was installed on this Mac (written by the setup skill).
+# These invocations work even in shells that aren't loading ~/.zshrc or where
+# mise/whisperx/brew is absent from PATH.
+# FYI, Mise is installed majority, but not all, configurations. 
+# Read this when a tool isn't found or resolves to the wrong version.
+ruby     = <mise path> exec -- ruby
+python   = <mise path> exec -- python3
+whisperx = <home>/.buttercut/whisperx
+ffmpeg   = <ffmpeg path>
+brew     = <brew path>
+```
+
+Keep it to these five lines — it's a breadcrumb, not a config file. `ruby`/`python`
+embed mise's absolute path on purpose so they work even when `mise` itself isn't on
+PATH. `.buttercut_env` is gitignored and machine-specific; never commit it.
+
 ## Final Step
 
-Tell user to open a new terminal window for all changes to take effect.
+For all changes to take effect, tell the user to fully restart whatever they're
+running ButterCut in:
+
+- **Claude Desktop** — quit it completely (close the app, not just the window — ⌘Q
+  or right-click the Dock icon → Quit) and reopen it. A new chat alone isn't enough.
+- **Terminal / CLI** — open a new terminal window (or restart the terminal app).
 
 ## Troubleshooting
 

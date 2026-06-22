@@ -135,8 +135,8 @@ We have RSpec tests for the XML generation library and Library helpers. This doe
 bundle exec rspec
 ```
 
-### Running Ruby scripts
-Skill prompts invoke Ruby with plain `ruby ...`. The project pins Ruby via `.mise.toml`; once mise is activated in your shell (the default setup), plain `ruby` resolves to it through mise shims. If your shell doesn't have mise activated — or you'd rather not install mise at all — prefix any `ruby ...` command with `mise exec -- ` (e.g. `mise exec -- ruby lib/buttercut/library.rb my-lib summary`), or run the command from any shell where the right Ruby is already on `PATH`.
+### Running scripts
+The project pins Ruby via `.mise.toml`; once mise is activated in the user shell (the default setup), plain `ruby` and `python` should resolve to it through mise shims. However, if the shell has been changed/shell didn't activate/user has a custom setting, read `.buttercut_env`. If this doesn't exist, attempt to find the dependencies in standard locations and then replace this file. You can look for information about setting up this file in simple-setup.md.
 
 ## Claude Skills
 
