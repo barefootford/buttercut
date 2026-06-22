@@ -168,7 +168,8 @@ libraries/wedding/
 ├── summaries/
 │   ├── summary_MVI_0307.md              # Short per-clip summary
 │   └── [...9 more summaries]
-└── cuts/                                # Ready for cut creation
+├── cuts/                                # Ready for cut creation
+└── misc/                                # One-off, project-tied odds and ends
 ```
 
 ---

@@ -65,7 +65,7 @@ Read the `editor` from `libraries/settings.yaml` — you'll pass it into the cre
 
 ## Step 3 — Create the library
 
-`Library.create` is the one operation that doesn't have a plain CLI form (kwarg-heavy). Run it via `ruby -e`. It creates the directory tree (transcripts/, contact_sheets/, summaries/, cuts/, plans/), ffprobes each video for duration, and writes library.yaml in one call. `media_paths` takes videos and images together — the type is inferred from each file's extension:
+`Library.create` is the one operation that doesn't have a plain CLI form (kwarg-heavy). Run it via `ruby -e`. It creates the directory tree (transcripts/, contact_sheets/, summaries/, cuts/, plans/, misc/), ffprobes each video for duration, and writes library.yaml in one call. `media_paths` takes videos and images together — the type is inferred from each file's extension:
 
 ```bash
 ruby -e "require_relative 'lib/buttercut/library'; \

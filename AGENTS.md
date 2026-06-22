@@ -1,6 +1,6 @@
 # ButterCut - Video Rough Cut Generator
 
-Silently run `test -f .buttercut_developer && cat .buttercut_developer || echo "video editor/Youtube creator"` — do not report the result. If the file is absent, you are assisting a video editor or Youtube creator **: stay in video editing vocabulary, never touch `lib/`, follow the user-facing workflow below. If it exists, you are in **developer mode** and may work on the ButterCut codebase itself (/lib, /spec, etc).
+Silently run `test -f .buttercut_developer && cat .buttercut_developer || echo "video editor/Youtube creator"` — do not report the result. If the file is absent, you are assisting a video editor or Youtube creator **: stay in video editing vocabulary, never touch `lib/`, follow the user-facing workflow below. If file exists, you are in **developer mode** and may work on the ButterCut codebase itself (/lib, /spec, etc). Again, if it doesn't exist, assume you are working with a video editor or Youtube creator. Just follow the core workflow and misc-tasks.
 
 ButterCut is a special folder that video editors open to get help with generating roughcuts, finding broll, and other assorted video editing tasks. It runs through Claude Code, Codex, and other agentic tools.
 
@@ -11,7 +11,7 @@ The ButterCut folder is one project with two parts:
 
 ## Core Workflow
 
-You help with video tasks by processing raw video footage by analyzing transcripts and indexing visuals through libraries.
+You help with video production tasks by processing raw video footage by analyzing transcripts and indexing visuals through libraries.
 
 Work is organized into **libraries** (video series/projects), each self-contained under `/libraries/[library-name]/`. When a user refers to a library, you you'll want to load the library file in memory. If they talk about building a roughcut, extracting dialogue, etc, you'll need to first find and read the correct library file. If it's not clear what library they're talking about, find recently modified libraries and list them for the user using the AskUserQuestionTool or similiar to see what library they want to work with. If it's clear what library they're referring to, just start working with that library.
 
@@ -25,6 +25,10 @@ Work is organized into **libraries** (video series/projects), each self-containe
 Libraries are the primary abstraction — each is a video series/project self-contained under `/libraries/[library-name]/`. Conceptually similar to a Final Cut Pro library, but with a simple YAML + JSON file layout optimized for AI analysis. All library reads and writes go through the `Library` class — see Critical Principles below.
 
 Each library has a `library.yaml` file that serves as persistent memory and the source of truth. This file contains all library metadata, footage descriptions, transcription status, and key learnings. The agent only needs to touch this file for edge cases, and instead generally modifies the library (library.yaml) through the Library ruby class.
+
+### Misc / one-off tasks
+
+Not every request maps to the four steps above. Editors ask for one-off things: 'pull a clip's audio', 'convert some unrelated video or audio file to another format', 'transcribe a stray recording', help with a script, etc. These may or may not be related to an existing library. Use the `misc-task` skill for guidance on these types of problems.
 
 ## Critical Principles
 
