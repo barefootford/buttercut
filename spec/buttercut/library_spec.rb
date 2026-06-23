@@ -1056,6 +1056,12 @@ RSpec.describe Library do
       expect(File.exist?(stamp)).to be(true)
       expect { Library.check_for_update!(repo_root: @repo_root) }.not_to raise_error
     end
+
+    it 'stays quiet in a developer checkout even when the stamp is stale' do
+      age_stamp(Library::UPDATE_CHECK_INTERVAL + 60)
+      FileUtils.touch(File.join(@repo_root, Library::DEVELOPER_FLAG_FILE))
+      expect { Library.check_for_update!(repo_root: @repo_root) }.not_to raise_error
+    end
   end
 
   describe 'CLI edition command' do
