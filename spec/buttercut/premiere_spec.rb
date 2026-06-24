@@ -38,6 +38,7 @@ RSpec.describe ButterCut::Premiere do
   end
 
   let(:cw_rotated_clip_path) { '/tmp/premiere_cw_rotated.mov' }
+  let(:oversized_clip_path)  { '/tmp/premiere_oversized.mov' }
 
   let(:metadata_by_path) do
     {
@@ -47,7 +48,9 @@ RSpec.describe ButterCut::Premiere do
       upright_clip_path => build_metadata(duration_seconds: 3.0, width: 1920, height: 1080),
       # Vertical footage rotated the other quarter-turn: a +90 display-matrix flag
       # normalizes to 270 clockwise, which the timeline writes the short way as -90.
-      cw_rotated_clip_path => build_metadata(duration_seconds: 4.0, width: 3840, height: 2160, rotation: 90)
+      cw_rotated_clip_path => build_metadata(duration_seconds: 4.0, width: 3840, height: 2160, rotation: 90),
+      # 4K landscape, upright — a second-camera angle larger than a 1080 sequence.
+      oversized_clip_path => build_metadata(duration_seconds: 4.0, width: 3840, height: 2160)
     }
   end
 
@@ -76,6 +79,30 @@ RSpec.describe ButterCut::Premiere do
       xml = described_class.new([{ path: cw_rotated_clip_path }]).to_xml
 
       expect(xml).to match(%r{<parameterid>rotation</parameterid>.*?<value>-90</value>}m)
+    end
+
+    # Premiere maps an FCP7 clip 1:1, so a 4K clip in a 1080 sequence imports cropped to
+    # its center ("zoomed in"). A scale-to-fit must be baked in. The first clip (1080)
+    # sets the sequence; the 4K second clip scales to 50% (1920/3840) to fit.
+    it 'writes a Basic Motion scale-to-fit for a clip larger than the sequence' do
+      doc = Nokogiri::XML(
+        described_class.new([{ path: upright_clip_path }, { path: oversized_clip_path }]).to_xml
+      )
+      clipitems = doc.xpath('/xmeml/sequence/media/video/track/clipitem')
+      by_name = clipitems.each_with_object({}) { |ci, h| h[ci.at_xpath('name').text] = ci }
+
+      def_scale = ->(ci) { ci.at_xpath(".//filter/effect[name='Basic Motion']/parameter[parameterid='scale']/value")&.text }
+
+      # The sequence-sized first clip needs no scaling; the 4K clip fits at 50%.
+      expect(def_scale.call(by_name['premiere_upright'])).to be_nil
+      expect(def_scale.call(by_name['premiere_oversized'])).to eq('50.0')
+    end
+
+    it 'does not scale a clip that already matches the sequence frame' do
+      xml = described_class.new([{ path: upright_clip_path }]).to_xml
+
+      expect(xml).not_to include('<parameterid>scale</parameterid>')
+      expect(xml).not_to include('<name>Basic Motion</name>')
     end
 
     # The sequence frame follows the first clip's *display* orientation, so a
@@ -121,6 +148,10 @@ RSpec.describe ButterCut::Premiere do
       clipitem.at_xpath(".//filter/effect[name='Basic Motion']/parameter[parameterid='rotation']/value")&.text
     end
 
+    def baked_scale(clipitem)
+      clipitem.at_xpath(".//filter/effect[name='Basic Motion']/parameter[parameterid='scale']/value")&.text
+    end
+
     it 'judges each clip on its own source flag' do
       expect(video_clipitems.length).to eq(3)
       expect(baked_rotation(clipitem_by_name['premiere_rotated'])).to eq('90')
@@ -128,8 +159,18 @@ RSpec.describe ButterCut::Premiere do
       expect(baked_rotation(clipitem_by_name['premiere_cw_rotated'])).to eq('-90')
     end
 
-    it 'writes exactly one Basic Motion filter per rotated clip' do
-      expect(xml.scan('<name>Basic Motion</name>').length).to eq(2)
+    # The first (quarter-turn) clip makes the sequence portrait 2160x3840. The two
+    # quarter-turn clips display at that exact size, so they only rotate; the 1920x1080
+    # landscape clip must scale to fit the portrait frame's width (2160/1920 = 112.5%).
+    it 'scales the upright landscape clip to fit the portrait sequence' do
+      expect(baked_scale(clipitem_by_name['premiere_rotated'])).to be_nil
+      expect(baked_scale(clipitem_by_name['premiere_upright'])).to eq('112.5')
+      expect(baked_scale(clipitem_by_name['premiere_cw_rotated'])).to be_nil
+    end
+
+    it 'writes one Basic Motion filter per clip needing rotation or scale' do
+      # Two rotated clips + one scaled upright clip = three filters.
+      expect(xml.scan('<name>Basic Motion</name>').length).to eq(3)
     end
 
     it 'orients the sequence to the first clip regardless of later clips' do
