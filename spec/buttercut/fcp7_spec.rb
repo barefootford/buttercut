@@ -99,5 +99,20 @@ RSpec.describe ButterCut::FCP7 do
       # 01:00:00:00 @ 25fps => 90000 frames
       expect(xml).to include('<frame>90000</frame>')
     end
+
+    it 'silences a muted clip with a level-0 audio filter' do
+      xml = described_class.new([{ path: clip_a_path, mute: true }]).to_xml
+      clipitem = xml[/<clipitem id="clipitem-audio-1">.*?<\/clipitem>/m]
+
+      level = clipitem[/<effectid>audiolevels<\/effectid>.*?<value>(.*?)<\/value>/m, 1]
+      expect(level).to eq('0')
+    end
+
+    it 'leaves an unmuted clip at unity with no audio filter' do
+      xml = described_class.new([{ path: clip_a_path }]).to_xml
+      clipitem = xml[/<clipitem id="clipitem-audio-1">.*?<\/clipitem>/m]
+
+      expect(clipitem).not_to include('audiolevels')
+    end
   end
 end

@@ -386,6 +386,14 @@ RSpec.describe ButterCut::FCPX do
       expect(xml).to include('<adjust-volume amount="-13.100000000000001db"/>')
     end
 
+    it 'silences a muted clip outright instead of playing it' do
+      generator = ButterCut::FCPX.new([{ path: video_file_path, mute: true }])
+      xml = generator.to_xml
+
+      expect(xml).to include('<adjust-volume amount="-96db"/>')
+      expect(xml).not_to include('<adjust-volume amount="-13.100000000000001db"/>')
+    end
+
     it 'handles multiple video files' do
       generator = ButterCut::FCPX.new([{ path: video_file_path }, { path: video_file_path }])
       xml = generator.to_xml
