@@ -39,6 +39,16 @@ The roughcut path runs a deeper flow because the agent needs to explore the libr
 ## 3. Build the Cut (produces YAML)
 Both paths produce a YAML at `libraries/[library-name]/cuts/[slug]_[YYYYMMDD_HHMMSS].yaml`. The export in step 5 is the same regardless of which path you take.
 
+### What a cut can express
+A quick menu for shaping the cut with the user. Full field list and formats: `skills/cut/cut_yaml_schema.md`.
+
+- **Trimmed video** — a clip cut to in/out points.
+- **Stills** — an image held for a set duration (timeless and silent).
+- **Mute** — silence a clip's own audio (e.g. you'll score it with music, or its source audio is unusable).
+- **Timeline format** — override the output frame rate and resolution; by default they follow the first video clip.
+
+Single-track: clips play in sequence and each carries its own audio.
+
 ### Roughcut path
 Read `skills/cut/roughcut_path.md` and follow it.
 

@@ -262,12 +262,39 @@ class ButterCut
             end
           end
         end
+        # Filters sit after <file> and before <sourcetrack> (Premiere ignores
+        # out-of-order filters). A muted clip gets a level-0 cut here.
+        add_audio_filters(xml, payload)
         xml.sourcetrack do
           xml.mediatype 'audio'
           xml.trackindex 1
         end
         xml.channelcount 2
         build_link_entries(xml, payload)
+      end
+    end
+
+    # Emit an Audio Levels filter when a clip needs a non-unity level. A clip
+    # marked `mute` is silenced outright (level 0); unmarked clips play at unity
+    # with no filter. FCP7 levels are a linear gain: 1.0 = unity, 0 = silent.
+    def add_audio_filters(xml, payload)
+      return unless payload.dig(:clip, :clip_definition, :mute)
+
+      xml.filter do
+        xml.effect do
+          xml.name 'Audio Levels'
+          xml.effectid 'audiolevels'
+          xml.effectcategory 'audiolevels'
+          xml.effecttype 'audiolevels'
+          xml.mediatype 'audio'
+          xml.parameter do
+            xml.parameterid 'level'
+            xml.name 'Level'
+            xml.valuemin 0
+            xml.valuemax 3.98109
+            xml.value 0
+          end
+        end
       end
     end
 

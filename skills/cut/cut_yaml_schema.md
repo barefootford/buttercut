@@ -40,6 +40,7 @@ Each entry in `clips:`. A clip is either a **video** (trimmed with in/out points
 | `in_point`           | `HH:MM:SS.ss`   | video      | Start of the cut. Preserve sub-second precision (2.849s → `00:00:02.85`). |
 | `out_point`          | `HH:MM:SS.ss`   | video      | End of the cut. Same precision rule. |
 | `duration`           | `HH:MM:SS.ss` or seconds | image | How long the still is held on the timeline. Images have no in/out — they're timeless. Omit to use the default (5s, or `still_duration` in `libraries/settings.yaml`). |
+| `mute`               | boolean         | video      | Silence this clip's audio entirely instead of playing it. Default: omit (the clip plays its own audio). |
 | `dialogue`           | string          | both       | Spoken words for the span; concatenate across transcript segments if the cut crosses them. Empty string when the clip is silent / B-roll / an image. |
 | `visual_description` | string          | both       | Shot description (video: what the contact sheet shows for the range; image: what the still depicts, from its summary). Wrap in brackets to match template style. |
 

@@ -87,7 +87,10 @@ class Export
         start_at = timecode_to_seconds(clip['in_point'])
         duration = timecode_to_seconds(clip['out_point']) - start_at
 
-        { path: path, type: :video, start_at: start_at.to_f, duration: duration.to_f }
+        result = { path: path, type: :video, start_at: start_at.to_f, duration: duration.to_f }
+        # Silence this clip's audio entirely instead of playing it.
+        result[:mute] = true if clip['mute']
+        result
       end
     end
   end

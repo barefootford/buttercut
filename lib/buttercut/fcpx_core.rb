@@ -5,6 +5,9 @@ class ButterCut
   # Final Cut Pro X (FCPXML 1.8) implementation.
   class FCPX < EditorBase
     FORMAT_ID = "r1".freeze
+    # adjust-volume amount that silences a clip outright (a muted clip).
+    # -96 dB is below the audible floor — effectively off.
+    MUTE_VOLUME_ADJUSTMENT = "-96db".freeze
 
     def to_xml
       raise ArgumentError, "No clips provided" if clips.empty?
@@ -103,7 +106,10 @@ class ButterCut
                           duration: clip[:duration],
                           audioRole: 'dialogue'
                         ) do
-                          xml.send('adjust-volume', amount: volume_adjustment)
+                          # A clip marked `mute` is silenced outright; otherwise
+                          # it plays at the base trim level.
+                          amount = clip.dig(:clip_definition, :mute) ? MUTE_VOLUME_ADJUSTMENT : volume_adjustment
+                          xml.send('adjust-volume', amount: amount)
                         end
                       end
                     end
