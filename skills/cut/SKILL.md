@@ -1,17 +1,16 @@
 ---
 name: cut
-description: Build a cut from a library — scene, selects, roughcut, or custom task. Starts by asking what kind of cut the user wants, then works with them to determine what they want to create. Always exports a file for Final Cut, Premiere, or Resolve at the end. Use when the user asks for a "roughcut", "sequence", "scene", "selects", or any other cut-shaped output.
+description: Build a cut from a library — scene, selects, roughcut, custom task, or an edit from a written script. Starts by asking what kind of cut the user wants, then works with them to determine what they want to create. Use when the user asks for a "roughcut", "sequence", "scene", "selects", "edit from a script", or any other cut-shaped output.
 ---
 
 # Skill: Cut
 
-Build a timeline from a library. This skill is the entry point for four kinds of work — the first decision is which one.
+This skill builds a timeline from a library.
 
 ## 1. Confirm the library and pre-flight readiness
 You need a library before any cut work. If one is already in context from the current conversation, use it. Otherwise show recent libraries (`ruby lib/buttercut/library.rb recent 5`) and let the user pick.
 
-Once the library name is known, check if the library is ready (video processing complete).
-
+Once the library name is known, check if the library is ready (all footage processed).
 ```bash
 ruby lib/buttercut/library.rb <name> ready
 ```
@@ -21,20 +20,22 @@ Exit code `0` means the library is ready for cut building (`Library.ready?` is t
 ## 2. Determine Task Type
 Ask the user with `AskUserQuestion` tool if available. Otherwise ask in text in this order.
 
-Ask plainly. "Roughcut" in the user's opening request is trained vocabulary, not a confirmed choice — present the four options and let them pick. Don't explain to the user why you're asking, and don't apologize for re-asking; the question stands on its own.
+Ask plainly. "Roughcut" in the user's opening request is trained vocabulary, not a confirmed choice — present the options and let them pick. Don't explain to the user why you're asking, and don't apologize for re-asking; the question stands on its own.
 
 You're going to be tempted here to just move forward and assume the user really wants a story shaped roughcut, but they're just using this term loosely. You **absolutely must** tell them the next statement and question before moving forward:
 
 If the library is processed, tell them that it's ready and the number of clips that are processed. Then ask them what kind of cut they want. Again, they probably said "roughcut", but we've just trained them on that word. **You must ask.**
 
-Example framing: "Library is ready. (93/93 clips fully processed.). What kind of cut do you want to build — scene, selects, roughcut, or custom?"
+Example framing: "Library is ready. All footage processed. What kind of cut do you want to build?"
 
-1. **Scene** — one beat or moment, typically 30–60s.
-2. **Selects / Find clips** — a flat reel of clips matching some criteria (best takes, mentions of a topic, B-roll on a theme). Length follows the footage.
-3. **Roughcut** — a story-shaped cut, 2–8 minutes. Goes through full planning + a sub-agent build.
-4. **Custom task** — anything else the user describes.
+Options:
+1. **Scene** — One story beat, typically 30–90s.
+2. **Selects / Find clips** — Flat reel of clips matching some criteria (best takes, mentions of a topic, B-roll on a theme).
+3. **Script Edit** — Give ButterCut a written script and the agent will find the footage and edit to the script.
+4. **Custom task** — Anything else you want.
+5. **Agent Roughcut** — A full story-shaped cut. Plan with the agent and then let a sub agent make most of the decisions. (Experimental and can use a lot of tokens)
 
-The roughcut path runs a deeper flow because the agent needs to explore the library broadly, read many summaries, generate fresh contact sheets, and shape a narrative across many clips. The other three paths the main thread handles directly with the user.
+The roughcut path runs a deeper flow because the agent needs to explore the library broadly, read many summaries, generate fresh contact sheets, and shape a narrative across many clips. The other four paths the main thread handles directly with the user.
 
 ## 3. Build the Cut (produces YAML)
 Both paths produce a YAML at `libraries/[library-name]/cuts/[slug]_[YYYYMMDD_HHMMSS].yaml`. The export in step 5 is the same regardless of which path you take.
@@ -52,7 +53,7 @@ Single-track: clips play in sequence and each carries its own audio.
 ### Roughcut path
 Read `skills/cut/roughcut_path.md` and follow it.
 
-### Scene / Selects / Custom path
+### Scene / Selects / Custom / Script path
 Read `skills/cut/direct_path.md` and follow it.
 
 ## 4. Determine the Editing Application
