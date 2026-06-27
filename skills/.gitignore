@@ -12,8 +12,6 @@
 !analyze-video/**
 !backup-library/
 !backup-library/**
-!release/
-!release/**
 !cut/
 !cut/**
 !setup/
