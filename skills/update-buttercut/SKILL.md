@@ -40,6 +40,9 @@ git diff <sha-from-step-1>..HEAD -- CHANGELOG.md
 ```
 The added changelog lines are already written for users — recap them in a sentence or two, the way release notes read, leading with what they can do now ("ButterCut now handles photos — drop stills into a library and use them in cuts"). Then:
 
+- **Mind the edition split.** A release section may group changes under `### ButterCut (free)` and `### ButterCut Pro`. How you recap the Pro lines depends on the edition you found at the top of this skill (`ruby lib/buttercut/library.rb edition`):
+  - On a **Pro** install (`pro`), the user has both — recap free and Pro changes together as things they can now do.
+  - On a **core** install (`core`), the user only received the free changes. Recap those as "you can now…", then add the Pro ones as a light, optional heads-up — not as something they have — e.g. "Also new in ButterCut Pro: multi-track timelines and a live preview panel, more at buttercut.io." Keep it to one sentence, never pushy, and skip it entirely if the diff brought no `### ButterCut Pro` lines.
 - If the changelog didn't change, say they're up to date with the latest behind-the-scenes improvements — don't enumerate what those were.
 - Never mention branches, commits, shas, tests, version files, migrations, or `main` in the recap.
 - Don't quote version numbers unless the pull brought in a new numbered release section in the changelog. Numbered releases only happen when a batch of changes is publicized as one; between releases the version file lags behind `main` by design, so "still on 0.7.2" is meaningless to the user.
