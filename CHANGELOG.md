@@ -7,18 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### New & Improved
-- **Add photos to your libraries.** Libraries now hold still images (JPEG and PNG) alongside your video footage. Drop them into the same library, give them a quick summary like any clip, and use them in a cut. Add them when you create a library or to an existing one.
-- **Put stills in your cuts.** Drop a photo, screenshot, or title card into any cut and set how long it holds on screen (five seconds by default). It exports to Final Cut, Premiere, and Resolve right alongside your video, sized and placed correctly even when the photo is a different shape than your timeline.
-- **Set your timeline's frame rate and size.** A cut can now spell out the frame rate and resolution it should export at, which matters for a cut made entirely of photos (where there is no video to copy those settings from). For normal cuts nothing changes: the settings still follow your footage.
-- **Misc tasks now have a home.** Project-tied one-offs (a stray transcription, a thumbnail, quick notes) save into a library's new `misc/` folder; standalone jobs land in a dated `misc/<date>/<task>/` folder; large scratch files go to `tmp/` and finished exports go to your Desktop — never bloating your library.
+## [0.8.0] - 2026-06-26
 
-### Changed
-- Setup now leaves a small note (`.buttercut_env`) recording how it installed Ruby, Python, and WhisperX on your Mac. Future sessions read it to find those tools even when a fresh terminal hasn't loaded them yet — fewer "command not found" hiccups mid-edit.
+**ButterCut gets Multi-track editing, a new Preview app, and better support for misc production tasks**
+
+ButterCut Pro gets a new Preview app for viewing libraries, clips, settings and more. We'll add more features based on your requests. (I want to add a characters feature so Claude doesn't ask for the thousandth time if I'm the one in the video.)
+
+We've also added the initial ability to edit multi-track videos. It works well for adding b-roll clips after creating an initial spine (a-roll story) as well as for working between a/b cameras. Beyond that we might need more work to help the agent understand what's happening at each second.
+
+Preview and multi-track are in ButterCut Pro. $49 a year. 20 percent off with coupon `QYOTC4OA`. Learn more at [buttercut.io](https://buttercut.io).
+
+Pro and Core both add the ability to add photos to libraries and mute clips (nice for B-roll), plus a new 'buttercut' home menu skill that makes your first ButterCut chat more welcoming.
+
+### ButterCut Pro
+
+- **Multi-track timelines.** Lay B-roll and cutaways over a continuing voiceover instead of hard-cutting to them. Pro cuts can place a clip on a second video track; the free edition stays single-track.
+- **Preview libraries and clips inside Claude.** A Claude Desktop panel for browsing a library's clips and cuts and handing work back to ButterCut — add footage, start a cut, pull a full transcript, change settings, or run a one-off task — without leaving the conversation.
+- **Installation improvements.** Smoother, terminal-free setup. Claude brings over existing libraries too.
+
+### ButterCut Pro & Core
+
+#### New & Improved
+- **Misc tasks now have a home.** Project-tied one-offs (a stray transcription, a thumbnail, quick notes) save into a library's new `misc/` folder; standalone jobs land in a dated `misc/<date>/<task>/` folder; large scratch files go to `tmp/` and finished exports go to your Desktop — never bloating your library.
+- **Add photos to your libraries.** Libraries now hold still images (JPEG and PNG) alongside your video footage.
+- **Start from a home menu.** Type "/buttercut" (or "/bc") and ButterCut welcomes you, asks what you'd like to do (start a cut, add footage, or a one-off task), and hands you to the right place. Less daunting than typing from scratch.
+- **Cut from a script.** Hand ButterCut a written script and it finds the footage that delivers each line, then builds the cut in script order.
+- **Silence a clip in a cut.** Cuts now have the ability to mute clips. Handy for B-roll and multi-track work.
+- **More resilient installs.** Setup now leaves a small note (`.buttercut_env`) recording how it installed Ruby, Python, and WhisperX on your Mac, so future sessions can use it to find ButterCut dependencies — one of several setup resiliency improvements.
 - A missing ffmpeg/ffprobe now fails fast with a clear "run the setup skill" error instead of a cryptic command-not-found buried in subprocess output. The contact-sheet skill's repair instructions point at the `setup` skill accordingly.
 - Setup now pins WhisperX to the tested combination (`whisperx==3.4.2`, `pyannote-audio==3.4.0` — matching `requirements.txt`), so fresh installs can't drift onto untested releases (`pyannote-audio` 4.x breaks whisperx 3.4.2).
 - ffmpeg/ffprobe calls now resolve through `MediaTools`: static builds placed in the gitignored `dependencies/` directory take precedence, falling back to PATH. Nothing changes if you don't use `dependencies/` — existing installs keep their PATH ffmpeg.
 - Libraries now include a `misc/` directory for project-tied one-off artifacts. New libraries get it automatically (it's part of `Library::SUBDIRS`); existing libraries get it created on demand the first time the `misc-task` skill needs it. A new gitignored top-level `misc/` directory holds standalone one-off task output, organized as `misc/<date>/<task>/`.
+
+#### Fixed
+- **Premiere clips fill the frame.** Footage shot at a different size than your sequence now scales to fit when you export to Premiere, matching how Final Cut and Resolve already behaved.
 
 ## [0.7.2] - 2026-06-02
 
