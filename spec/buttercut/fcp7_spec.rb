@@ -115,4 +115,125 @@ RSpec.describe ButterCut::FCP7 do
       expect(clipitem).not_to include('audiolevels')
     end
   end
+
+  # NTSC fractional rates (29.97/23.976) are what most real camera footage
+  # shoots, and the 1001-denominator math is where xmeml frame drift hides:
+  # the timebase must round to a whole number, <ntsc> must flag the fraction,
+  # and drop-frame timecode must subtract the dropped frame numbers.
+  describe 'NTSC fractional-rate sequences' do
+    require 'nokogiri'
+
+    let(:df_a_path) { '/tmp/fcp7_ntsc_a.mov' } # 29.97 DF, 1-hour source timecode
+    let(:df_b_path) { '/tmp/fcp7_ntsc_b.mov' } # 29.97, no timecode
+    let(:ndf_path)  { '/tmp/fcp7_ntsc_23976.mov' } # 23.976 NDF
+    let(:pal_path)  { '/tmp/fcp7_pal.mov' } # 25 fps, integer rate
+
+    let(:ntsc_metadata_by_path) do
+      {
+        df_a_path => build_metadata(duration_seconds: 4.0, frame_rate: '30000/1001', timecode: '01:00:00;00'),
+        df_b_path => build_metadata(duration_seconds: 2.0, frame_rate: '30000/1001'),
+        ndf_path => build_metadata(duration_seconds: 4.0, frame_rate: '24000/1001', timecode: '01:00:00:00'),
+        pal_path => build_metadata(duration_seconds: 2.0, frame_rate: '25/1')
+      }
+    end
+
+    before do
+      allow_any_instance_of(described_class).to receive(:extract_metadata_from_ffprobe) do |_instance, path|
+        ntsc_metadata_by_path.fetch(path)
+      end
+    end
+
+    context 'with a 29.97 drop-frame sequence' do
+      let(:doc) do
+        Nokogiri::XML(described_class.new([
+          { path: df_a_path },
+          { path: df_b_path, start_at: 1.0, duration: 1.0 }
+        ]).to_xml)
+      end
+
+      it 'rounds the sequence timebase to 30 and flags NTSC' do
+        rate = doc.at_xpath('/xmeml/sequence/rate')
+        expect(rate.at_xpath('timebase').text).to eq('30')
+        expect(rate.at_xpath('ntsc').text).to eq('TRUE')
+      end
+
+      it 'marks the sequence timecode drop-frame' do
+        timecode = doc.at_xpath('/xmeml/sequence/timecode')
+        expect(timecode.at_xpath('displayformat').text).to eq('DF')
+        expect(timecode.at_xpath('frame').text).to eq('0')
+      end
+
+      it 'converts whole-second trims into 29.97 frame counts' do
+        # clip_a full 4.0s → 119.88 exact frames, rounded to 120.
+        first = doc.at_xpath('//clipitem[@id="clipitem-video-1"]')
+        expect(first.at_xpath('start').text).to eq('0')
+        expect(first.at_xpath('end').text).to eq('120')
+
+        # clip_b: 1.0s in-point → 30 frames, 1.0s duration → 30 frames.
+        second = doc.at_xpath('//clipitem[@id="clipitem-video-2"]')
+        expect(second.at_xpath('start').text).to eq('120')
+        expect(second.at_xpath('end').text).to eq('150')
+        expect(second.at_xpath('in').text).to eq('30')
+        expect(second.at_xpath('out').text).to eq('60')
+
+        expect(doc.at_xpath('/xmeml/sequence/duration').text).to eq('150')
+      end
+
+      it 'writes the drop-frame source timecode as a dropped frame count' do
+        # 01:00:00;00 DF: 108000 nominal frames minus 2 × (60 − 6) dropped = 107892.
+        file_timecode = doc.at_xpath('//clipitem[@id="clipitem-video-1"]/file/timecode')
+        expect(file_timecode.at_xpath('frame').text).to eq('107892')
+        expect(file_timecode.at_xpath('displayformat').text).to eq('DF')
+      end
+    end
+
+    context 'with a 23.976 non-drop sequence' do
+      let(:doc) { Nokogiri::XML(described_class.new([{ path: ndf_path }]).to_xml) }
+
+      it 'rounds the timebase to 24, flags NTSC, and stays non-drop' do
+        rate = doc.at_xpath('/xmeml/sequence/rate')
+        expect(rate.at_xpath('timebase').text).to eq('24')
+        expect(rate.at_xpath('ntsc').text).to eq('TRUE')
+        expect(doc.at_xpath('/xmeml/sequence/timecode/displayformat').text).to eq('NDF')
+      end
+
+      it 'counts source timecode frames at the nominal rate' do
+        # 01:00:00:00 NDF at nominal 24 → 86400 frames; 4.0s → 96 frames.
+        file_timecode = doc.at_xpath('//clipitem[@id="clipitem-video-1"]/file/timecode')
+        expect(file_timecode.at_xpath('frame').text).to eq('86400')
+        expect(doc.at_xpath('/xmeml/sequence/duration').text).to eq('96')
+      end
+    end
+
+    context 'with a PAL asset cut into a 29.97 sequence' do
+      let(:doc) do
+        Nokogiri::XML(described_class.new([
+          { path: df_a_path },
+          { path: pal_path }
+        ]).to_xml)
+      end
+
+      it 'keeps the sequence NTSC while the PAL file keeps its own integer rate' do
+        sequence_rate = doc.at_xpath('/xmeml/sequence/rate')
+        expect(sequence_rate.at_xpath('timebase').text).to eq('30')
+        expect(sequence_rate.at_xpath('ntsc').text).to eq('TRUE')
+
+        pal_file_rate = doc.at_xpath('//clipitem[@id="clipitem-video-2"]/file/rate')
+        expect(pal_file_rate.at_xpath('timebase').text).to eq('25')
+        expect(pal_file_rate.at_xpath('ntsc').text).to eq('FALSE')
+      end
+
+      it 'trims in source frames but places on the timeline in sequence frames' do
+        # The 2.0s PAL clip is 50 source frames (25 fps) but occupies 60
+        # timeline frames (29.97): in/out count the file, start/end the sequence.
+        pal_clip = doc.at_xpath('//clipitem[@id="clipitem-video-2"]')
+        expect(pal_clip.at_xpath('in').text).to eq('0')
+        expect(pal_clip.at_xpath('out').text).to eq('50')
+        expect(pal_clip.at_xpath('start').text).to eq('120')
+        expect(pal_clip.at_xpath('end').text).to eq('180')
+
+        expect(doc.at_xpath('/xmeml/sequence/duration').text).to eq('180')
+      end
+    end
+  end
 end
