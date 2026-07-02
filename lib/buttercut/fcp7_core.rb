@@ -65,11 +65,7 @@ class ButterCut
                     xml.fielddominance 'none'
                   end
                 end
-                xml.track do
-                  clip_payloads.each do |payload|
-                    build_video_clipitem(xml, payload)
-                  end
-                end
+                emit_video_tracks(xml, clip_payloads)
               end
               xml.audio do
                 xml.numOutputChannels 2
@@ -79,11 +75,7 @@ class ButterCut
                     xml.sampledepth 16
                   end
                 end
-                xml.track do
-                  clip_payloads.each do |payload|
-                    build_audio_clipitem(xml, payload) unless payload[:still]
-                  end
-                end
+                emit_audio_tracks(xml, clip_payloads)
               end
             end
           end
@@ -99,64 +91,95 @@ class ButterCut
       rate_denom == 1 ? 'FALSE' : 'TRUE'
     end
 
+    # Emit the video clipitems as sequence <track> elements. The single-track
+    # engine writes exactly one; these two methods (and build_clip_payloads)
+    # are the seam a multi-track edition overrides to write one per timeline
+    # track while inheriting the rest of to_xml unchanged.
+    def emit_video_tracks(xml, clip_payloads)
+      xml.track do
+        clip_payloads.each do |payload|
+          build_video_clipitem(xml, payload)
+        end
+      end
+    end
+
+    def emit_audio_tracks(xml, clip_payloads)
+      xml.track do
+        clip_payloads.each do |payload|
+          build_audio_clipitem(xml, payload) unless payload[:still]
+        end
+      end
+    end
+
     def build_clip_payloads(timeline_clips, timeline_frame_duration, sequence_rate)
       audio_index = 0
       timeline_clips.each_with_index.map do |clip, index|
-        asset = clip[:asset]
-        still = asset[:type] == 'image'
-
-        timeline_duration_frames = frames_for_fraction(clip[:duration], timeline_frame_duration)
-        timeline_start_frames = frames_for_fraction(clip[:timeline_offset], timeline_frame_duration)
-        timeline_end_frames = timeline_start_frames + timeline_duration_frames
-
-        payload = {
-          index: index + 1,
-          still: still,
-          clip: clip,
-          asset: asset,
-          video_clip_id: "clipitem-video-#{index + 1}",
-          file_id: "file-#{asset[:asset_id]}",
-          timeline_start: timeline_start_frames,
-          timeline_end: timeline_end_frames,
-          timeline_duration: timeline_duration_frames
-        }
-
-        if still
-          # Stills have no native rate or timecode: the file adopts the
-          # sequence rate, in/out span the timeline duration, and the file
-          # duration matches the cut (settled empirically in the editors).
-          payload.merge!(
-            asset_timebase: sequence_rate[:timebase],
-            asset_ntsc: sequence_rate[:ntsc],
-            asset_display: sequence_rate[:display],
-            source_in: 0,
-            source_out: timeline_duration_frames,
-            source_duration_frames: timeline_duration_frames,
-            asset_duration_frames: timeline_duration_frames,
-            asset_timecode_start: 0
-          )
-        else
-          asset_rate_num, asset_rate_denom = asset[:frame_rate].split('/').map(&:to_i)
-          source_in_frames = frames_for_fraction(clip[:source_in], asset[:frame_duration])
-          source_duration_frames = frames_for_fraction(clip[:source_duration], asset[:frame_duration])
-          audio_index += 1
-
-          payload.merge!(
-            audio_clip_id: "clipitem-audio-#{index + 1}",
-            audio_index: audio_index,
-            asset_timebase: (asset_rate_num.to_f / asset_rate_denom).round,
-            asset_ntsc: ntsc_flag_for(asset_rate_denom),
-            asset_display: ntsc_drop_frame_rate?(asset_rate_num, asset_rate_denom) ? 'DF' : 'NDF',
-            source_in: source_in_frames,
-            source_out: source_in_frames + source_duration_frames,
-            source_duration_frames: source_duration_frames,
-            asset_duration_frames: frames_for_fraction(asset[:asset_duration], asset[:frame_duration]),
-            asset_timecode_start: frames_for_fraction(asset[:timecode], asset[:frame_duration])
-          )
-        end
-
-        payload
+        audio_index += 1 unless clip[:asset][:type] == 'image'
+        build_clip_payload(clip, timeline_frame_duration, sequence_rate,
+                           index: index + 1, id_index: index + 1, audio_index: audio_index)
       end
+    end
+
+    # The payload for one clipitem pair. `id_index` numbers the clipitem ids;
+    # `index`/`audio_index` are the clip's position within its video/audio
+    # track (the audio track skips stills, so the caller counts them apart);
+    # `track_index` is the sequence track the clip lands on — always 1 in the
+    # single-track engine.
+    def build_clip_payload(clip, timeline_frame_duration, sequence_rate, index:, id_index:, audio_index:, track_index: 1)
+      asset = clip[:asset]
+      still = asset[:type] == 'image'
+
+      timeline_duration_frames = frames_for_fraction(clip[:duration], timeline_frame_duration)
+      timeline_start_frames = frames_for_fraction(clip[:timeline_offset], timeline_frame_duration)
+      timeline_end_frames = timeline_start_frames + timeline_duration_frames
+
+      payload = {
+        index: index,
+        track_index: track_index,
+        still: still,
+        clip: clip,
+        asset: asset,
+        video_clip_id: "clipitem-video-#{id_index}",
+        file_id: "file-#{asset[:asset_id]}",
+        timeline_start: timeline_start_frames,
+        timeline_end: timeline_end_frames,
+        timeline_duration: timeline_duration_frames
+      }
+
+      if still
+        # Stills have no native rate or timecode: the file adopts the
+        # sequence rate, in/out span the timeline duration, and the file
+        # duration matches the cut (settled empirically in the editors).
+        payload.merge!(
+          asset_timebase: sequence_rate[:timebase],
+          asset_ntsc: sequence_rate[:ntsc],
+          asset_display: sequence_rate[:display],
+          source_in: 0,
+          source_out: timeline_duration_frames,
+          source_duration_frames: timeline_duration_frames,
+          asset_duration_frames: timeline_duration_frames,
+          asset_timecode_start: 0
+        )
+      else
+        asset_rate_num, asset_rate_denom = asset[:frame_rate].split('/').map(&:to_i)
+        source_in_frames = frames_for_fraction(clip[:source_in], asset[:frame_duration])
+        source_duration_frames = frames_for_fraction(clip[:source_duration], asset[:frame_duration])
+
+        payload.merge!(
+          audio_clip_id: "clipitem-audio-#{id_index}",
+          audio_index: audio_index,
+          asset_timebase: (asset_rate_num.to_f / asset_rate_denom).round,
+          asset_ntsc: ntsc_flag_for(asset_rate_denom),
+          asset_display: ntsc_drop_frame_rate?(asset_rate_num, asset_rate_denom) ? 'DF' : 'NDF',
+          source_in: source_in_frames,
+          source_out: source_in_frames + source_duration_frames,
+          source_duration_frames: source_duration_frames,
+          asset_duration_frames: frames_for_fraction(asset[:asset_duration], asset[:frame_duration]),
+          asset_timecode_start: frames_for_fraction(asset[:timecode], asset[:frame_duration])
+        )
+      end
+
+      payload
     end
 
     def build_video_clipitem(xml, payload)
@@ -220,6 +243,8 @@ class ButterCut
         # FCP7/xmeml orders <filter> after <file> and before <sourcetrack>;
         # Premiere ignores filters that appear out of order.
         add_video_filters(xml, payload)
+        # sourcetrack is the stream INSIDE the source file (always 1 for our
+        # single-stream footage), not the sequence track — that lives in <link>.
         xml.sourcetrack do
           xml.mediatype 'video'
           xml.trackindex 1
@@ -305,13 +330,13 @@ class ButterCut
       xml.link do
         xml.linkclipref payload[:video_clip_id]
         xml.mediatype 'video'
-        xml.trackindex 1
+        xml.trackindex payload[:track_index]
         xml.clipindex payload[:index]
       end
       xml.link do
         xml.linkclipref payload[:audio_clip_id]
         xml.mediatype 'audio'
-        xml.trackindex 1
+        xml.trackindex payload[:track_index]
         xml.clipindex payload[:audio_index]
         xml.groupindex 1
       end

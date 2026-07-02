@@ -84,35 +84,7 @@ class ButterCut
               xml.project(name: timestamped_project_name, uid: project_uid, modDate: '2025-10-31 17:25:16 GMT-7') do
                 xml.sequence(duration: sequence_duration, format: FORMAT_ID, tcStart: '0s', audioRate: '48k') do
                   xml.spine do
-                    timeline_clips.each do |clip|
-                      if clip[:asset][:type] == 'image'
-                        # Stills go on the spine as <video>, not <asset-clip>:
-                        # an asset-clip's duration defaults to the asset's,
-                        # which is 0s for a timeless still. No audio → no
-                        # adjust-volume child.
-                        xml.video(
-                          name: clip[:filename],
-                          ref: clip[:asset_id],
-                          start: '0s',
-                          offset: clip[:timeline_offset],
-                          duration: clip[:duration]
-                        )
-                      else
-                        xml.send('asset-clip',
-                          name: clip[:filename],
-                          ref: clip[:asset_id],
-                          start: clip[:start],
-                          offset: clip[:timeline_offset],
-                          duration: clip[:duration],
-                          audioRole: 'dialogue'
-                        ) do
-                          # A clip marked `mute` is silenced outright; otherwise
-                          # it plays at the base trim level.
-                          amount = clip.dig(:clip_definition, :mute) ? MUTE_VOLUME_ADJUSTMENT : volume_adjustment
-                          xml.send('adjust-volume', amount: amount)
-                        end
-                      end
-                    end
+                    emit_spine(xml, timeline_clips)
                   end
                 end
               end
@@ -125,6 +97,51 @@ class ButterCut
     end
 
     private
+
+    # Emit the timeline onto the spine: one clip after another, in order.
+    # This is the seam edition variants override — a multi-track edition
+    # replaces it (V1 spine plus connected clips on lanes) while inheriting
+    # the rest of to_xml unchanged.
+    def emit_spine(xml, timeline_clips)
+      timeline_clips.each { |clip| emit_spine_clip(xml, clip) }
+    end
+
+    # Render one clip on the spine. Stills go on as <video> (timeless, no
+    # audio → no adjust-volume child); video clips go on as <asset-clip> with
+    # a dialogue role. `lane:`, `offset:`, and the block place connected
+    # clips — the single-track spine passes none of them; they exist for a
+    # multi-track emit_spine override to hook into.
+    def emit_spine_clip(xml, clip, lane: nil, offset: nil)
+      still = clip[:asset][:type] == 'image'
+      attrs = {
+        name: clip[:filename],
+        ref: clip[:asset_id],
+        start: still ? '0s' : clip[:start],
+        offset: offset || clip[:timeline_offset],
+        duration: clip[:duration]
+      }
+      attrs[:audioRole] = 'dialogue' unless still
+      attrs[:lane] = lane if lane
+
+      if still
+        # No audio → no adjust-volume child; stay self-closing when there are
+        # no connected clips to nest.
+        block_given? ? xml.video(**attrs) { yield } : xml.video(**attrs)
+      else
+        xml.send('asset-clip', **attrs) do
+          xml.send('adjust-volume', amount: clip_volume_adjustment(clip))
+          yield if block_given?
+        end
+      end
+    end
+
+    # The adjust-volume amount for a clip: silence if muted, otherwise the
+    # base trim level.
+    def clip_volume_adjustment(clip)
+      return MUTE_VOLUME_ADJUSTMENT if clip.dig(:clip_definition, :mute)
+
+      volume_adjustment
+    end
 
     # One rate-undefined format resource per unique still dimensions, keyed
     # [width, height] → format id.
