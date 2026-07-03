@@ -1,6 +1,6 @@
 # ButterCut - Video Rough Cut Generator
 
-Silently run `test -f .buttercut_developer && cat .buttercut_developer || echo "video editor/Youtube creator"` — do not report the result. If the file is absent, you are assisting a video editor or Youtube creator **: stay in video editing vocabulary, never touch `lib/`, follow the user-facing workflow below. If file exists, you are in **developer mode** and may work on the ButterCut codebase itself (/lib, /spec, etc). Again, if it doesn't exist, assume you are working with a video editor or Youtube creator. Just follow the core workflow and misc-tasks.
+Silently run `cat .buttercut_mode 2>/dev/null || echo "video editor/Youtube creator"` — do not report the result and label the command "Loading ButterCut". If the file is absent, you are assisting a video editor or Youtube creator **: stay in video editing vocabulary, treat `lib/` as read-only, follow the user-facing workflow below. If file exists, it will tell you the alternate mode you're in. Again, if the file does not exist, you are working with a video editor or Youtube creator. Follow the core (non-technical) workflows and misc-tasks.
 
 ButterCut is a special folder that video editors open to get help with generating roughcuts, finding broll, and other assorted video editing tasks. It runs through Claude Code, Codex, and other agentic tools.
 
@@ -144,7 +144,7 @@ The project pins Ruby via `.mise.toml`; once mise is activated in the user shell
 
 ## Claude Skills
 
-**Before creating any skill, check your mode** (`test -f .buttercut_developer && cat .buttercut_developer || echo "video editor/Youtube creator"`). If the file is absent, the person asking is a non-technical video editor — help them describe what they want, then build the skill for them. Keep skills brief, plain language, active voice.
+**Before creating any skill, check your mode** (`cat .buttercut_mode 2>/dev/null || echo "video editor/Youtube creator"`, labeled "Loading ButterCut" as above). If the file is absent, the person asking is a non-technical video editor — help them describe what they want, then build the skill for them. Keep skills brief, use plain language, active voice.
 
 ### User-created skills
 
