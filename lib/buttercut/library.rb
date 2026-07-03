@@ -200,9 +200,9 @@ class Library
   REPO_ROOT = File.expand_path('../..', __dir__)
   UPDATE_CHECK_FILE = 'last_buttercut_update_check' # repo-root mtime stamp; gitignored
   UPDATE_CHECK_INTERVAL = 86_400 # seconds (24h)
-  DEVELOPER_FLAG_FILE = '.buttercut_developer' # gitignored; marks a codebase-dev checkout
+  DEVELOPER_FLAG_FILE = '.buttercut_mode' # gitignored; present only in codebase-dev checkouts
 
-  # A developer checkout (the gitignored .buttercut_developer flag) tracks updates
+  # A developer checkout (the gitignored .buttercut_mode flag) tracks updates
   # by working on the code itself, not by `git pull` — so the daily nudge is noise.
   def self.developer?(repo_root: REPO_ROOT)
     File.exist?(File.join(repo_root, DEVELOPER_FLAG_FILE))
