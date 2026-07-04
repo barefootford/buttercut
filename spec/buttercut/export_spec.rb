@@ -199,9 +199,9 @@ RSpec.describe Export do
       end
     end
 
-    it 'produces fcpx output that validates against the FCPXML 1.8 DTD' do
+    it 'produces fcpx output that validates against the FCPXML 1.12 DTD' do
       skip 'xmllint not available' unless system('command -v xmllint > /dev/null 2>&1')
-      dtd = File.expand_path('../../dtd/FCPXMLv1_8.dtd', __dir__)
+      dtd = File.expand_path('../../dtd/FCPXMLv1_12.dtd', __dir__)
       skip 'DTD not present' unless File.exist?(dtd)
 
       mixed = { 'clips' => [

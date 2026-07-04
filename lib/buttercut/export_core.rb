@@ -120,13 +120,13 @@ class Export
   end
 
   def validate_fcpxml(xml_path)
-    dtd_path = File.expand_path('../../dtd/FCPXMLv1_8.dtd', __dir__)
+    dtd_path = File.expand_path('../../dtd/FCPXMLv1_12.dtd', __dir__)
     return puts "⚠ DTD not found at #{dtd_path}; skipping validation." unless File.exist?(dtd_path)
     return puts '⚠ xmllint not found; skipping validation.' unless system('command -v xmllint > /dev/null 2>&1')
 
     output = `xmllint --noout --dtdvalid "#{dtd_path}" "#{xml_path}" 2>&1`
     if $?.success?
-      puts '✓ FCPXML validates against FCPXMLv1_8.dtd'
+      puts '✓ FCPXML validates against FCPXMLv1_12.dtd'
     else
       warn '✗ FCPXML failed DTD validation:'
       warn output
