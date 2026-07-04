@@ -2,7 +2,8 @@ require_relative 'editor_base'
 require 'nokogiri'
 
 class ButterCut
-  # Final Cut Pro X (FCPXML 1.8) implementation.
+  # Final Cut Pro X (FCPXML 1.12) implementation. 1.12 keeps the export
+  # readable by DaVinci Resolve 19.1.1+ as well as Final Cut.
   class FCPX < EditorBase
     FORMAT_ID = "r1".freeze
     # adjust-volume amount that silences a clip outright (a muted clip).
@@ -27,7 +28,7 @@ class ButterCut
       still_format_ids = build_still_format_ids(asset_map)
 
       builder = Nokogiri::XML::Builder.new(encoding: 'utf-8') do |xml|
-        xml.fcpxml(version: '1.8') do
+        xml.fcpxml(version: '1.12') do
           xml.resources do
             xml.format(
               id: FORMAT_ID,
@@ -48,6 +49,8 @@ class ButterCut
               )
             end
 
+            # Since fcpxml 1.9 an asset points at its file through a
+            # media-rep child, not a src attribute.
             asset_map.each_value do |asset|
               if asset[:type] == 'image'
                 # Timeless still: duration/start pinned to 0s, video only —
@@ -56,25 +59,27 @@ class ButterCut
                   id: asset[:asset_id],
                   name: asset[:filename],
                   uid: asset[:asset_uid],
-                  src: asset[:file_url],
                   start: '0s',
                   duration: '0s',
                   hasVideo: '1',
                   format: still_format_ids.fetch([asset[:width], asset[:height]])
-                )
+                ) do
+                  xml.send('media-rep', kind: 'original-media', src: asset[:file_url])
+                end
               else
                 xml.asset(
                   id: asset[:asset_id],
                   name: asset[:filename],
                   uid: asset[:asset_uid],
-                  src: asset[:file_url],
                   start: asset[:timecode],
                   audioRate: asset[:audio_rate],
                   hasAudio: '1',
                   hasVideo: '1',
                   format: FORMAT_ID,
                   duration: asset[:asset_duration]
-                )
+                ) do
+                  xml.send('media-rep', kind: 'original-media', src: asset[:file_url])
+                end
               end
             end
           end

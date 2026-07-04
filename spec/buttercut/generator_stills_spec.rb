@@ -94,7 +94,7 @@ RSpec.describe 'Generator still handling' do
 
     it 'makes still assets timeless (duration 0s, video-only, no audio attributes)' do
       xml = described_class.new(image_only_clips, timeline: timeline_block).to_xml
-      asset = xml[/<asset [^>]*name="stills_spec_red\.png"[^>]*\/>/]
+      asset = xml[/<asset [^>]*name="stills_spec_red\.png"[^>]*>/]
       expect(asset).to include('start="0s"', 'duration="0s"', 'hasVideo="1"')
       expect(asset).not_to include('hasAudio')
       expect(asset).not_to include('audioRate')
@@ -120,9 +120,9 @@ RSpec.describe 'Generator still handling' do
       expect(xml).to include('src="file:///tmp/blue%20caf%C3%A9%20%28test%29.jpg"')
     end
 
-    it 'validates against the FCPXML 1.8 DTD' do
+    it 'validates against the FCPXML 1.12 DTD' do
       skip 'xmllint not available' unless system('command -v xmllint > /dev/null 2>&1')
-      dtd = File.expand_path('../../dtd/FCPXMLv1_8.dtd', __dir__)
+      dtd = File.expand_path('../../dtd/FCPXMLv1_12.dtd', __dir__)
       skip 'DTD not present' unless File.exist?(dtd)
 
       xml = described_class.new(mixed_clips).to_xml
