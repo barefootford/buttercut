@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<fcpxml version="1.8">
+<fcpxml version="1.12">
   <resources>
     <format id="r1" height="720" width="1280" frameDuration="1001/24000s" colorSpace="1-1-1 (Rec. 709)"/>
-    <asset id="__ASSET_ID_MVI_0309__" name="MVI_0309_720p.mov" uid="__ASSET_UID_MVI_0309__" src="__SRC_MVI_0309__" start="0s" audioRate="48000" hasAudio="1" hasVideo="1" format="r1" duration="101101/24000s"/>
-    <asset id="__ASSET_ID_MVI_0323__" name="MVI_0323_720p.mov" uid="__ASSET_UID_MVI_0323__" src="__SRC_MVI_0323__" start="0s" audioRate="48000" hasAudio="1" hasVideo="1" format="r1" duration="29029/4800s"/>
-    <asset id="__ASSET_ID_GH5__" name="P1044376_timecode_fixture.mov" uid="__ASSET_UID_GH5__" src="__SRC_P1044376__" start="626629003/8000s" audioRate="48000" hasAudio="1" hasVideo="1" format="r1" duration="1001/1000s"/>
+    <asset id="__ASSET_ID_MVI_0309__" name="MVI_0309_720p.mov" uid="__ASSET_UID_MVI_0309__" start="0s" audioRate="48000" hasAudio="1" hasVideo="1" format="r1" duration="101101/24000s">
+      <media-rep kind="original-media" src="__SRC_MVI_0309__"/>
+    </asset>
+    <asset id="__ASSET_ID_MVI_0323__" name="MVI_0323_720p.mov" uid="__ASSET_UID_MVI_0323__" start="0s" audioRate="48000" hasAudio="1" hasVideo="1" format="r1" duration="29029/4800s">
+      <media-rep kind="original-media" src="__SRC_MVI_0323__"/>
+    </asset>
+    <asset id="__ASSET_ID_GH5__" name="P1044376_timecode_fixture.mov" uid="__ASSET_UID_GH5__" start="626629003/8000s" audioRate="48000" hasAudio="1" hasVideo="1" format="r1" duration="1001/1000s">
+      <media-rep kind="original-media" src="__SRC_P1044376__"/>
+    </asset>
   </resources>
   <library location="./">
     <event name="__EVENT_LABEL__" uid="event-uid">
