@@ -51,11 +51,15 @@ class ButterCut
       @volume_adjustment = DEFAULT_VOLUME_ADJUSTMENT
 
       @metadata_cache = {}
-      @clips.each do |clip|
+      asset_sources.each do |clip|
         path = clip[:path]
-        @metadata_cache[path] = extract_metadata_from_ffprobe(path)
+        @metadata_cache[path] ||= extract_metadata_from_ffprobe(path)
       end
     end
+
+    # The clip defs whose source files become <asset> resources. An edition
+    # seam: a variant expanding one clip into several files overrides it.
+    def asset_sources = @clips
 
     # A clip's media type: explicit :type wins (Export sets it), otherwise
     # inferred from the extension via the registry's one owner. Unknown
@@ -430,7 +434,7 @@ class ButterCut
     # or rotation keys at all (generators branch on :type).
     def build_asset_map
       file_to_asset = {}
-      @clips.each do |clip_def|
+      asset_sources.each do |clip_def|
         media_file_path = clip_def[:path]
         abs_path = get_absolute_path(media_file_path)
         next if file_to_asset.key?(abs_path)

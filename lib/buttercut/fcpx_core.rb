@@ -82,6 +82,8 @@ class ButterCut
                 end
               end
             end
+
+            emit_extra_resources(xml, asset_map, timeline_frame_duration)
           end
 
           xml.library(location: './') do
@@ -103,6 +105,11 @@ class ButterCut
 
     private
 
+    # Extra resources an edition wants inside <resources> — nothing here.
+    # A seam like emit_spine: an edition variant overrides it to add its own
+    # resource elements (e.g. media/multicam) while inheriting to_xml.
+    def emit_extra_resources(xml, asset_map, timeline_frame_duration); end
+
     # Emit the timeline onto the spine: one clip after another, in order.
     # This is the seam edition variants override — a multi-track edition
     # replaces it (V1 spine plus connected clips on lanes) while inheriting
@@ -118,6 +125,7 @@ class ButterCut
     # multi-track emit_spine override to hook into.
     def emit_spine_clip(xml, clip, lane: nil, offset: nil)
       still = clip[:asset][:type] == 'image'
+      video_only = still || video_only_clip?(clip)
       attrs = {
         name: clip[:filename],
         ref: clip[:asset_id],
@@ -125,10 +133,10 @@ class ButterCut
         offset: offset || clip[:timeline_offset],
         duration: clip[:duration]
       }
-      attrs[:audioRole] = 'dialogue' unless still
+      attrs[:audioRole] = 'dialogue' unless video_only
       attrs[:lane] = lane if lane
 
-      if still
+      if video_only
         # No audio → no adjust-volume child; stay self-closing when there are
         # no connected clips to nest.
         block_given? ? xml.video(**attrs) { yield } : xml.video(**attrs)
@@ -139,6 +147,12 @@ class ButterCut
         end
       end
     end
+
+    # Whether a clip with an audio-bearing asset sheds its audio component and
+    # rides the spine as a <video> element — never here. A seam: an edition
+    # variant can make silence structural, for importers that ignore
+    # <adjust-volume>.
+    def video_only_clip?(_clip) = false
 
     # The adjust-volume amount for a clip: silence if muted, otherwise the
     # base trim level.
