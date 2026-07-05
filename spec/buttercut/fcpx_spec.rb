@@ -216,6 +216,45 @@ RSpec.describe ButterCut::FCPX do
         expect(xml).to match(/<asset-clip[^>]*start="8999991\/2500s"/)
       end
     end
+
+    # Apple's Final Cut Camera records "29.97" as true 30/1 media (variable
+    # frame rate on an integer tick) while still numbering its timecode
+    # drop-frame. The dropped frame numbers must be subtracted even though the
+    # rate isn't NTSC fractional — Final Cut anchors the media at that frame
+    # count times 1/30 (verified against Final Cut Pro 12.3's own XML export;
+    # skipping the subtraction shifted every in-point a minute past the media
+    # and Final Cut dropped the clips as "invalid edit with no respective
+    # media").
+    context 'with drop-frame timecode on integer-rate media (Final Cut Camera)' do
+      let(:fcc_path) { '/tmp/fcc_2997.mov' }
+      let(:fcc_metadata) do
+        build_metadata(
+          frame_rate: '30/1',
+          duration_seconds: 37.302,
+          timecode: '16:37:10;02'
+        )
+      end
+
+      before do
+        allow_any_instance_of(ButterCut::FCPX).to receive(:extract_metadata_from_ffprobe).and_return(fcc_metadata)
+      end
+
+      it 'subtracts the dropped frame numbers at the reported integer rate' do
+        generator = ButterCut::FCPX.new([{ path: fcc_path }])
+
+        # 16:37:10;02 → 1794902 nominal frames − 1796 dropped = 1793106 → ÷30
+        expect(generator.clip_timecode_fraction(fcc_path)).to eq('298851/5s')
+      end
+
+      it 'anchors the asset and asset-clip at the drop-frame-corrected start' do
+        generator = ButterCut::FCPX.new([{ path: fcc_path }])
+        xml = generator.to_xml
+        asset_id = asset_id_for(generator, fcc_path)
+
+        expect(xml).to match(/<asset id="#{Regexp.escape(asset_id)}"[^>]*start="298851\/5s"/)
+        expect(xml).to match(/<asset-clip[^>]*start="298851\/5s"/)
+      end
+    end
   end
 
   describe '#generate_uuid' do
