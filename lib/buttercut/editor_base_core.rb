@@ -189,13 +189,38 @@ class ButterCut
       "#{start_num / divisor}/#{start_denom / divisor}s"
     end
 
-    def drop_frame_timecode?(timecode, rate_num, rate_denom, fps_nominal)
+    # The tmcd atom's drop-frame flag (surfaced by ffprobe as a ';' frame
+    # separator) is authoritative on its own — Final Cut Camera on iPhone
+    # tags clips this way even when the container's measured rate reads as a
+    # flat 30/60 rather than the NTSC 30000/1001 fraction, and Final Cut Pro
+    # honors the flag over the measured rate when it re-resolves the source.
+    # rate_num/rate_denom are accepted for signature stability but no longer
+    # gate the decision.
+    def drop_frame_timecode?(timecode, _rate_num = nil, _rate_denom = nil, fps_nominal)
       return false unless timecode.include?(';')
-      return false unless fps_nominal == 30 || fps_nominal == 60
-      ntsc_drop_frame_rate?(rate_num, rate_denom)
+      fps_nominal == 30 || fps_nominal == 60
     end
 
-    # NTSC fractional rates (29.97 / 59.94) that use drop-frame timecode.
+    # Whether a source file's own embedded timecode is drop-frame — the
+    # single source of truth `build_asset_map` and `format_frame_rate` both
+    # read from, so the DF/NDF decision is made exactly once per file.
+    def clip_uses_drop_frame_timecode?(video_path)
+      timecode = clip_timecode_string(video_path)
+      return false if timecode.nil? || timecode.strip.empty?
+
+      fps_nominal = nominal_frame_rate(video_path)
+      return false if fps_nominal <= 0
+
+      rate_num, rate_denom = frame_rate(video_path).split('/').map(&:to_i)
+      return false if rate_denom.zero? || rate_num.zero?
+
+      drop_frame_timecode?(timecode, rate_num, rate_denom, fps_nominal)
+    end
+
+    # NTSC fractional rates (29.97 / 59.94) that use drop-frame timecode —
+    # exact-match gate used by the xmeml generators (FCP7/Premiere/Resolve)
+    # for their own DF/NDF flagging, which is a separate, established
+    # convention from FCPX's `drop_frame_timecode?` above.
     def ntsc_drop_frame_rate?(rate_num, rate_denom)
       (rate_num == 30000 && rate_denom == 1001) || (rate_num == 60000 && rate_denom == 1001)
     end
@@ -256,8 +281,21 @@ class ButterCut
       first_video_path ? video_height(first_video_path) : 1080
     end
 
+    # Drop-frame source (Final Cut Camera's iPhone convention) conforms the
+    # sequence to the proper NTSC fraction (30000/1001 / 60000/1001) rather
+    # than the source's own flat measured rate — matching what Final Cut
+    # itself builds when you import the same footage natively, and what its
+    # importer expects to see when resolving an FCPXML against the file's
+    # own embedded timecode.
     def format_frame_rate
-      @timeline[:frame_rate] || (first_video_path ? frame_rate(first_video_path) : '24/1')
+      return @timeline[:frame_rate] if @timeline[:frame_rate]
+      return '24/1' unless first_video_path
+
+      if clip_uses_drop_frame_timecode?(first_video_path)
+        nominal_frame_rate(first_video_path) == 60 ? '60000/1001' : '30000/1001'
+      else
+        frame_rate(first_video_path)
+      end
     end
 
     def format_frame_duration
@@ -448,6 +486,8 @@ class ButterCut
             timecode: clip_timecode_fraction(media_file_path),
             frame_duration: frame_duration(media_file_path),
             frame_rate: frame_rate(media_file_path),
+            nominal_frame_rate: nominal_frame_rate(media_file_path),
+            drop_frame: clip_uses_drop_frame_timecode?(media_file_path),
             rotation: video_rotation(media_file_path),
             color_space: color_space(media_file_path)
           )

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ButterCut Pro & Core
+
+#### Fixed
+- **Final Cut Camera (iPhone) footage now imports into Final Cut Pro cleanly.** Clips shot with Apple's Final Cut Camera companion app tag themselves as 29.97 drop-frame even though the file itself is flat 30fps. ButterCut's Final Cut export didn't account for this mismatch, so Final Cut would reject some of the clips on import ("Invalid edit with no respective media"). Exports now conform the timeline the same way Final Cut itself does when you import that footage directly.
+
 ## [0.8.0] - 2026-06-26
 
 **ButterCut gets Multi-track editing, a new Preview app, and better support for misc production tasks**
