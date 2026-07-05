@@ -169,7 +169,7 @@ class ButterCut
       rate_num, rate_denom = frame_rate(video_path).split('/').map(&:to_i)
       return "0s" if rate_denom.zero? || rate_num.zero?
 
-      drop_frame = drop_frame_timecode?(timecode, rate_num, rate_denom, fps_nominal)
+      drop_frame = drop_frame_timecode?(timecode, fps_nominal)
 
       total_frames = if drop_frame
         drop_frames_per_minute = drop_frames_for_rate(fps_nominal)
@@ -189,10 +189,17 @@ class ButterCut
       "#{start_num / divisor}/#{start_denom / divisor}s"
     end
 
-    def drop_frame_timecode?(timecode, rate_num, rate_denom, fps_nominal)
-      return false unless timecode.include?(';')
-      return false unless fps_nominal == 30 || fps_nominal == 60
-      ntsc_drop_frame_rate?(rate_num, rate_denom)
+    # Drop-frame is a frame-NUMBERING scheme in the timecode digits, not a
+    # playback rate: a ";" means the digits skip 2 (or 4) frame numbers each
+    # non-tenth minute, and the skipped numbers must be subtracted however the
+    # clip plays back. Apple's Final Cut Camera records "29.97" media that
+    # ffprobe and Final Cut both rate as true 30/1 while its timecode stays
+    # drop-frame — gating this on an NTSC fractional rate turned those digits
+    # into frame counts up to a full minute past the media, and Final Cut
+    # dropped every clip as "invalid edit with no respective media". The ";"
+    # plus a 30/60 frame quanta is the whole test.
+    def drop_frame_timecode?(timecode, fps_nominal)
+      timecode.include?(';') && (fps_nominal == 30 || fps_nominal == 60)
     end
 
     # NTSC fractional rates (29.97 / 59.94) that use drop-frame timecode.
