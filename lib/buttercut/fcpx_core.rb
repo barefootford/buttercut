@@ -26,6 +26,7 @@ class ButterCut
       timestamped_project_name = "#{project_basename} #{timestamp_suffix}"
 
       still_format_ids = build_still_format_ids(asset_map)
+      video_format_ids = build_video_format_ids(asset_map)
 
       builder = Nokogiri::XML::Builder.new(encoding: 'utf-8') do |xml|
         xml.fcpxml(version: '1.12') do
@@ -37,6 +38,21 @@ class ButterCut
               frameDuration: format_frame_duration,
               colorSpace: format_color_space
             )
+
+            # Sources that don't match the timeline format get their own
+            # format resource, so Final Cut sees each asset's real dimensions,
+            # frame rate, and color space instead of the timeline's.
+            video_format_ids.each do |(width, height, frame_duration, color_space), format_id|
+              next if format_id == FORMAT_ID
+
+              xml.format(
+                id: format_id,
+                height: height,
+                width: width,
+                frameDuration: frame_duration,
+                colorSpace: color_space
+              )
+            end
 
             # Stills use a rate-undefined format (one per unique dimensions):
             # no frameDuration — that's what marks the asset as timeless.
@@ -75,7 +91,7 @@ class ButterCut
                   audioRate: asset[:audio_rate],
                   hasAudio: '1',
                   hasVideo: '1',
-                  format: FORMAT_ID,
+                  format: video_format_ids.fetch(video_format_key(asset)),
                   duration: asset[:asset_duration]
                 ) do
                   xml.send('media-rep', kind: 'original-media', src: asset[:file_url])
@@ -146,6 +162,30 @@ class ButterCut
       return MUTE_VOLUME_ADJUSTMENT if clip.dig(:clip_definition, :mute)
 
       volume_adjustment
+    end
+
+    # One format resource per distinct video spec, keyed
+    # [width, height, frame duration, color space] → format id. Assets whose
+    # spec matches the timeline format reuse it (FORMAT_ID), keeping the
+    # common single-source-format export unchanged.
+    def build_video_format_ids(asset_map)
+      timeline_key = [format_width, format_height, format_frame_duration, format_color_space]
+      asset_map.each_value.with_object(timeline_key => FORMAT_ID) do |asset, ids|
+        next if asset[:type] == 'image'
+
+        ids[video_format_key(asset)] ||= video_format_id(asset)
+      end
+    end
+
+    def video_format_key(asset)
+      [asset[:width], asset[:height], asset[:frame_duration], asset[:color_space]]
+    end
+
+    # Deterministic, human-readable id: "r_fmt_3840x2160_1000_30000_9-1-9".
+    def video_format_id(asset)
+      rate = asset[:frame_duration].delete_suffix('s').tr('/', '_')
+      color = asset[:color_space][/[\d-]+/]
+      "r_fmt_#{asset[:width]}x#{asset[:height]}_#{rate}_#{color}"
     end
 
     # One rate-undefined format resource per unique still dimensions, keyed

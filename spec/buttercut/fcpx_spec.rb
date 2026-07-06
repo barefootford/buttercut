@@ -5,25 +5,23 @@ RSpec.describe ButterCut::FCPX do
   let(:clips) { [{ path: video_file_path }] }
   let(:gh5_video_path) { File.expand_path('../fixtures/media/P1044376_timecode_fixture.mov', __dir__) }
 
-  def build_metadata(frame_rate:, duration_seconds:, width: 1280, height: 720, sample_rate: '48000', timecode: nil)
+  def build_metadata(frame_rate:, duration_seconds:, width: 1280, height: 720, sample_rate: '48000',
+                     timecode: nil, color_primaries: 'bt709', color_transfer: 'bt709', audio_streams: nil)
     video_stream = {
       'codec_type' => 'video',
       'width' => width,
       'height' => height,
       'r_frame_rate' => frame_rate,
       'color_space' => 'bt709',
-      'color_primaries' => 'bt709',
-      'color_transfer' => 'bt709'
+      'color_primaries' => color_primaries,
+      'color_transfer' => color_transfer
     }
     video_stream['tags'] = { 'timecode' => timecode } if timecode
 
-    audio_stream = {
-      'codec_type' => 'audio',
-      'sample_rate' => sample_rate
-    }
+    audio_streams ||= [{ 'codec_type' => 'audio', 'sample_rate' => sample_rate }]
 
     {
-      'streams' => [video_stream, audio_stream],
+      'streams' => [video_stream, *audio_streams],
       'format' => {
         'duration' => duration_seconds.to_s,
         'tags' => timecode ? { 'timecode' => timecode } : {}
@@ -254,6 +252,91 @@ RSpec.describe ButterCut::FCPX do
         expect(xml).to match(/<asset id="#{Regexp.escape(asset_id)}"[^>]*start="298851\/5s"/)
         expect(xml).to match(/<asset-clip[^>]*start="298851\/5s"/)
       end
+    end
+  end
+
+  describe '#color_space' do
+    let(:hdr_path) { '/tmp/hdr_clip.mov' }
+
+    def stub_color(primaries, transfer)
+      metadata = build_metadata(
+        frame_rate: '30/1',
+        duration_seconds: 10.0,
+        color_primaries: primaries,
+        color_transfer: transfer
+      )
+      allow_any_instance_of(ButterCut::FCPX).to receive(:extract_metadata_from_ffprobe).and_return(metadata)
+      ButterCut::FCPX.new([{ path: hdr_path }])
+    end
+
+    it 'maps Rec. 709 sources to the 1-1-1 triple' do
+      generator = stub_color('bt709', 'bt709')
+      expect(generator.color_space(hdr_path)).to eq('1-1-1 (Rec. 709)')
+    end
+
+    it 'maps HLG sources to the 9-18-9 triple' do
+      generator = stub_color('bt2020', 'arib-std-b67')
+      expect(generator.color_space(hdr_path)).to eq('9-18-9 (Rec. 2020 HLG)')
+    end
+
+    it 'maps PQ sources to the 9-16-9 triple' do
+      generator = stub_color('bt2020', 'smpte2084')
+      expect(generator.color_space(hdr_path)).to eq('9-16-9 (Rec. 2020 PQ)')
+    end
+
+    it 'maps Rec. 2020 sources without a transfer flag (Apple Log) to the 9-1-9 triple' do
+      generator = stub_color('bt2020', nil)
+      expect(generator.color_space(hdr_path)).to eq('9-1-9 (Rec. 2020)')
+    end
+
+    it 'falls back to Rec. 709 when color metadata is missing' do
+      generator = stub_color(nil, nil)
+      expect(generator.color_space(hdr_path)).to eq('1-1-1 (Rec. 709)')
+    end
+
+    it 'falls back to Rec. 709 for a nil path (image-only timelines)' do
+      generator = stub_color('bt2020', nil)
+      expect(generator.color_space(nil)).to eq('1-1-1 (Rec. 709)')
+    end
+
+    it 'stamps the mapped color space onto the emitted format' do
+      generator = stub_color('bt2020', 'arib-std-b67')
+      expect(generator.to_xml).to include('colorSpace="9-18-9 (Rec. 2020 HLG)"')
+    end
+  end
+
+  describe '#audio_stream' do
+    let(:spatial_path) { '/tmp/spatial_clip.mov' }
+
+    def stub_audio_streams(audio_streams)
+      metadata = build_metadata(
+        frame_rate: '30/1',
+        duration_seconds: 10.0,
+        audio_streams: audio_streams
+      )
+      allow_any_instance_of(ButterCut::FCPX).to receive(:extract_metadata_from_ffprobe).and_return(metadata)
+      ButterCut::FCPX.new([{ path: spatial_path }])
+    end
+
+    it 'skips undecodable APAC spatial streams even when they come first' do
+      generator = stub_audio_streams([
+        { 'codec_type' => 'audio', 'codec_name' => 'apac', 'sample_rate' => '44100' },
+        { 'codec_type' => 'audio', 'codec_name' => 'pcm_s16le', 'sample_rate' => '48000' }
+      ])
+      expect(generator.audio_stream(spatial_path)['codec_name']).to eq('pcm_s16le')
+      expect(generator.audio_sample_rate(spatial_path)).to eq('48000')
+    end
+
+    it 'falls back to the first audio stream when every stream is undecodable' do
+      generator = stub_audio_streams([
+        { 'codec_type' => 'audio', 'codec_name' => 'apac', 'sample_rate' => '48000' }
+      ])
+      expect(generator.audio_stream(spatial_path)['codec_name']).to eq('apac')
+    end
+
+    it 'returns nil when the file has no audio streams' do
+      generator = stub_audio_streams([])
+      expect(generator.audio_stream(spatial_path)).to be_nil
     end
   end
 
@@ -522,6 +605,60 @@ RSpec.describe ButterCut::FCPX do
         xml = generator.to_xml
         asset_id = asset_id_for(generator, clip_b_path)
         expect(xml).to match(/ref="#{Regexp.escape(asset_id)}"[^>]*start="1001\/30000s"/)
+      end
+    end
+
+    describe 'per-asset format resources' do
+      let(:clip_709_path) { '/tmp/clip_709.mov' }
+      let(:clip_hdr_path) { '/tmp/clip_hdr.mov' }
+      let(:metadata_by_path) do
+        {
+          clip_709_path => build_metadata(
+            frame_rate: '24000/1001',
+            duration_seconds: 6.0
+          ),
+          clip_hdr_path => build_metadata(
+            frame_rate: '30/1',
+            duration_seconds: 2.0,
+            width: 3840,
+            height: 2160,
+            color_primaries: 'bt2020',
+            color_transfer: nil
+          )
+        }
+      end
+
+      before do
+        allow_any_instance_of(ButterCut::FCPX).to receive(:extract_metadata_from_ffprobe) do |_instance, path|
+          metadata_by_path.fetch(path)
+        end
+      end
+
+      it 'gives a source that differs from the timeline its own format resource' do
+        generator = ButterCut::FCPX.new([{ path: clip_709_path }, { path: clip_hdr_path }])
+        xml = generator.to_xml
+
+        expect(xml).to include('<format id="r_fmt_3840x2160_1_30_9-1-9" height="2160" width="3840" ' \
+                               'frameDuration="1/30s" colorSpace="9-1-9 (Rec. 2020)"/>')
+        hdr_asset_id = asset_id_for(generator, clip_hdr_path)
+        expect(xml).to match(/<asset id="#{Regexp.escape(hdr_asset_id)}"[^>]*format="r_fmt_3840x2160_1_30_9-1-9"/)
+      end
+
+      it 'keeps the timeline sequence and matching assets on the timeline format' do
+        generator = ButterCut::FCPX.new([{ path: clip_709_path }, { path: clip_hdr_path }])
+        xml = generator.to_xml
+
+        expect(xml).to include('<sequence duration=')
+        expect(xml).to match(/<sequence [^>]*format="r1"/)
+        first_asset_id = asset_id_for(generator, clip_709_path)
+        expect(xml).to match(/<asset id="#{Regexp.escape(first_asset_id)}"[^>]*format="r1"/)
+      end
+
+      it 'emits a single format when every source matches the timeline' do
+        generator = ButterCut::FCPX.new([{ path: clip_709_path }, { path: clip_709_path }])
+        xml = generator.to_xml
+
+        expect(xml.scan(/<format /).length).to eq(1)
       end
     end
   end
