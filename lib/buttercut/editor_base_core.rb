@@ -88,8 +88,17 @@ class ButterCut
       extract_metadata(video_path)['streams'].find { |s| s['codec_type'] == 'video' }
     end
 
+    # Audio codecs ffmpeg cannot decode. iPhone spatial recordings carry a
+    # 4-channel APAC stream alongside the plain stereo track; Apple happens
+    # to order the stereo track first, but don't rely on that — skip past
+    # undecodable streams explicitly. If a file somehow has only undecodable
+    # audio, fall back to the first stream: it still marks the asset as
+    # having audio, and the editors decode APAC themselves.
+    UNDECODABLE_AUDIO_CODECS = %w[apac].freeze
+
     def audio_stream(video_path)
-      extract_metadata(video_path)['streams'].find { |s| s['codec_type'] == 'audio' }
+      streams = extract_metadata(video_path)['streams'].select { |s| s['codec_type'] == 'audio' }
+      streams.find { |s| !UNDECODABLE_AUDIO_CODECS.include?(s['codec_name']) } || streams.first
     end
 
     def video_width(video_path)
@@ -291,11 +300,26 @@ class ButterCut
       end
     end
 
-    # Color space is currently always emitted as Rec. 709; non-709 sources
-    # (HDR / Rec. 2020, P3) are not yet mapped. Takes a path for signature
-    # parity with the other per-clip metadata accessors.
-    def color_space(_video_path)
-      "1-1-1 (Rec. 709)"
+    # FCPXML colorSpace strings are "primaries-transfer-matrix" code triples.
+    # Rec. 2020 sources split by transfer curve; everything else (including
+    # sources with no color metadata, and image-only timelines with no video
+    # path at all) keeps the Rec. 709 label ButterCut has always written.
+    # Final Cut's own exports label Apple Log media "9-1-9 (Rec. 2020)" —
+    # bt2020 primaries with an unflagged transfer — verified on FCP 12.3.
+    REC_709_COLOR_SPACE = "1-1-1 (Rec. 709)".freeze
+    REC_2020_COLOR_SPACE = "9-1-9 (Rec. 2020)".freeze
+    REC_2020_HDR_COLOR_SPACES = {
+      'smpte2084' => '9-16-9 (Rec. 2020 PQ)',
+      'arib-std-b67' => '9-18-9 (Rec. 2020 HLG)'
+    }.freeze
+
+    def color_space(video_path)
+      return REC_709_COLOR_SPACE if video_path.nil?
+
+      stream = video_stream(video_path)
+      return REC_709_COLOR_SPACE unless stream['color_primaries'] == 'bt2020'
+
+      REC_2020_HDR_COLOR_SPACES.fetch(stream['color_transfer'], REC_2020_COLOR_SPACE)
     end
 
     def duration_to_fraction(video_path)
