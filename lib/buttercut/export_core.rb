@@ -3,6 +3,7 @@
 
 require 'date'
 require 'yaml'
+require 'shellwords'
 require_relative '../buttercut'
 
 class Export
@@ -124,7 +125,7 @@ class Export
     return puts "⚠ DTD not found at #{dtd_path}; skipping validation." unless File.exist?(dtd_path)
     return puts '⚠ xmllint not found; skipping validation.' unless system('command -v xmllint > /dev/null 2>&1')
 
-    output = `xmllint --noout --dtdvalid "#{dtd_path}" "#{xml_path}" 2>&1`
+    output = `xmllint --noout --dtdvalid #{Shellwords.escape(dtd_path)} #{Shellwords.escape(xml_path)} 2>&1`
     if $?.success?
       puts '✓ FCPXML validates against FCPXMLv1_12.dtd'
     else
