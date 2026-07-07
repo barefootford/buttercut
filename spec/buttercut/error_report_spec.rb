@@ -254,4 +254,20 @@ RSpec.describe ButterCut::ErrorReport do
       expect(list.first['file']).to start_with('errors/')
     end
   end
+
+  describe '.license_headers' do
+    it 'is empty without a license file (core installs)' do
+      expect(described_class.send(:license_headers)).to eq({})
+    end
+
+    it 'reads the Pro key=value license file into the auth headers' do
+      File.write(File.join(repo_root, '.buttercut_pro_license'),
+                 "email=ada@example.com\nlicense_key=BC-KEY-1\n")
+
+      expect(described_class.send(:license_headers)).to eq(
+        'X-Buttercut-Email' => 'ada@example.com',
+        'X-Buttercut-License-Key' => 'BC-KEY-1'
+      )
+    end
+  end
 end
