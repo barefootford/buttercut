@@ -49,4 +49,4 @@ The added changelog lines are already written for users — recap them in a sent
 - **Don't run the test suite after updating.** A wall of test output reads as something being wrong, and "the tests pass" answers a question no video editor asked.
 - If anything was stashed in step 2, mention it once in plain terms ("I set aside a few local file edits before updating; they're saved if you ever want them back") — don't try to reapply it automatically.
 
-(In developer mode — `.buttercut_developer` present — skip the persona rules above and report technically: versions, shas, and running the suite are all fine.)
+(In developer mode — `.buttercut_mode` present — skip the persona rules above and report technically: versions, shas, and running the suite are all fine.)
