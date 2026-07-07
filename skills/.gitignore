@@ -28,6 +28,8 @@
 !create-library/**
 !process-library/
 !process-library/**
+!report-error/
+!report-error/**
 !reprocess-with-contact-sheets/
 !reprocess-with-contact-sheets/**
 !misc-task/

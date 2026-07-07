@@ -6,6 +6,7 @@
 # lib/buttercut/version.rb.
 require 'optparse'
 require_relative 'version'
+require_relative 'error_report'
 require_relative ButterCut.engine_variant('export')
 
 if __FILE__ == $PROGRAM_NAME
@@ -25,8 +26,9 @@ if __FILE__ == $PROGRAM_NAME
 
   begin
     Export.perform(roughcut_path: ARGV[0], output_path: ARGV[1], editor: options[:editor])
-  rescue ArgumentError, RuntimeError => e
+  rescue StandardError => e
     warn "Error: #{e.message}"
+    ButterCut::ErrorReport.capture!(e, action: 'export')
     exit 1
   end
 end

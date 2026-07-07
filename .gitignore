@@ -3,7 +3,9 @@
 .DS_Store
 /.buttercut_mode
 /.buttercut_env
+/.buttercut_error_reporting
 /last_buttercut_update_check
+/errors
 /libraries
 /media
 /backups
