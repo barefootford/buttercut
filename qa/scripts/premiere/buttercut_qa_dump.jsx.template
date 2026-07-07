@@ -1,0 +1,121 @@
+// ButterCut QA Dump (Premiere) — ExtendScript, executed at app launch via:
+//   ".../Adobe Premiere Pro 2026" /C es.processFile <this file>
+// verify_premiere.rb copies this template to /tmp with the placeholders filled
+// in, launches Premiere with it, and polls for the report file.
+//
+// ExtendScript is ES3: no JSON object, hand-rolled serializer below. Times are
+// reported as tick strings (254,016,000,000 ticks/second) so the Ruby side can
+// do exact integer frame math instead of trusting float seconds.
+
+var XML_PATH = "__XML_PATH__";
+var REPORT_PATH = "__REPORT_PATH__";
+var PROJECT_PATH = "__PROJECT_PATH__";
+
+function esc(s) {
+  s = String(s);
+  var out = "";
+  for (var i = 0; i < s.length; i++) {
+    var c = s.charAt(i);
+    var code = s.charCodeAt(i);
+    if (c === '"') out += '\\"';
+    else if (c === "\\") out += "\\\\";
+    else if (c === "\n") out += "\\n";
+    else if (c === "\r") out += "\\r";
+    else if (c === "\t") out += "\\t";
+    else if (code < 32) out += "\\u" + ("000" + code.toString(16)).slice(-4);
+    else out += c;
+  }
+  return out;
+}
+
+function toJson(v) {
+  if (v === null || v === undefined) return "null";
+  var t = typeof v;
+  if (t === "number") return isFinite(v) ? String(v) : "null";
+  if (t === "boolean") return String(v);
+  if (t === "string") return '"' + esc(v) + '"';
+  if (v instanceof Array) {
+    var parts = [];
+    for (var i = 0; i < v.length; i++) parts.push(toJson(v[i]));
+    return "[" + parts.join(",") + "]";
+  }
+  var kv = [];
+  for (var k in v) if (v.hasOwnProperty(k)) kv.push('"' + esc(k) + '":' + toJson(v[k]));
+  return "{" + kv.join(",") + "}";
+}
+
+var report = { ok: false, stage: "start", script: "buttercut_qa_dump.jsx" };
+
+// Written to a temp file then renamed, so the Ruby poller never reads a
+// half-written report. (The runner deletes both paths before launch.)
+function save() {
+  var f = new File(REPORT_PATH + ".tmp");
+  f.encoding = "UTF-8";
+  f.open("w");
+  f.write(toJson(report));
+  f.close();
+  f.rename(new File(REPORT_PATH).name);
+}
+
+function dumpTracks(trackCollection) {
+  var tracks = [];
+  for (var t = 0; t < trackCollection.numTracks; t++) {
+    var track = trackCollection[t];
+    var items = [];
+    for (var c = 0; c < track.clips.numItems; c++) {
+      var k = track.clips[c];
+      var entry = {
+        name: k.name,
+        start_ticks: k.start.ticks,
+        end_ticks: k.end.ticks,
+        in_ticks: k.inPoint.ticks,
+        out_ticks: k.outPoint.ticks,
+        disabled: k.disabled ? true : false
+      };
+      try { entry.media_path = k.projectItem ? k.projectItem.getMediaPath() : null; } catch (e1) { entry.media_path = null; }
+      items.push(entry);
+    }
+    tracks.push({ index: t + 1, name: track.name, items: items });
+  }
+  return tracks;
+}
+
+try {
+  report.app_version = app.version;
+
+  // At launch there may be no open project; create a scratch one.
+  if (!app.project || !app.project.rootItem) {
+    report.stage = "newProject";
+    app.enableQE();
+    qe.newProject(PROJECT_PATH);
+  }
+  report.project_name = app.project.name;
+
+  report.stage = "import";
+  var ok = app.project.importFiles([XML_PATH], 1, app.project.rootItem, 0);
+  report.import_returned = ok ? true : false;
+
+  report.stage = "walk";
+  report.num_sequences = app.project.sequences.numSequences;
+  if (report.num_sequences < 1) throw new Error("no sequences after xmeml import");
+  var seq = app.project.sequences[0];
+  report.sequence = {
+    name: seq.name,
+    timebase_ticks_per_frame: String(seq.timebase),
+    width: seq.frameSizeHorizontal,
+    height: seq.frameSizeVertical,
+    end_ticks: String(seq.end)
+  };
+  report.video_tracks = dumpTracks(seq.videoTracks);
+  report.audio_tracks = dumpTracks(seq.audioTracks);
+
+  report.ok = true;
+  report.stage = "done";
+} catch (err) {
+  report.error = String(err);
+}
+
+save();
+
+// Close without saving so killing the app afterwards leaves no recovery state.
+try { app.project.closeDocument(0, 0); } catch (e2) {}

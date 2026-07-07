@@ -108,6 +108,7 @@ Writes (`add_media`, `remove_media`, `complete`, `update_metadata`), destructive
 ## Project Structure
 - `skills/` - Skills for AI-powered workflow (symlinked from `.claude/skills/` so Claude Code, Codex, and other agents that read top-level `skills/` natively all find them)
 - `spec/` - RSpec test suite
+- `qa/` - Developer-only editor round-trip integration tests — imports the exports into the real editors (see `qa/editor-roundtrip.md`; never run in video-editor sessions)
 - `templates/` - Library and project templates
 - `dependencies/` - Optional static ffmpeg/ffprobe binaries (gitignored). `lib/buttercut/media_tools.rb` resolves binaries here first, then falls back to PATH; if a binary is in neither place it raises a clear error pointing at the `setup` skill.
 - `libraries/` - Working directory for user's video projects (gitignored)
