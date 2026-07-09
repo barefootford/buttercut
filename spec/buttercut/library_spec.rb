@@ -360,6 +360,134 @@ RSpec.describe Library do
     end
   end
 
+  describe '#verify_media' do
+    # Deep phantom/suggestion coverage lives in media_verifier_spec (it injects
+    # the root-device and /Volumes seams). Here we just confirm Library wires its
+    # media paths through and hands back the report shape.
+    it 'reports ok and missing statuses with counts' do
+      present = File.join(@libraries_root, 'src', 'here.mov')
+      FileUtils.mkdir_p(File.dirname(present))
+      FileUtils.touch(present)
+      write_library(media: [
+                      video_entry('here.mov', path: present),
+                      video_entry('gone.mov', path: File.join(@libraries_root, 'src', 'gone.mov'))
+                    ])
+
+      report = Library.find(library_name).verify_media
+
+      expect(report['media'].map { |m| m['status'] }).to eq(%w[ok missing])
+      expect(report['ok_count']).to eq(1)
+      expect(report['missing_count']).to eq(1)
+      expect(report).to include('phantom_volumes' => [], 'suggested_relinks' => [])
+    end
+
+    it 'makes no relink suggestion for a missing non-/Volumes path' do
+      write_library(media: [video_entry('gone.mov', path: File.join(@libraries_root, 'gone.mov'))])
+
+      expect(Library.find(library_name).verify_media['suggested_relinks']).to be_empty
+    end
+  end
+
+  describe '#relink!' do
+    # Stand in for a drive mounted at <root>/<vol>, holding clips under CAC/.
+    def make_drive(vol, *names)
+      names.each do |name|
+        path = File.join(@libraries_root, vol, 'CAC', name)
+        FileUtils.mkdir_p(File.dirname(path))
+        FileUtils.touch(path)
+      end
+    end
+
+    def clip_path(vol, name) = File.join(@libraries_root, vol, 'CAC', name)
+
+    it 'rewrites matching paths when every new target exists' do
+      make_drive('drive 1', 'a.mov', 'b.mov') # the drive remounted here
+      old = File.join(@libraries_root, 'drive')
+      new = File.join(@libraries_root, 'drive 1')
+      write_library(media: [
+                      video_entry('a.mov', path: clip_path('drive', 'a.mov')),
+                      video_entry('b.mov', path: clip_path('drive', 'b.mov'))
+                    ])
+
+      Library.find(library_name).relink!(old, new)
+
+      expect(load_yaml['media'].map { |m| m['path'] })
+        .to eq([clip_path('drive 1', 'a.mov'), clip_path('drive 1', 'b.mov')])
+    end
+
+    it 'does not match a longer sibling prefix (segment boundary)' do
+      make_drive('Andrew SSD NEW', 'a.mov')
+      old = File.join(@libraries_root, 'Andrew SSD')
+      new = File.join(@libraries_root, 'Andrew SSD NEW')
+      sibling = clip_path('Andrew SSD 1', 'b.mov') # must be left alone
+      write_library(media: [
+                      video_entry('a.mov', path: clip_path('Andrew SSD', 'a.mov')),
+                      video_entry('b.mov', path: sibling)
+                    ])
+
+      Library.find(library_name).relink!(old, new)
+
+      expect(load_yaml['media'].map { |m| m['path'] })
+        .to eq([clip_path('Andrew SSD NEW', 'a.mov'), sibling])
+    end
+
+    it 'aborts all-or-nothing when any rewritten target is missing' do
+      make_drive('drive 1', 'a.mov') # b.mov absent at the new location
+      old = File.join(@libraries_root, 'drive')
+      new = File.join(@libraries_root, 'drive 1')
+      write_library(media: [
+                      video_entry('a.mov', path: clip_path('drive', 'a.mov')),
+                      video_entry('b.mov', path: clip_path('drive', 'b.mov'))
+                    ])
+
+      expect { Library.find(library_name).relink!(old, new) }
+        .to raise_error(ArgumentError, /relink aborted/)
+      expect(load_yaml['media'].map { |m| m['path'] })
+        .to eq([clip_path('drive', 'a.mov'), clip_path('drive', 'b.mov')]) # untouched
+    end
+
+    it 'is an idempotent no-op when paths already sit under the new prefix' do
+      old = File.join(@libraries_root, 'drive')
+      new = File.join(@libraries_root, 'drive 1')
+      write_library(media: [video_entry('a.mov', path: clip_path('drive 1', 'a.mov'))])
+
+      expect { Library.find(library_name).relink!(old, new) }.not_to raise_error
+      expect(load_yaml['media'].first['path']).to eq(clip_path('drive 1', 'a.mov'))
+    end
+
+    it 'raises when the prefix matches neither old nor new (typo)' do
+      write_library(media: [video_entry('a.mov', path: clip_path('drive', 'a.mov'))])
+
+      expect { Library.find(library_name).relink!('/Volumes/Typo', '/Volumes/AlsoTypo') }
+        .to raise_error(ArgumentError, /no media paths under/)
+    end
+
+    it 'aborts when a rewritten target only resolves into a phantom boot-disk folder' do
+      # A real phantom needs /Volumes device topology, so stub the verifier
+      # relink! builds over the rewritten paths instead of standing one up.
+      make_drive('drive 1', 'a.mov')
+      old = File.join(@libraries_root, 'drive')
+      new = File.join(@libraries_root, 'drive 1')
+      write_library(media: [video_entry('a.mov', path: clip_path('drive', 'a.mov'))])
+      phantom = { 'filename' => 'a.mov', 'path' => clip_path('drive 1', 'a.mov'), 'status' => 'phantom' }
+      allow(MediaVerifier).to receive(:new).and_return(instance_double(MediaVerifier, problems: [phantom]))
+
+      expect { Library.find(library_name).relink!(old, new) }
+        .to raise_error(ArgumentError, /relink aborted.*\(phantom\)/m)
+      expect(load_yaml['media'].first['path']).to eq(clip_path('drive', 'a.mov')) # untouched
+    end
+
+    it 'returns self for chaining' do
+      make_drive('drive 1', 'a.mov')
+      old = File.join(@libraries_root, 'drive')
+      new = File.join(@libraries_root, 'drive 1')
+      write_library(media: [video_entry('a.mov', path: clip_path('drive', 'a.mov'))])
+      lib = Library.find(library_name)
+
+      expect(lib.relink!(old, new)).to be(lib)
+    end
+  end
+
   describe '#unsupported_media' do
     it 'surfaces entries whose extension no editor imports natively' do
       write_library(media: [
@@ -1062,6 +1190,25 @@ RSpec.describe Library do
       age_stamp(Library::UPDATE_CHECK_INTERVAL + 60)
       FileUtils.touch(File.join(@repo_root, Library::DEVELOPER_FLAG_FILE))
       expect { Library.check_for_update!(repo_root: @repo_root) }.not_to raise_error
+    end
+  end
+
+  describe 'CLI relink arity guard' do
+    # The guard lives in the CLI dispatch (not relink!), so exercise the real
+    # script. stub_const doesn't cross the process boundary — the library has
+    # to exist under the repo's actual libraries/ (gitignored; cleaned up here).
+    it 'rejects a wrong argument count with the quote-your-prefixes message' do
+      cli = File.expand_path('../../lib/buttercut/library.rb', __dir__)
+      lib_dir = File.expand_path('../../libraries/cli-relink-arity-spec', __dir__)
+      FileUtils.mkdir_p(lib_dir)
+      File.write(File.join(lib_dir, 'library.yaml'), { 'media' => [] }.to_yaml)
+
+      out = `ruby #{Shellwords.escape(cli)} cli-relink-arity-spec relink /Volumes/Andrew SSD /Volumes/Other 2>&1`
+
+      expect($CHILD_STATUS.exitstatus).to eq(1)
+      expect(out).to include('quote prefixes containing spaces')
+    ensure
+      FileUtils.rm_rf(lib_dir)
     end
   end
 

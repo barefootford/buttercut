@@ -12,6 +12,7 @@ require 'shellwords'
 require 'yaml'
 
 require_relative 'media_tools'
+require_relative 'media_verifier'
 require_relative 'version'
 
 class Library
@@ -309,6 +310,53 @@ class Library
     end
   end
 
+  # Read-only report on whether every source file still resolves. See MediaVerifier.
+  def verify_media
+    MediaVerifier.new(media.map { |m| m['path'] }).report
+  end
+
+  # Rewrite media paths whose drive prefix moved. Never automatic (the user
+  # confirms a verify_media suggestion first) and all-or-nothing.
+  def relink!(old_prefix, new_prefix)
+    old = old_prefix.to_s.chomp('/')
+    new = new_prefix.to_s.chomp('/')
+    raise ArgumentError, 'relink requires <old_prefix> <new_prefix>' if old.empty? || new.empty?
+
+    meds = media
+    if meds.none? { |m| under_prefix?(m['path'], old) }
+      already = meds.count { |m| under_prefix?(m['path'], new) }
+      raise ArgumentError, "no media paths under #{old} (and none under #{new}) — " \
+                           'run verify_media and check the suggested prefix' if already.zero?
+
+      puts "#{@name}: already relinked — #{already} media #{pluralize(already, 'path')} under #{new}; nothing to do"
+      return self
+    end
+
+    rewritten = 0
+    mutate do |library|
+      targets = library['media'].select { |m| under_prefix?(m['path'], old) }
+      # Pre-lock read raced a concurrent writer — bail before the unconditional write.
+      raise ArgumentError, "no media paths under #{old} — re-run verify_media" if targets.empty?
+
+      plan = targets.map { |m| [m, rewrite_prefix(m['path'], old, new)] }
+      # Full statuses, not bare File.exist? — existence alone is fooled by a
+      # phantom volume (a squatter copy on the boot disk), the exact trap
+      # relink exists to fix.
+      bad = MediaVerifier.new(plan.map(&:last)).problems
+      unless bad.empty?
+        listed = bad.map { |b| "  #{b['path']} (#{b['status']})" }.join("\n")
+        raise ArgumentError, "relink aborted — #{bad.size} rewritten " \
+                             "#{pluralize(bad.size, 'path')} don't resolve to real footage " \
+                             "(statuses per skills/cut/missing_footage.md):\n#{listed}"
+      end
+
+      plan.each { |m, path| m['path'] = path }
+      rewritten = plan.size
+    end
+    puts "#{@name}: relinked #{rewritten} media #{pluralize(rewritten, 'path')} from #{old} to #{new}"
+    self
+  end
+
   # Mark `media_filenames` complete for one field. Validates each file exists
   # on disk before writing — atomicity is preserved by building the full plan
   # first and only mutating the YAML once every check passes.
@@ -517,6 +565,11 @@ class Library
 
   def pluralize(count, word) = "#{word}#{'s' unless count == 1}"
 
+  # Segment-boundary match: `/a/b` matches `/a/b` and `/a/b/…`, never `/a/bc`.
+  def under_prefix?(path, prefix) = path == prefix || path.to_s.start_with?("#{prefix}/")
+
+  def rewrite_prefix(path, old, new) = path == old ? new : new + path[old.length..]
+
   def merged_media(data)
     data['media'].map do |m|
       m.merge('filename' => self.class.filename_of(m),
@@ -700,6 +753,7 @@ if __FILE__ == $PROGRAM_NAME
       <name> summary                                  — JSON snapshot (media_count + per-type counts + incomplete breakdown)
       <name> incomplete_media                         — JSON array of incomplete clips
       <name> unsupported_media                        — JSON array of entries whose extension no editor imports natively
+      <name> verify_media                             — JSON report: media paths still resolve? On missing/phantom, read skills/cut/missing_footage.md
       <name> pending <field>                          — JSON array of clips still missing one field (only types the field applies to)
       <name> ready                                    — exits 0 if every clip is ready for roughcut, 1 otherwise
       <name> field_path <field> <clip>                — canonical path for a clip's artifact (e.g. summary → summaries/summary_<clip>.md)
@@ -707,6 +761,7 @@ if __FILE__ == $PROGRAM_NAME
     Writes:
       <name> add_media <path>...                      — append media records (type inferred from extension; video: #{Library::MEDIA_TYPES['video'][:extensions].join('/')}; image: #{Library::MEDIA_TYPES['image'][:extensions].join('/')})
       <name> remove_media <files>                     — drop entries + delete their artifacts (source footage untouched)
+      <name> relink <old_prefix> <new_prefix>         — rewrite media paths under old_prefix to new_prefix (segment-aware, all-or-nothing; propose from verify_media, user confirms)
       <name> update_metadata <key> <value...>         — set footage_summary, user_context, language, editor, or transcript_refinement
       <name> complete <field> <files>                 — mark files done for one field
       <name> reset <field> [<field>...]               — wipe one or more phases
@@ -785,6 +840,8 @@ if __FILE__ == $PROGRAM_NAME
       puts JSON.pretty_generate(library.incomplete_media)
     when 'unsupported_media'
       puts JSON.pretty_generate(library.unsupported_media)
+    when 'verify_media'
+      puts JSON.pretty_generate(library.verify_media)
     when 'pending'
       field, = rest
       raise ArgumentError, 'pending requires <field>' if field.nil?
@@ -805,6 +862,14 @@ if __FILE__ == $PROGRAM_NAME
       raise ArgumentError, 'remove_media requires <files>' if rest.empty?
 
       library.remove_media!(split_files.call(rest))
+    when 'relink'
+      # Volume names contain spaces ("Andrew SSD") — an unquoted call must fail
+      # here, not downstream with a misleading "no media paths under /Volumes/Andrew".
+      unless rest.size == 2
+        raise ArgumentError, 'relink requires exactly <old_prefix> <new_prefix> — quote prefixes containing spaces'
+      end
+
+      library.relink!(*rest)
     when 'update_metadata'
       key, *value_parts = rest
       raise ArgumentError, 'update_metadata requires <key> <value>' if key.nil? || value_parts.empty?
