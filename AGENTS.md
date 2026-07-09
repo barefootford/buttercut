@@ -84,6 +84,7 @@ ruby lib/buttercut/library.rb migrate                    # runs every scripts/NN
 ruby lib/buttercut/library.rb <name> summary             # JSON: metadata + clip-completion breakdown
 ruby lib/buttercut/library.rb <name> incomplete_media    # JSON: clips still missing artifacts, with which fields are missing
 ruby lib/buttercut/library.rb <name> unsupported_media   # JSON: entries whose extension no editor imports natively (legacy footage to convert-and-swap)
+ruby lib/buttercut/library.rb <name> verify_media        # JSON: do the source files still resolve? If anything is missing/phantom, read skills/cut/missing_footage.md and follow it
 ruby lib/buttercut/library.rb <name> ready               # exit 0 = ready to build a cut, 1 = not. Raises if a migration script should be run.
 
 # Understand

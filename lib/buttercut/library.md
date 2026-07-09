@@ -72,6 +72,7 @@ ruby lib/buttercut/library.rb <name> exists       # exit 0 if it exists, 1 if no
 ruby lib/buttercut/library.rb <name> summary      # JSON: metadata + per-type counts + clip-completion breakdown
 ruby lib/buttercut/library.rb <name> incomplete_media
 ruby lib/buttercut/library.rb <name> unsupported_media   # JSON: entries whose extension no editor imports natively
+ruby lib/buttercut/library.rb <name> verify_media        # JSON: do the source files still resolve? On missing/phantom, read skills/cut/missing_footage.md
 ruby lib/buttercut/library.rb <name> ready        # exit 0 if every clip is ready for a cut, 1 if not
 ruby lib/buttercut/library.rb update_checked      # record that you just checked for a newer ButterCut
 ruby lib/buttercut/library.rb edition             # print which ButterCut edition this is (core or pro)
@@ -111,6 +112,20 @@ source footage on disk.
 library whose config was never filled in. `editor` is validated against
 `fcpx|premiere|resolve` and `transcript_refinement` is coerced to a real
 boolean.
+
+### Verify and relink source paths
+
+```bash
+ruby lib/buttercut/library.rb <name> verify_media                       # JSON health report
+ruby lib/buttercut/library.rb <name> relink <old_prefix> <new_prefix>   # rewrite drifted paths (confirm first)
+```
+
+`verify_media` is read-only — it flags each media path `ok`/`missing`/`phantom`
+(a stale `/Volumes` path resolving to a leftover boot-disk folder, which a bare
+existence check misses) and suggests a prefix `relink` for the misses. `relink`
+rewrites a moved prefix — segment-boundary aware, all-or-nothing, never automatic:
+propose a suggestion, let the user confirm, then re-export. The JSON report shape
+and the phantom/suggestion rules live in the [`MediaVerifier`](media_verifier.rb) comment.
 
 ### Mark files done
 ```bash

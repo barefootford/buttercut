@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### ButterCut Pro & Core
 
+#### Added
+- **Exports now catch unplugged or renamed footage before an XML ships**, with new tools to help the agent reconnect moved footage.
+
 #### Fixed
 - **Final Cut Camera (iPhone) exports now import into Final Cut Pro cleanly.** The app records true 30/60fps media with drop-frame timecode; the exporter skipped the drop-frame correction for those files, so Final Cut rejected every clip ("Invalid edit with no respective media"). Thanks to @acreagetcg for the report and diagnosis.
 
