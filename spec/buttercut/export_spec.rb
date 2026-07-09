@@ -174,6 +174,37 @@ RSpec.describe Export do
     end
   end
 
+  describe 'media pre-flight' do
+    it 'exports cleanly when every source file is present' do
+      cut = { 'clips' => [{ 'source_file' => 'MVI_0309_720p.mov', 'in_point' => 0, 'out_point' => 1 }] }
+      within_export_sandbox(cut: cut, media: [clip_a]) do |cut_path, out|
+        expect { perform(cut_path, out) }.not_to raise_error
+        expect(File.exist?(out)).to be(true)
+      end
+    end
+
+    it 'fails fast (before ffprobe) when a single source file has moved' do
+      cut = { 'clips' => [{ 'source_file' => 'C2407.MP4', 'in_point' => 0, 'out_point' => 2 }] }
+      within_export_sandbox(cut: cut, media: ['/Volumes/ButterCut Spec Drive/CAC/C2407.MP4']) do |cut_path, out|
+        expect { perform(cut_path, out) }
+          .to raise_error(/1 of 1 source file isn't where the library expects/)
+        expect(File.exist?(out)).to be(false)
+      end
+    end
+
+    it 'groups several missing files under their shared volume and names verify_media' do
+      cut = { 'clips' => [
+        { 'source_file' => 'C2407.MP4', 'in_point' => 0, 'out_point' => 2 },
+        { 'source_file' => 'C2408.MP4', 'in_point' => 0, 'out_point' => 2 }
+      ] }
+      media = ['/Volumes/ButterCut Spec Drive/CAC/C2407.MP4', '/Volumes/ButterCut Spec Drive/CAC/C2408.MP4']
+      within_export_sandbox(cut: cut, media: media) do |cut_path, out|
+        expect { perform(cut_path, out) }
+          .to raise_error(/2 of 2 source files.*under \/Volumes\/ButterCut Spec Drive\/.*verify_media/m)
+      end
+    end
+  end
+
   describe 'editor targets' do
     let(:cut) do
       { 'clips' => [{ 'source_file' => 'MVI_0309_720p.mov', 'in_point' => 0, 'out_point' => 2 }] }

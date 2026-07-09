@@ -4,6 +4,8 @@
 require 'date'
 require 'yaml'
 require_relative '../buttercut'
+require_relative 'library'
+require_relative 'media_verifier'
 
 class Export
   EDITOR_LABELS = {
@@ -32,6 +34,7 @@ class Export
     media_paths = index_media_paths(library)
     clips       = build_clips(roughcut, media_paths)
 
+    ensure_cut_media_paths_live!(clips)
     write_xml(clips, @editor, roughcut['timeline'])
     validate_fcpxml(@output_path) if @editor == :fcpx
     @output_path
@@ -46,13 +49,25 @@ class Export
   end
 
   def load_library(roughcut_path)
-    match = roughcut_path.match(%r{libraries/([^/]+)/cuts})
-    raise "Could not extract library name from path: #{roughcut_path}" unless match
-
-    library_yaml = "libraries/#{match[1]}/library.yaml"
+    library_yaml = "libraries/#{library_name(roughcut_path)}/library.yaml"
     raise "Library file not found: #{library_yaml}" unless File.exist?(library_yaml)
 
     load_yaml(library_yaml)
+  end
+
+  def library_name(roughcut_path)
+    roughcut_path[%r{libraries/([^/]+)/cuts}, 1] ||
+      raise("Could not extract library name from path: #{roughcut_path}")
+  end
+
+  def ensure_cut_media_paths_live!(clips)
+    paths = clips.map { |clip| clip[:path] }.uniq
+    verifier = MediaVerifier.new(paths)
+    return if verifier.ok?
+
+    raise "#{verifier.problem_summary(total: paths.size)} " \
+          "Run `ruby lib/buttercut/library.rb #{library_name(@roughcut_path)} verify_media` to see the files, " \
+          'then read skills/cut/missing_footage.md and follow it.'
   end
 
   def index_media_paths(library)
