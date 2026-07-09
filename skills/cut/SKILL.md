@@ -38,7 +38,7 @@ Options:
 The roughcut path runs a deeper flow because the agent needs to explore the library broadly, read many summaries, generate fresh contact sheets, and shape a narrative across many clips. The other four paths the main thread handles directly with the user.
 
 ## 3. Build the Cut (produces YAML)
-Both paths produce a YAML at `libraries/[library-name]/cuts/[slug]_[YYYYMMDD_HHMMSS].yaml`. The export in step 5 is the same regardless of which path you take.
+Both paths produce a YAML at `libraries/[library-name]/cuts/[slug]_[YYYYMMDD_HHMMSS].yaml`.
 
 ### What a cut can express
 A quick menu for shaping the cut with the user. Full field list and formats: `skills/cut/cut_yaml_schema.md`.
@@ -56,14 +56,23 @@ Read `skills/cut/roughcut_path.md` and follow it.
 ### Scene / Selects / Custom / Script path
 Read `skills/cut/direct_path.md` and follow it.
 
-## 4. Determine the Editing Application
+## 4. Verify the footage is reachable
+The export reads every source file the cut references, so before exporting confirm the footage is actually live — a drive can be unplugged or renamed since the library was built:
+```bash
+ruby lib/buttercut/library.rb <name> verify_media
+```
+Every clip `ok`? Continue. If any come back `missing` or `phantom`, don't export — read `skills/cut/missing_footage.md` and follow it to reconnect the footage first.
+
+Planning and building a cut don't need the drive plugged in — only the export does. So this check lives here, right before export, not at the start: the user can play with cuts on an unplugged drive and only reconnect when they're ready to hand a timeline to their editor.
+
+## 5. Determine the Editing Application
 Now that the cut YAML exists, resolve one editor value for the export:
 1. If `library.yaml` has `editor` set, use it.
 2. Otherwise fall back to `libraries/settings.yaml`'s `editor` and write the value back to `library.yaml`.
 3. If neither has one, ask the user (Final Cut Pro X / Adobe Premiere Pro / DaVinci Resolve), then save the choice to both `library.yaml` and `libraries/settings.yaml`.
 
-## 5. Export the YAML
-Run the export with the editor resolved in step 4 and the YAML produced in step 3:
+## 6. Export the Cut
+Run the export with the editor resolved in step 5 and the YAML produced in step 3:
 
 ```bash
 # Final Cut Pro X
@@ -76,7 +85,7 @@ ruby lib/buttercut/export.rb --editor premiere libraries/[library-name]/cuts/[sl
 ruby lib/buttercut/export.rb --editor resolve libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp].xml
 ```
 
-## 6. Copy XML to Desktop (if enabled)
+## 7. Copy File to Desktop (if enabled)
 Check `libraries/settings.yaml` for `save_to_desktop_after_export`:
 1. If the key is `true`, copy the exported XML to `~/Desktop/` so it's easy to grab and import into the editor.
 2. If the key is `false`, skip this step.
@@ -88,10 +97,10 @@ cp [library xml path] ~/Desktop/
 
 The library copy stays as the canonical artifact; the desktop copy is a convenience drop.
 
-## 7. Backup the Library
+## 8. Backup Library
 Run the `backup-library` skill. This snapshots the entire library directory so progress can be restored if needed.
 
-## 8. Report Results
+## 9. Report Results
 Surface the path to the XML — the library path, or the desktop path if that's enabled. For roughcuts, also include very abbreviated editorial notes from the sub-agent's return message; small fixes you can do directly in the YAML and re-export without another sub-agent. **Do not include the YAML path** — it's an internal build artifact, not something the user opens.
 
 Include the one-line import instruction for the editor used:
@@ -100,7 +109,7 @@ Include the one-line import instruction for the editor used:
 - **Adobe Premiere Pro:** Open the cut in Premiere with File → Import, then select the XML file
 - **DaVinci Resolve:** Open the cut in Resolve with File → Import → Timeline, then select the XML file
 
-## 9. Open in Editor (if enabled)
+## 10. Open in Editor (if enabled)
 Check `libraries/settings.yaml` for `open_in_editor_after_export`:
 1. If the key is `true`, open the exported file directly in the user's editor.
 2. If the key is `false`, skip this step.
@@ -121,7 +130,7 @@ open -a "DaVinci Resolve" [xml path]
 
 If this is enabled, tell them "I've opened the file for you in __application_name__. Let me know if I can help with anything else."
 
-Use the desktop copy path if step 6 placed one there; otherwise use the library path.
+Use the desktop copy path if step 7 placed one there; otherwise use the library path.
 
 
 ## Guidelines
