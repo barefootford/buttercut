@@ -94,8 +94,18 @@ actual = {
       # file-relative even when the media carries an embedded start timecode;
       # source_start_frame is kept as the fallback for older Resolve APIs.
       source_in = item['left_offset'] || item['source_start_frame']
+      # GetSourceStartFrame/GetSourceEndFrame are converted through the media's
+      # embedded start timecode, and each endpoint independently picks up a ±1
+      # rounding (observed on qa_filmF, tc 21:44:10:09: spans of 192 for a
+      # 192-frame clip but 121 for a 120-frame one). left_offset and the record
+      # range never go through that conversion, so the out-point derives from
+      # them when the raw span agrees to within the jitter; a bigger
+      # disagreement (a real retime/conform) is passed through for the
+      # comparator to fail.
+      raw_span    = item['source_end_frame'].to_i - item['source_start_frame'].to_i
+      record_span = clip['record_out'] - clip['record_in']
       clip['source_in']  = source_in
-      clip['source_out'] = source_in + (item['source_end_frame'].to_i - item['source_start_frame'].to_i)
+      clip['source_out'] = source_in + ((raw_span - record_span).abs <= 1 ? record_span : raw_span)
     end
     clip
     # mute is not observable through Resolve's API — compare_timeline reports it as skipped

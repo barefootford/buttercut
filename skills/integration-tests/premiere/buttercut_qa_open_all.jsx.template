@@ -1,0 +1,98 @@
+// ButterCut QA Open All (Premiere) — ExtendScript, executed at app launch via:
+//   ".../Adobe Premiere Pro 2026" /C es.processFile <this file>
+//
+// Tier-2 variant of qa/scripts/premiere/buttercut_qa_dump.jsx.template: builds
+// one scratch project, imports EVERY scenario XML into it, opens each imported
+// sequence as a timeline tab, saves, and leaves Premiere RUNNING so an agent
+// (or human) can park the playhead and eyeball the timelines against
+// expected_visuals.md. Because the project is saved here, quitting Premiere
+// afterwards is dialog-free.
+//
+// premiere_open_all.rb copies this template to /tmp with the placeholders
+// filled in, launches Premiere with it, and polls for the report file.
+
+var XML_PATHS = __XML_PATHS__;
+var REPORT_PATH = "__REPORT_PATH__";
+var PROJECT_PATH = "__PROJECT_PATH__";
+
+function esc(s) {
+  s = String(s);
+  var out = "";
+  for (var i = 0; i < s.length; i++) {
+    var c = s.charAt(i);
+    var code = s.charCodeAt(i);
+    if (c === '"') out += '\\"';
+    else if (c === "\\") out += "\\\\";
+    else if (c === "\n") out += "\\n";
+    else if (c === "\r") out += "\\r";
+    else if (c === "\t") out += "\\t";
+    else if (code < 32) out += "\\u" + ("000" + code.toString(16)).slice(-4);
+    else out += c;
+  }
+  return out;
+}
+
+function toJson(v) {
+  if (v === null || v === undefined) return "null";
+  var t = typeof v;
+  if (t === "number") return isFinite(v) ? String(v) : "null";
+  if (t === "boolean") return String(v);
+  if (t === "string") return '"' + esc(v) + '"';
+  if (v instanceof Array) {
+    var parts = [];
+    for (var i = 0; i < v.length; i++) parts.push(toJson(v[i]));
+    return "[" + parts.join(",") + "]";
+  }
+  var kv = [];
+  for (var k in v) if (v.hasOwnProperty(k)) kv.push('"' + esc(k) + '":' + toJson(v[k]));
+  return "{" + kv.join(",") + "}";
+}
+
+var report = { ok: false, stage: "start", script: "buttercut_qa_open_all.jsx" };
+
+// temp file + rename so the Ruby poller never reads a half-written report
+function save() {
+  var f = new File(REPORT_PATH + ".tmp");
+  f.encoding = "UTF-8";
+  f.open("w");
+  f.write(toJson(report));
+  f.close();
+  f.rename(new File(REPORT_PATH).name);
+}
+
+try {
+  report.app_version = app.version;
+
+  if (!app.project || !app.project.rootItem) {
+    report.stage = "newProject";
+    app.enableQE();
+    qe.newProject(PROJECT_PATH);
+  }
+  report.project_name = app.project.name;
+
+  report.stage = "import";
+  report.imported = [];
+  for (var i = 0; i < XML_PATHS.length; i++) {
+    var ok = app.project.importFiles([XML_PATHS[i]], 1, app.project.rootItem, 0);
+    report.imported.push({ xml: XML_PATHS[i], returned: ok ? true : false });
+  }
+
+  report.stage = "openSequences";
+  report.sequences = [];
+  for (var s = 0; s < app.project.sequences.numSequences; s++) {
+    var seq = app.project.sequences[s];
+    app.project.openSequence(seq.sequenceID);
+    report.sequences.push(seq.name);
+  }
+
+  report.stage = "save";
+  app.project.save();
+
+  report.ok = true;
+  report.stage = "done";
+} catch (err) {
+  report.error = String(err);
+}
+
+save();
+// Deliberately NO closeDocument/quit — the whole point is to stay open.

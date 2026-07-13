@@ -36,3 +36,7 @@
 !buttercut/**
 !bc/
 !bc/**
+
+# Developer-only (companion to qa/ — never triggered in video-editor sessions).
+!integration-tests/
+!integration-tests/**
