@@ -223,6 +223,17 @@ RSpec.describe ButterCut::FCP7 do
         expect(pal_file_rate.at_xpath('ntsc').text).to eq('FALSE')
       end
 
+      it 'declares each clipitem rate so in/out are read in the source timebase' do
+        # Without a clipitem-level <rate>, an importer inherits the sequence
+        # rate (29.97 here) and misreads the PAL clip's in/out — Premiere does
+        # exactly this, shifting every trim on a rate-mismatched clip.
+        %w[clipitem-video-2 clipitem-audio-2].each do |id|
+          rate = doc.at_xpath("//clipitem[@id='#{id}']/rate")
+          expect(rate.at_xpath('timebase').text).to eq('25')
+          expect(rate.at_xpath('ntsc').text).to eq('FALSE')
+        end
+      end
+
       it 'trims in source frames but places on the timeline in sequence frames' do
         # The 2.0s PAL clip is 50 source frames (25 fps) but occupies 60
         # timeline frames (29.97): in/out count the file, start/end the sequence.

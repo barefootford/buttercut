@@ -188,12 +188,16 @@ class ButterCut
 
       xml.clipitem(id: payload[:video_clip_id]) do
         xml.name asset[:basename]
-        xml.enabled 'TRUE'
+        xml.enabled xmeml_enabled(payload[:clip][:video_enabled])
         xml.duration payload[:timeline_duration]
         xml.start payload[:timeline_start]
         xml.end_ payload[:timeline_end]
         xml.in_ payload[:source_in]
         xml.out payload[:source_out]
+        # The clipitem's own rate: in/out are frame counts in the SOURCE's
+        # timebase. Without it an importer falls back to the sequence rate
+        # and misreads every trim on a rate-mismatched clip (Premiere does).
+        emit_clipitem_rate(xml, payload)
         # Documented still marker: "Photoshop PSD files, jpeg files, tiff
         # files, or other still images imported into Final Cut have
         # stillframe set to TRUE."
@@ -264,12 +268,13 @@ class ButterCut
 
       xml.clipitem(id: payload[:audio_clip_id]) do
         xml.name asset[:basename]
-        xml.enabled 'TRUE'
+        xml.enabled xmeml_enabled(payload[:clip][:audio_enabled])
         xml.duration payload[:timeline_duration]
         xml.start payload[:timeline_start]
         xml.end_ payload[:timeline_end]
         xml.in_ payload[:source_in]
         xml.out payload[:source_out]
+        emit_clipitem_rate(xml, payload)
         xml.file(id: payload[:file_id]) do
           xml.name asset[:filename]
           xml.pathurl asset[:file_url]
@@ -297,6 +302,20 @@ class ButterCut
         xml.channelcount 2
         build_link_entries(xml, payload)
       end
+    end
+
+    def emit_clipitem_rate(xml, payload)
+      xml.rate do
+        xml.timebase payload[:asset_timebase]
+        xml.ntsc payload[:asset_ntsc]
+      end
+    end
+
+    # A clipitem plays unless the timeline clip explicitly disables that
+    # component (nil — the usual case — means enabled). Stacked alternate
+    # takes use this to sit on the timeline without rendering.
+    def xmeml_enabled(flag)
+      flag == false ? 'FALSE' : 'TRUE'
     end
 
     # Emit an Audio Levels filter when a clip needs a non-unity level. A clip
