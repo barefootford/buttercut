@@ -69,14 +69,12 @@ class Export
           'then read skills/cut/missing_footage.md and follow it.'
   end
 
-  # The source files one clip def needs on disk — just its own here. An
-  # edition seam like EditorBase#asset_sources: a variant whose clips fan
-  # out to several source files overrides it.
+  # The source files one clip def needs on disk — an edition seam like
+  # EditorBase#asset_sources: a variant whose clips fan out overrides it.
   def clip_source_paths(clip) = [clip[:path]]
 
-  # Editors whose output is FCPXML, and so DTD-validatable — Final Cut only
-  # here. An edition seam: a variant that routes another editor through the
-  # FCPX generator widens it.
+  # The editors whose output is FCPXML and so DTD-validated — an edition
+  # seam: a variant routing another editor through FCPX widens it.
   def fcpxml_editor? = @editor == :fcpx
 
   def index_media_paths(library)
@@ -91,7 +89,7 @@ class Export
   end
 
   # One cut-YAML clip entry → a generator clip def; nil (after a warning)
-  # drops the entry. The single-track core reads source/in/out/duration/mute.
+  # drops the entry.
   def build_standard_clip(clip, media_paths)
     source = clip['source_file']
     path   = media_paths[source]
@@ -124,8 +122,7 @@ class Export
     end
   end
 
-  # Accepts HH:MM:SS or HH:MM:SS.s (also bare numeric seconds, e.g. an
-  # image clip's `duration: 5`).
+  # Accepts HH:MM:SS(.s) or bare numeric seconds.
   def timecode_to_seconds(timecode)
     return timecode.to_f if timecode.is_a?(Numeric)
 
