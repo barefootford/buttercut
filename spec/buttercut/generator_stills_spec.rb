@@ -182,8 +182,12 @@ RSpec.describe 'Generator still handling' do
     it_behaves_like 'an xmeml still generator'
   end
 
-  describe ButterCut::Resolve do
-    it_behaves_like 'an xmeml still generator'
+  # Core only: Pro's Resolve rides the FCPX generator (FCPXML — see
+  # resolve_pro.rb), so it stops being an xmeml generator there.
+  if ButterCut.core?
+    describe ButterCut::Resolve do
+      it_behaves_like 'an xmeml still generator'
+    end
   end
 
   describe ButterCut::Premiere do

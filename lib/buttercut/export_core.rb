@@ -29,14 +29,13 @@ class Export
   end
 
   def perform
-    roughcut    = load_yaml(@roughcut_path)
-    library     = load_library(@roughcut_path)
-    media_paths = index_media_paths(library)
-    clips       = build_clips(roughcut, media_paths)
+    roughcut = load_yaml(@roughcut_path)
+    library  = load_library(@roughcut_path)
+    clips    = build_clips(roughcut, library)
 
     ensure_cut_media_paths_live!(clips)
     write_xml(clips, @editor, roughcut['timeline'])
-    validate_fcpxml(@output_path) if @editor == :fcpx
+    validate_fcpxml(@output_path) if fcpxml_editor?
     @output_path
   end
 
@@ -61,7 +60,7 @@ class Export
   end
 
   def ensure_cut_media_paths_live!(clips)
-    paths = clips.map { |clip| clip[:path] }.uniq
+    paths = clips.flat_map { |clip| clip_source_paths(clip) }.uniq
     verifier = MediaVerifier.new(paths)
     return if verifier.ok?
 
@@ -70,43 +69,58 @@ class Export
           'then read skills/cut/missing_footage.md and follow it.'
   end
 
+  # The source files one clip def needs on disk — just its own here. An
+  # edition seam like EditorBase#asset_sources: a variant whose clips fan
+  # out to several source files overrides it.
+  def clip_source_paths(clip) = [clip[:path]]
+
+  # Editors whose output is FCPXML, and so DTD-validatable — Final Cut only
+  # here. An edition seam: a variant that routes another editor through the
+  # FCPX generator widens it.
+  def fcpxml_editor? = @editor == :fcpx
+
   def index_media_paths(library)
     library['media'].each_with_object({}) do |media, map|
       map[File.basename(media['path'])] = media['path']
     end
   end
 
-  def build_clips(roughcut, media_paths)
-    roughcut['clips'].filter_map do |clip|
-      source = clip['source_file']
-      path   = media_paths[source]
+  def build_clips(roughcut, library)
+    media_paths = index_media_paths(library)
+    roughcut['clips'].filter_map { |clip| build_standard_clip(clip, media_paths) }
+  end
 
-      unless path
-        warn "Warning: Source file not found in library data: #{source}"
-        next
-      end
+  # One cut-YAML clip entry → a generator clip def; nil (after a warning)
+  # drops the entry. The single-track core reads source/in/out/duration/mute.
+  def build_standard_clip(clip, media_paths)
+    source = clip['source_file']
+    path   = media_paths[source]
 
-      type = Library.media_type_of(path)
-      if type.nil?
-        warn "Warning: #{source} is outside the supported formats — the editor may import it as missing media. " \
-             'See "Supported media formats" in AGENTS.md.'
-        type = 'video'
-      end
+    unless path
+      warn "Warning: Source file not found in library data: #{source}"
+      return nil
+    end
 
-      if type == 'image'
-        raise "Image clip '#{source}' is missing a required 'duration:' field." unless clip['duration']
+    type = Library.media_type_of(path)
+    if type.nil?
+      warn "Warning: #{source} is outside the supported formats — the editor may import it as missing media. " \
+           'See "Supported media formats" in AGENTS.md.'
+      type = 'video'
+    end
 
-        duration = timecode_to_seconds(clip['duration'])
-        { path: path, type: :image, duration: duration.to_f }
-      else
-        start_at = timecode_to_seconds(clip['in_point'])
-        duration = timecode_to_seconds(clip['out_point']) - start_at
+    if type == 'image'
+      raise "Image clip '#{source}' is missing a required 'duration:' field." unless clip['duration']
 
-        result = { path: path, type: :video, start_at: start_at.to_f, duration: duration.to_f }
-        # Silence this clip's audio entirely instead of playing it.
-        result[:mute] = true if clip['mute']
-        result
-      end
+      duration = timecode_to_seconds(clip['duration'])
+      { path: path, type: :image, duration: duration.to_f }
+    else
+      start_at = timecode_to_seconds(clip['in_point'])
+      duration = timecode_to_seconds(clip['out_point']) - start_at
+
+      result = { path: path, type: :video, start_at: start_at.to_f, duration: duration.to_f }
+      # Silence this clip's audio entirely instead of playing it.
+      result[:mute] = true if clip['mute']
+      result
     end
   end
 
