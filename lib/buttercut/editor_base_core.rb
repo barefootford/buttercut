@@ -472,35 +472,42 @@ class ButterCut
     def build_timeline_clips(asset_map, timeline_frame_duration)
       current_offset = initial_offset
       clips = @clips.map do |clip_def|
-        abs_path = get_absolute_path(clip_def[:path])
-        asset_info = asset_map.fetch(abs_path)
-        asset_frame_duration = asset_info[:frame_duration] || timeline_frame_duration
-
-        start_at_raw = clip_def[:start_at] || DEFAULT_START_TIME
-        start_at = round_to_frame_boundary(start_at_raw, asset_frame_duration)
-
-        base_timecode = asset_info[:timecode] || "0s"
-        clip_start = add_fractions(base_timecode, start_at)
-
-        duration_info = compute_clip_duration(clip_def, asset_info, start_at, asset_frame_duration, timeline_frame_duration)
-
-        clip_data = {
-          asset: asset_info,
-          asset_id: asset_info[:asset_id],
-          filename: asset_info[:filename],
-          start: clip_start,
-          duration: duration_info[:timeline],
-          source_duration: duration_info[:asset],
-          timeline_offset: current_offset,
-          source_in: start_at,
-          clip_definition: clip_def
-        }
-
+        clip_data = build_standard_clip_data(clip_def, asset_map, current_offset, timeline_frame_duration)
         current_offset = add_fractions(current_offset, clip_data[:duration])
         clip_data
       end
 
       [clips, current_offset]
+    end
+
+    # Placement for one ordinary clip: its trim mapped into the source
+    # (anchored to the source's own timecode) and its landing spot on the
+    # timeline. Shared so every edition's build_timeline_clips agrees on the
+    # source-anchoring math.
+    def build_standard_clip_data(clip_def, asset_map, current_offset, timeline_frame_duration)
+      abs_path = get_absolute_path(clip_def[:path])
+      asset_info = asset_map.fetch(abs_path)
+      asset_frame_duration = asset_info[:frame_duration] || timeline_frame_duration
+
+      start_at_raw = clip_def[:start_at] || DEFAULT_START_TIME
+      start_at = round_to_frame_boundary(start_at_raw, asset_frame_duration)
+
+      base_timecode = asset_info[:timecode] || "0s"
+      clip_start = add_fractions(base_timecode, start_at)
+
+      duration_info = compute_clip_duration(clip_def, asset_info, start_at, asset_frame_duration, timeline_frame_duration)
+
+      {
+        asset: asset_info,
+        asset_id: asset_info[:asset_id],
+        filename: asset_info[:filename],
+        start: clip_start,
+        duration: duration_info[:timeline],
+        source_duration: duration_info[:asset],
+        timeline_offset: current_offset,
+        source_in: start_at,
+        clip_definition: clip_def
+      }
     end
 
     def fraction_to_rational(value)
