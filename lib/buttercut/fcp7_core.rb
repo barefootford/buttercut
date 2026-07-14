@@ -188,7 +188,7 @@ class ButterCut
 
       xml.clipitem(id: payload[:video_clip_id]) do
         xml.name asset[:basename]
-        xml.enabled xmeml_enabled(payload[:clip][:video_enabled])
+        xml.enabled xmeml_enabled(payload.dig(:clip, :clip_definition, :video_enabled))
         xml.duration payload[:timeline_duration]
         xml.start payload[:timeline_start]
         xml.end_ payload[:timeline_end]
@@ -268,7 +268,7 @@ class ButterCut
 
       xml.clipitem(id: payload[:audio_clip_id]) do
         xml.name asset[:basename]
-        xml.enabled xmeml_enabled(payload[:clip][:audio_enabled])
+        xml.enabled xmeml_enabled(payload.dig(:clip, :clip_definition, :audio_enabled))
         xml.duration payload[:timeline_duration]
         xml.start payload[:timeline_start]
         xml.end_ payload[:timeline_end]

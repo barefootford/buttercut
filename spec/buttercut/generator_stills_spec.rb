@@ -182,9 +182,10 @@ RSpec.describe 'Generator still handling' do
     it_behaves_like 'an xmeml still generator'
   end
 
-  # Core only: Pro's Resolve rides the FCPX generator (FCPXML — see
-  # resolve_pro.rb), so it stops being an xmeml generator there.
-  if ButterCut.core?
+  # Gated on ancestry, not edition: Resolve stays an xmeml generator until an
+  # edition variant actually reroutes it (Pro's planned resolve_pro rides the
+  # FCPX generator instead), and keeps this coverage exactly that long.
+  if ButterCut::Resolve <= ButterCut::FCP7
     describe ButterCut::Resolve do
       it_behaves_like 'an xmeml still generator'
     end

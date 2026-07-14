@@ -114,6 +114,35 @@ RSpec.describe ButterCut::FCP7 do
 
       expect(clipitem).not_to include('audiolevels')
     end
+
+    # video_enabled/audio_enabled let a stacked alternate take sit on the
+    # timeline without rendering — each flag disables only its own clipitem.
+    it 'disables only the video clipitem for a clip with video_enabled: false' do
+      xml = described_class.new([{ path: clip_a_path, video_enabled: false }]).to_xml
+      video = xml[/<clipitem id="clipitem-video-1">.*?<\/clipitem>/m]
+      audio = xml[/<clipitem id="clipitem-audio-1">.*?<\/clipitem>/m]
+
+      expect(video).to include('<enabled>FALSE</enabled>')
+      expect(audio).to include('<enabled>TRUE</enabled>')
+    end
+
+    it 'disables only the audio clipitem for a clip with audio_enabled: false' do
+      xml = described_class.new([{ path: clip_a_path, audio_enabled: false }]).to_xml
+      video = xml[/<clipitem id="clipitem-video-1">.*?<\/clipitem>/m]
+      audio = xml[/<clipitem id="clipitem-audio-1">.*?<\/clipitem>/m]
+
+      expect(video).to include('<enabled>TRUE</enabled>')
+      expect(audio).to include('<enabled>FALSE</enabled>')
+    end
+
+    it 'writes both clipitems enabled when neither flag is given' do
+      xml = described_class.new([{ path: clip_a_path }]).to_xml
+      video = xml[/<clipitem id="clipitem-video-1">.*?<\/clipitem>/m]
+      audio = xml[/<clipitem id="clipitem-audio-1">.*?<\/clipitem>/m]
+
+      expect(video).to include('<enabled>TRUE</enabled>')
+      expect(audio).to include('<enabled>TRUE</enabled>')
+    end
   end
 
   # NTSC fractional rates (29.97/23.976) are what most real camera footage
