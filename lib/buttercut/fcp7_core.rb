@@ -162,8 +162,14 @@ class ButterCut
         )
       else
         asset_rate_num, asset_rate_denom = asset[:frame_rate].split('/').map(&:to_i)
-        source_in_frames = frames_for_fraction(clip[:source_in], asset[:frame_duration])
-        source_duration_frames = frames_for_fraction(clip[:source_duration], asset[:frame_duration])
+        # Clipitem <in>/<out> count on the SEQUENCE's frame grid, not the
+        # source's: Premiere and Resolve both decode them as source seconds ×
+        # sequence rate, whatever the clipitem/file rate declarations say
+        # (verified frame-by-frame in both editors with a 25 fps source in a
+        # 30 fps timeline). Identical numbers when the rates match; only the
+        # file-level <duration> and <timecode> stay in media-native frames.
+        source_in_frames = frames_for_fraction(clip[:source_in], timeline_frame_duration)
+        source_duration_frames = frames_for_fraction(clip[:source_duration], timeline_frame_duration)
 
         payload.merge!(
           audio_clip_id: "clipitem-audio-#{id_index}",
@@ -194,9 +200,10 @@ class ButterCut
         xml.end_ payload[:timeline_end]
         xml.in_ payload[:source_in]
         xml.out payload[:source_out]
-        # The clipitem's own rate: in/out are frame counts in the SOURCE's
-        # timebase. Without it an importer falls back to the sequence rate
-        # and misreads every trim on a rate-mismatched clip (Premiere does).
+        # The clipitem's own rate declares the source's native timebase (the
+        # conform metadata). It does NOT change how in/out are read — both
+        # Premiere and Resolve count them on the sequence grid regardless,
+        # which is why build_clip_payload writes them in sequence frames.
         emit_clipitem_rate(xml, payload)
         # Documented still marker: "Photoshop PSD files, jpeg files, tiff
         # files, or other still images imported into Final Cut have
