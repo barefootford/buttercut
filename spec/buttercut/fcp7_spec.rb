@@ -252,10 +252,7 @@ RSpec.describe ButterCut::FCP7 do
         expect(pal_file_rate.at_xpath('ntsc').text).to eq('FALSE')
       end
 
-      it 'declares each clipitem rate so in/out are read in the source timebase' do
-        # Without a clipitem-level <rate>, an importer inherits the sequence
-        # rate (29.97 here) and misreads the PAL clip's in/out — Premiere does
-        # exactly this, shifting every trim on a rate-mismatched clip.
+      it 'declares each clipitem rate as the source timebase (conform metadata)' do
         %w[clipitem-video-2 clipitem-audio-2].each do |id|
           rate = doc.at_xpath("//clipitem[@id='#{id}']/rate")
           expect(rate.at_xpath('timebase').text).to eq('25')
@@ -263,14 +260,19 @@ RSpec.describe ButterCut::FCP7 do
         end
       end
 
-      it 'trims in source frames but places on the timeline in sequence frames' do
-        # The 2.0s PAL clip is 50 source frames (25 fps) but occupies 60
-        # timeline frames (29.97): in/out count the file, start/end the sequence.
+      it 'writes in/out on the sequence frame grid, like start/end' do
+        # Premiere and Resolve decode clipitem in/out as source seconds ×
+        # SEQUENCE rate regardless of the declared clipitem/file rate —
+        # verified frame-by-frame in both editors (editor round-trip QA,
+        # mixed-rate-pal25). The 2.0s PAL clip therefore spans 60 grid units
+        # (29.97), not its 50 native frames; only the file-level <duration>
+        # and <timecode> stay in media frames.
         pal_clip = doc.at_xpath('//clipitem[@id="clipitem-video-2"]')
         expect(pal_clip.at_xpath('in').text).to eq('0')
-        expect(pal_clip.at_xpath('out').text).to eq('50')
+        expect(pal_clip.at_xpath('out').text).to eq('60')
         expect(pal_clip.at_xpath('start').text).to eq('120')
         expect(pal_clip.at_xpath('end').text).to eq('180')
+        expect(pal_clip.at_xpath('file/duration').text).to eq('50')
 
         expect(doc.at_xpath('/xmeml/sequence/duration').text).to eq('180')
       end
