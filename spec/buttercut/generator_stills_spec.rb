@@ -82,7 +82,7 @@ RSpec.describe 'Generator still handling' do
     end
   end
 
-  describe ButterCut::FCPX do
+  shared_examples 'an fcpxml still generator' do
     it 'emits one rate-undefined format per unique still dimension, with no frameDuration' do
       xml = described_class.new(image_only_clips, timeline: timeline_block).to_xml
       # 1920x1080 and 1080x1080 → two distinct still formats.
@@ -135,6 +135,14 @@ RSpec.describe 'Generator still handling' do
     end
   end
 
+  describe ButterCut::FCPX do
+    it_behaves_like 'an fcpxml still generator'
+  end
+
+  describe ButterCut::Resolve do
+    it_behaves_like 'an fcpxml still generator'
+  end
+
   shared_examples 'an xmeml still generator' do
     it 'marks the still clipitem with <stillframe>TRUE</stillframe>' do
       xml = described_class.new(image_only_clips, timeline: timeline_block).to_xml
@@ -180,15 +188,6 @@ RSpec.describe 'Generator still handling' do
 
   describe ButterCut::FCP7 do
     it_behaves_like 'an xmeml still generator'
-  end
-
-  # Gated on ancestry, not edition: Resolve stays an xmeml generator until an
-  # edition variant actually reroutes it (Pro's planned resolve_pro rides the
-  # FCPX generator instead), and keeps this coverage exactly that long.
-  if ButterCut::Resolve <= ButterCut::FCP7
-    describe ButterCut::Resolve do
-      it_behaves_like 'an xmeml still generator'
-    end
   end
 
   describe ButterCut::Premiere do

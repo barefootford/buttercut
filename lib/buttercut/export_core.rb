@@ -10,7 +10,8 @@ require_relative 'media_verifier'
 class Export
   EDITOR_LABELS = {
     fcpx: 'Final Cut Pro X',
-    resolve: 'DaVinci Resolve (FCP7 XML)',
+    resolve: 'DaVinci Resolve (FCPXML)',
+    resolve_legacy: 'DaVinci Resolve (legacy FCP7 XML fallback)',
     premiere: 'Adobe Premiere Pro (FCP7 XML + rotation)'
   }.freeze
 
@@ -73,9 +74,8 @@ class Export
   # EditorBase#asset_sources: a variant whose clips fan out overrides it.
   def clip_source_paths(clip) = [clip[:path]]
 
-  # The editors whose output is FCPXML and so DTD-validated — an edition
-  # seam: a variant routing another editor through FCPX widens it.
-  def fcpxml_editor? = @editor == :fcpx
+  # The editors whose output is FCPXML and so DTD-validated.
+  def fcpxml_editor? = %i[fcpx resolve].include?(@editor)
 
   def index_media_paths(library)
     library['media'].each_with_object({}) do |media, map|
@@ -136,7 +136,7 @@ class Export
     editor = input.downcase.to_sym
     return editor if EDITOR_LABELS.key?(editor)
 
-    raise ArgumentError, "Unknown editor '#{input}'. Use 'fcpx', 'premiere', or 'resolve'"
+    raise ArgumentError, "Unknown editor '#{input}'. Use 'fcpx', 'premiere', 'resolve', or 'resolve_legacy'"
   end
 
   def write_xml(clips, editor, timeline)
