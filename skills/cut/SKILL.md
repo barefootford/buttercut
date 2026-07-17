@@ -82,8 +82,16 @@ ruby lib/buttercut/export.rb --editor fcpx libraries/[library-name]/cuts/[slug]_
 ruby lib/buttercut/export.rb --editor premiere libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp].xml
 
 # DaVinci Resolve
-ruby lib/buttercut/export.rb --editor resolve libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp].xml
+ruby lib/buttercut/export.rb --editor resolve libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp]_resolve.fcpxml
 ```
+
+**DaVinci Resolve fallback (temporary).** `resolve` above is the default and what every new cut should use. If the editor tells you a previous Resolve export failed to import, offer to re-export with `--editor resolve_legacy` instead — it writes the older FCP7 XML format Resolve exports used before FCPXML, as a compatibility fallback:
+
+```bash
+ruby lib/buttercut/export.rb --editor resolve_legacy libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp]_resolve.xml
+```
+
+Don't offer this proactively or use it by default — only reach for it after the editor reports an import problem with the FCPXML export.
 
 ## 7. Copy File to Desktop (if enabled)
 Check `libraries/settings.yaml` for `save_to_desktop_after_export`:
@@ -107,7 +115,7 @@ Include the one-line import instruction for the editor used:
 
 - **Final Cut Pro X:** Open the cut in Final Cut Pro with File → Import → XML
 - **Adobe Premiere Pro:** Open the cut in Premiere with File → Import, then select the XML file
-- **DaVinci Resolve:** Open the cut in Resolve with File → Import → Timeline, then select the XML file
+- **DaVinci Resolve:** Open the cut in Resolve with File → Import → Timeline, then select the exported `.fcpxml` file (`.xml` if you used the `resolve_legacy` fallback)
 
 ## 10. Open in Editor (if enabled)
 Check `libraries/settings.yaml` for `open_in_editor_after_export`:

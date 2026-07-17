@@ -120,7 +120,7 @@ RSpec.describe Export do
         perform(cut_path, out)
         volume = parse(out).at_xpath('//spine/asset-clip/adjust-volume')
 
-        expect(volume['amount']).to eq('-96db')
+        expect(volume['amount']).to eq('-96')
       end
     end
 
@@ -210,13 +210,22 @@ RSpec.describe Export do
       { 'clips' => [{ 'source_file' => 'MVI_0309_720p.mov', 'in_point' => 0, 'out_point' => 2 }] }
     end
 
-    it 'writes xmeml version 5 for resolve' do
+    it 'writes FCPXML 1.12 for resolve' do
       within_export_sandbox(cut: cut, media: [clip_a]) do |cut_path, out|
         perform(cut_path, out, editor: 'resolve')
         doc = parse(out)
 
-        expect(doc.at_xpath('/xmeml')['version']).to eq('5')
-        expect(doc.xpath('//clipitem').length).to eq(2) # video + linked audio
+        expect(doc.at_xpath('/fcpxml')['version']).to eq('1.12')
+        expect(doc.xpath('//spine/asset-clip').length).to eq(1)
+      end
+    end
+
+    it 'writes xmeml for resolve_legacy, the temporary FCP7 fallback' do
+      within_export_sandbox(cut: cut, media: [clip_a]) do |cut_path, out|
+        perform(cut_path, out, editor: 'resolve_legacy')
+        xml = File.read(out)
+
+        expect(xml).to include('<xmeml version="5">')
       end
     end
 

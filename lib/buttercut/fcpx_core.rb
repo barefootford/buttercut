@@ -6,9 +6,9 @@ class ButterCut
   # readable by DaVinci Resolve 19.1.1+ as well as Final Cut.
   class FCPX < EditorBase
     FORMAT_ID = "r1".freeze
-    # adjust-volume amount that silences a clip outright (a muted clip).
-    # -96 dB is below the audible floor — effectively off.
-    MUTE_VOLUME_ADJUSTMENT = "-96db".freeze
+    # Resolve's FCPXML importer only parses bare '-96', silently drops '-96dB'
+    # Final Cut docs say we should include dB in string, but parses fine without
+    MUTE_VOLUME_ADJUSTMENT = "-96".freeze
 
     def to_xml
       raise ArgumentError, "No clips provided" if clips.empty?

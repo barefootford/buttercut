@@ -2,18 +2,22 @@ require_relative 'buttercut/distribution'
 require_relative 'buttercut/fcpx'
 require_relative 'buttercut/fcp7'
 require_relative 'buttercut/resolve'
+require_relative 'buttercut/resolve_legacy'
 require_relative 'buttercut/premiere'
 
 # ButterCut - Video editor XML generator
 #
 # Factory class that creates editor-specific generators based on the editor parameter.
 # Currently supports:
-#   - :fcpx - Final Cut Pro X (FCPXML 1.8 format)
-#   - :resolve - DaVinci Resolve (plain FCP7 / xmeml v5 interchange format)
+#   - :fcpx - Final Cut Pro X (FCPXML 1.12 format)
+#   - :resolve - DaVinci Resolve (FCPXML 1.12, riding the FCPX generator —
+#     see resolve_core.rb)
+#   - :resolve_legacy - DaVinci Resolve, FCP7 XML fallback — temporary, see
+#     resolve_legacy_core.rb
 #   - :premiere - FCP7 XML with explicit rotation for Adobe Premiere Pro
 #
-# FCP7 itself is the shared xmeml-v5 format base that Resolve and Premiere subclass;
-# it is not a public editor symbol.
+# FCP7 itself is the xmeml-v5 format base that Premiere and ResolveLegacy
+# subclass; it is not a public editor symbol.
 #
 # Example usage:
 #   clips = [
@@ -23,7 +27,7 @@ require_relative 'buttercut/premiere'
 #   generator = ButterCut.new(clips, editor: :fcpx)
 #   generator.save('output.fcpxml')
 class ButterCut
-  SUPPORTED_EDITORS = [:fcpx, :resolve, :premiere].freeze
+  SUPPORTED_EDITORS = [:fcpx, :resolve, :resolve_legacy, :premiere].freeze
 
   # `timeline:` is an optional explicit output format ({frame_rate:, width:,
   # height:}, any subset) — written by the cut skill into the cut YAML and
@@ -40,6 +44,8 @@ class ButterCut
       ButterCut::FCPX.new(clips, timeline: timeline)
     when :resolve
       ButterCut::Resolve.new(clips, timeline: timeline)
+    when :resolve_legacy
+      ButterCut::ResolveLegacy.new(clips, timeline: timeline)
     when :premiere
       ButterCut::Premiere.new(clips, timeline: timeline)
     else

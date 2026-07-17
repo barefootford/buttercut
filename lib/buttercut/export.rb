@@ -13,7 +13,7 @@ if __FILE__ == $PROGRAM_NAME
 
   parser = OptionParser.new do |opts|
     opts.banner = "Usage: #{$0} [options] <roughcut.yaml> <output.xml>"
-    opts.on('-e', '--editor EDITOR', 'fcpx (default), premiere, or resolve') { |v| options[:editor] = v }
+    opts.on('-e', '--editor EDITOR', 'fcpx (default), premiere, resolve, or resolve_legacy (temporary FCP7 fallback)') { |v| options[:editor] = v }
     opts.on('-h', '--help', 'Show usage') { puts opts; exit }
   end
   parser.parse!

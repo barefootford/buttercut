@@ -16,7 +16,9 @@ class ButterCut
 
     DEFAULT_START_TIME = "0s"
     DEFAULT_INITIAL_OFFSET = "0s"
-    DEFAULT_VOLUME_ADJUSTMENT = "-13.100000000000001db"
+    # The standard mix level every unmuted clip gets in FCPXML exports. A bare
+    # decibel number — see the volume note on FCPX::MUTE_VOLUME_ADJUSTMENT.
+    DEFAULT_VOLUME_ADJUSTMENT = "-13.1"
 
     attr_reader :clips, :initial_offset, :volume_adjustment
 
