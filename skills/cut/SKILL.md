@@ -69,7 +69,7 @@ Planning and building a cut don't need the drive plugged in — only the export 
 Now that the cut YAML exists, resolve one editor value for the export:
 1. If `library.yaml` has `editor` set, use it.
 2. Otherwise fall back to `libraries/settings.yaml`'s `editor` and write the value back to `library.yaml`.
-3. If neither has one, ask the user (Final Cut Pro X / Adobe Premiere Pro / DaVinci Resolve), then save the choice to both `library.yaml` and `libraries/settings.yaml`.
+3. If neither has one, ask the user (Final Cut Pro X / Adobe Premiere Pro / DaVinci Resolve), then save the choice to both `library.yaml` and `libraries/settings.yaml`. On Windows, offer only Premiere and Resolve — Final Cut is macOS-only.
 
 ## 6. Export the Cut
 Run the export with the editor resolved in step 5 and the YAML produced in step 3:
@@ -105,6 +105,8 @@ cp [library xml path] ~/Desktop/
 
 The library copy stays as the canonical artifact; the desktop copy is a convenience drop.
 
+(That command works in Git Bash on Windows too. If `~/Desktop` doesn't exist — OneDrive sometimes relocates it — find the real one with `powershell -NoProfile -Command "[Environment]::GetFolderPath('Desktop')"` and copy there.)
+
 ## 8. Backup Library
 Run the `backup-library` skill. This snapshots the entire library directory so progress can be restored if needed.
 
@@ -123,7 +125,7 @@ Check `libraries/settings.yaml` for `open_in_editor_after_export`:
 2. If the key is `false`, skip this step.
 3. If the key is missing, ask the user whether exports should be opened automatically, save their answer (`true`/`false`) to `libraries/settings.yaml`, then act on it.
 
-Use `open -a` with the correct application name so macOS doesn't fall back to a text editor or Xcode:
+**On macOS**, use `open -a` with the correct application name so macOS doesn't fall back to a text editor or Xcode:
 
 ```bash
 # Final Cut Pro X
@@ -137,6 +139,14 @@ open -a "DaVinci Resolve" [xml path]
 ```
 
 If this is enabled, tell them "I've opened the file for you in __application_name__. Let me know if I can help with anything else."
+
+**On Windows**, don't try to launch the editor with the XML — Premiere and Resolve *import* these files rather than open them, and the .xml file association would land in a browser or text editor. Reveal the file in Explorer instead and repeat the import instruction from step 9:
+
+```bash
+explorer /select,"$(cygpath -w "[xml path]")"
+```
+
+(Explorer often exits with code 1 even when it worked — don't treat that as a failure.) Then tell them "I've highlighted the exported file in Explorer — in __application_name__, use the import menu from above to bring it in."
 
 Use the desktop copy path if step 7 placed one there; otherwise use the library path.
 

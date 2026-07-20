@@ -97,9 +97,15 @@ Writes (`add_media`, `remove_media`, `complete`, `update_metadata`), destructive
 
 **Single-track timelines only.** ButterCut produces one sequential video track. Each clip's own audio plays during that clip — there is no second video track for cutaways layered over a continuing voiceover, and no separate audio track. When planning or pitching cuts, never propose "B-roll over VO," "story under meetup footage," picture-in-picture, or any structure that assumes a clip's audio continues while different visuals play on top. Cutaways are fine, but they're hard cuts: when you cut to the wide shot, you cut to that shot's audio too. Plan every cut as a strictly linear sequence of clips.
 
+## Platforms
+
+ButterCut runs on macOS (primary) and Windows 10/11 — on Windows through Claude Desktop (Cowork) or Claude Code with **Git for Windows** installed, which makes the working shell **Git Bash**. Write and run commands bash-first; they work on both platforms. When the OS matters, detect it: `uname -s` prints `Darwin` on macOS and `MINGW…`/`MSYS…` on Windows. Ruby-side decisions go through `lib/buttercut/platform.rb` (`Platform.windows?`, `Platform.mac?`) — never sniff `RUBY_PLATFORM` inline. Platform-specific workflow steps (editor choices, keep-awake, opening exports, setup) live in the skills that use them.
+
+Two Git Bash facts that apply everywhere: `~` and `/c/Users/...` paths work and are auto-converted for native tools — use `cygpath -w` when a Windows-native program needs a `C:\` path. And stock Windows has no `zip`/`unzip`/`rsync`/`ditto`; use `/c/Windows/System32/tar.exe` (bsdtar — reads *and writes* .zip) rather than bare `tar`, which is GNU tar in Git Bash and can't do zip.
+
 ## Key Reminders
 
-- After exporting an XML file, offer to open it directly in the user's editor with `open -a "Final Cut Pro"`, `open -a "Adobe Premiere Pro"`, or `open -a "DaVinci Resolve"` (matching the library's `editor` setting). Check `libraries/settings.yaml` for `open_in_editor_after_export` — if the key is missing, ask and save the preference. If `open -a` fails with "Unable to find application named ...", don't assume the editor is missing — the app may be installed under a slightly different name (e.g. a version suffix). Grep the installed apps for it (`ls /Applications | grep -i premiere`, or `mdfind "kMDItemKind == 'Application'" | grep -i resolve`) and retry `open -a` with the actual name before telling the user it isn't installed.
+- After exporting an XML file, offer to open it directly in the user's editor (matching the library's `editor` setting). Check `libraries/settings.yaml` for `open_in_editor_after_export` — if the key is missing, ask and save the preference. On macOS use `open -a "Final Cut Pro"`, `open -a "Adobe Premiere Pro"`, or `open -a "DaVinci Resolve"`; if `open -a` fails with "Unable to find application named ...", don't assume the editor is missing — the app may be installed under a slightly different name (e.g. a version suffix). Grep the installed apps for it (`ls /Applications | grep -i premiere`, or `mdfind "kMDItemKind == 'Application'" | grep -i resolve`) and retry `open -a` with the actual name before telling the user it isn't installed. On Windows, don't launch the editor at all — follow the Explorer-reveal step in the `cut` skill.
 - Never modify source video files - always preserve originals
 - Flag areas needing human judgment rather than making assumptions
 - When possible, use the existing Ruby files to get work done. Make scripts when the skill or step doesn't provide what you need.
@@ -141,7 +147,7 @@ bundle exec rspec
 ```
 
 ### Running scripts
-The project pins Ruby via `.mise.toml`; once mise is activated in the user shell (the default setup), plain `ruby` and `python` should resolve to it through mise shims. However, if the shell has been changed/shell didn't activate/user has a custom setting, read `.buttercut_env`. If this doesn't exist, attempt to find the dependencies in standard locations and then replace this file. You can look for information about setting up this file in simple-setup.md.
+On macOS the project pins Ruby via `.mise.toml`; once mise is activated in the user shell (the default setup), plain `ruby` and `python` should resolve to it through mise shims. On Windows, Ruby and Python come from RubyInstaller and python.org (installed by `windows-setup.md` via winget) and resolve from PATH. On either platform, if the shell has been changed/shell didn't activate/user has a custom setting, read `.buttercut_env` — it records the absolute invocations setup verified. If this doesn't exist, attempt to find the dependencies in standard locations and then replace this file. You can look for information about setting up this file in simple-setup.md (macOS) or windows-setup.md (Windows).
 
 ## Claude Skills
 
@@ -169,7 +175,7 @@ skills/user-my-skill/
 
 **Always write paths in skill prompts as `skills/<name>/...`, never `.claude/skills/<name>/...`.** Both resolve to the same files thanks to the symlink, but `skills/` is the canonical, agent-neutral form — non-Claude tools (Codex, etc.) read top-level `skills/` natively and may not look under `.claude/`. The only place `.claude/skills` should appear is in documentation about the symlink itself (like this section).
 
-**If skills aren't showing up in Claude Code:** check that `.claude/skills` is a symlink to `../skills` (`ls -la .claude/skills` should show `.claude/skills -> ../skills`). If it's a regular directory or missing entirely (common after the rsync path of `update-buttercut`), talk to the user and ask if they want you to repair it.
+**If skills aren't showing up in Claude Code:** check that `.claude/skills` is a symlink to `../skills` (`ls -la .claude/skills` should show `.claude/skills -> ../skills`). If it's a regular directory or missing entirely (common after the rsync path of `update-buttercut`), talk to the user and ask if they want you to repair it. **On Windows** a checkout made without symlink support (the git default there) turns `.claude/skills` and `.agents/skills` into small *text files* containing `../skills` — `test -d .claude/skills` failing is the tell. Repair via the link step in `skills/setup/windows-setup.md`.
 
 ### What's tracked vs. ignored
 

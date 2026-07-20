@@ -135,12 +135,12 @@ ruby lib/buttercut/library.rb <name> complete <field> <files...>
 Examples:
 ```bash
 ruby lib/buttercut/library.rb my-lib complete transcript DJI_0123.mov DJI_0124.mov
-ruby lib/buttercut/library.rb my-lib complete summary    DJI_0123.mov,DJI_0124.mov
+ruby lib/buttercut/library.rb my-lib complete summary    DJI_0123.mov "My Clip, Take 2.mov"
 ```
 
-`<files>` is space- and/or comma-separated. Call `complete` incrementally
-as each batch lands — not in one final sweep — so progress persists if a
-later batch fails.
+`<files>` is one filename per argument — quote names containing spaces or
+commas. Call `complete` incrementally as each batch lands — not in one
+final sweep — so progress persists if a later batch fails.
 
 ### Destructive resets
 ```bash

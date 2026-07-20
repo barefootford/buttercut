@@ -7,6 +7,7 @@ require 'json'
 require 'open3'
 require_relative 'job'
 require_relative 'media_tools'
+require_relative 'platform'
 
 # Transcribe one clip's audio with WhisperX, then slim the JSON with
 # prepare_audio_script.rb. Pure mechanics — the exact commands that used to live
@@ -20,6 +21,22 @@ class TranscribeJob < Job
   def self.field = 'transcript'
 
   PREPARE_SCRIPT = File.expand_path('prepare_audio_script.rb', __dir__)
+
+  # Where setup installs WhisperX when it isn't on PATH: the ~/.buttercut venv
+  # entry point (Scripts/ on Windows, bin/ elsewhere), or the macOS wrapper.
+  WHISPERX_FALLBACK_DIRS = [
+    File.join(Dir.home, '.buttercut', 'venv', 'Scripts'),
+    File.join(Dir.home, '.buttercut', 'venv', 'bin'),
+    File.join(Dir.home, '.buttercut')
+  ].freeze
+
+  def self.whisperx_command
+    return 'whisperx' if Platform.command_available?('whisperx')
+
+    WHISPERX_FALLBACK_DIRS.filter_map { |dir| Platform.find_executable('whisperx', dir) }.first ||
+      raise(MediaTools::MissingBinary,
+            'whisperx not found on PATH or under ~/.buttercut — run the setup skill to install it')
+  end
 
   def initialize(library_name:, clip:, video_path:, output_dir:, language_code:, whisper_model:)
     super(library_name: library_name, clip: clip)
@@ -50,10 +67,10 @@ class TranscribeJob < Job
     # resolve call is a preflight: no ffmpeg anywhere raises MediaTools'
     # clear error here instead of a cryptic decode failure inside whisperx.
     MediaTools.ffmpeg
-    env = { 'PATH' => [MediaTools::DEPENDENCIES_DIR, ENV.fetch('PATH', '')].join(':') }
+    env = { 'PATH' => [MediaTools::DEPENDENCIES_DIR, ENV.fetch('PATH', '')].join(File::PATH_SEPARATOR) }
     output, status = Open3.capture2e(
       env,
-      'whisperx', @video_path,
+      self.class.whisperx_command, @video_path,
       '--language', @language_code,
       '--model', @whisper_model,
       '--compute_type', 'float32',
@@ -68,7 +85,7 @@ class TranscribeJob < Job
       return false
     end
 
-    raise "whisperx failed for #{clip} (exit #{status.exitstatus})"
+    raise "whisperx failed for #{clip} (exit #{status.exitstatus})\n#{output.lines.last(15).join}"
   end
 
   def rescue_silent_clip

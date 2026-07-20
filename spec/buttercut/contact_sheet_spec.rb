@@ -70,11 +70,11 @@ RSpec.describe ContactSheet, 'codec coverage', :fixtures do
       expect(sheet.strategy).to eq(:single_pass)
     end
 
-    it 'routes light clips to seek-and-grab with hwaccel on' do
+    it 'routes light clips to seek-and-grab with the platform hardware decoder' do
       sheet = build_sheet('h264_yuv420p.mp4', :light)
       sheet.extract
       expect(sheet.strategy).to eq(:seek_and_grab)
-      expect(sheet.hwaccel).to be(true)
+      expect(sheet.hw_decoder).to eq(Platform.ffmpeg_hwaccel)
     end
 
     it 'routes all-intra clips to seek-and-grab' do

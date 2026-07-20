@@ -1,15 +1,25 @@
 ---
 name: setup
-description: Sets up a Mac for ButterCut. Installs all required dependencies (Homebrew, Ruby, Python, FFmpeg, WhisperX). Use when user says "install buttercut", "set up my mac", "get started", "first time setup", "install dependencies" or "check my installation".
+description: Sets up a Mac or Windows PC for ButterCut. Installs all required dependencies (Homebrew, Ruby, Python, FFmpeg, WhisperX). Use when user says "install buttercut", "set up my mac", "set up my pc", "get started", "first time setup", "install dependencies" or "check my installation".
 ---
 
-# Skill: Mac Setup
+# Skill: Setup
 
-Sets up a Mac for ButterCut. Two installation paths available based on user preference.
+Sets up a computer for ButterCut. On macOS, two installation paths are available based on user preference.
+
+## Step 0: Which platform is this?
+
+```bash
+uname -s
+```
+
+- `Darwin` → macOS. Continue with Step 1 below.
+- `MINGW…` / `MSYS…` / `CYGWIN…` → Windows (Git Bash). Read and follow `skills/setup/windows-setup.md` — it has its own check-current-state flow.
+- `uname` not found at all → almost certainly PowerShell on Windows without Git for Windows; that's the first thing `windows-setup.md` installs.
 
 ## Step 1: Check Current State
 
-Run each check below. Each command exits 0 when the dependency is present. Note which ones fail — that's what setup needs to install.
+(macOS path — Windows machines went through `windows-setup.md` in Step 0.) Run each check below. Each command exits 0 when the dependency is present. Note which ones fail — that's what setup needs to install.
 
 - [ ] **Xcode CLI Tools** — `xcode-select -p` (fix: `xcode-select --install`)
 - [ ] **Homebrew** — `which brew` (fix: see https://brew.sh)

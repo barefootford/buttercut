@@ -415,6 +415,17 @@ RSpec.describe Library do
         .to eq([clip_path('drive 1', 'a.mov'), clip_path('drive 1', 'b.mov')])
     end
 
+    it 'matches prefixes pasted with Windows backslashes against forward-slash stored paths' do
+      make_drive('drive 1', 'a.mov')
+      old = File.join(@libraries_root, 'drive').tr('/', '\\')
+      new = File.join(@libraries_root, 'drive 1').tr('/', '\\')
+      write_library(media: [video_entry('a.mov', path: clip_path('drive', 'a.mov'))])
+
+      Library.find(library_name).relink!(old, new)
+
+      expect(load_yaml['media'].map { |m| m['path'] }).to eq([clip_path('drive 1', 'a.mov')])
+    end
+
     it 'does not match a longer sibling prefix (segment boundary)' do
       make_drive('Andrew SSD NEW', 'a.mov')
       old = File.join(@libraries_root, 'Andrew SSD')

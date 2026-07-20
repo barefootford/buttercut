@@ -13,6 +13,7 @@ RSpec.describe TranscribeJob do
   # WhisperX resolves a bare `ffmpeg` from PATH internally, so the subprocess
   # must see dependencies/ first — the env equivalent of MediaTools' precedence.
   it 'runs whisperx with dependencies/ leading the subprocess PATH' do
+    allow(described_class).to receive(:whisperx_command).and_return('whisperx')
     captured_env = nil
     allow(Open3).to receive(:capture2e) do |env, *|
       captured_env = env
@@ -22,7 +23,41 @@ RSpec.describe TranscribeJob do
 
     job.perform
 
-    expect(captured_env['PATH'].split(':').first).to eq(MediaTools::DEPENDENCIES_DIR)
+    expect(captured_env['PATH'].split(File::PATH_SEPARATOR).first).to eq(MediaTools::DEPENDENCIES_DIR)
     expect(captured_env['PATH']).to include(ENV.fetch('PATH'))
+  end
+
+  describe '.whisperx_command' do
+    it 'prefers a whisperx already on PATH' do
+      allow(Platform).to receive(:command_available?).with('whisperx').and_return(true)
+
+      expect(described_class.whisperx_command).to eq('whisperx')
+    end
+
+    it 'falls back to the ~/.buttercut venv entry point when PATH has none' do
+      allow(Platform).to receive(:command_available?).with('whisperx').and_return(false)
+      venv_bin = described_class::WHISPERX_FALLBACK_DIRS.find { |dir| dir.end_with?('venv/bin') }
+      fallback = File.join(venv_bin, 'whisperx')
+      allow(Platform).to receive(:find_executable).and_return(nil)
+      allow(Platform).to receive(:find_executable).with('whisperx', venv_bin).and_return(fallback)
+
+      expect(described_class.whisperx_command).to eq(fallback)
+    end
+
+    it 'raises a setup-skill error when whisperx is nowhere' do
+      allow(Platform).to receive(:command_available?).with('whisperx').and_return(false)
+      allow(Platform).to receive(:find_executable).and_return(nil)
+
+      expect { described_class.whisperx_command }.to raise_error(MediaTools::MissingBinary, /setup skill/)
+    end
+  end
+
+  it 'surfaces the tail of whisperx output when the run fails' do
+    allow(described_class).to receive(:whisperx_command).and_return('whisperx')
+    allow(Open3).to receive(:capture2e)
+      .and_return(["Traceback (most recent call last):\nSomeError: model download failed\n",
+                   instance_double(Process::Status, success?: false, exitstatus: 1)])
+
+    expect { job.perform }.to raise_error(/exit 1.*model download failed/m)
   end
 end

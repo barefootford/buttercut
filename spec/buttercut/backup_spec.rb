@@ -32,11 +32,27 @@ RSpec.describe LibraryBackup do
     end
   end
 
+  # List a zip's entries with whatever this machine has: Info-ZIP's unzip
+  # (macOS/Linux), else the zip-reading bsdtar Windows ships in System32.
+  def zip_entries(archive)
+    argv = if Platform.command_available?('unzip')
+             ['unzip', '-Z1', archive]
+           elsif (bsdtar = Platform.windows_system_tar)
+             [bsdtar, '-tf', archive]
+           else
+             skip 'no tool available to list zip entries on this machine'
+           end
+    listing, _err, status = Open3.capture3(*argv)
+    expect(status).to be_success
+    listing.split("\n")
+  end
+
   describe '#backup_all' do
     before { seed_libraries }
 
     context 'when Apple Archive (aa) is available' do
       before do
+        skip 'Apple Archive (aa) is macOS-only' unless Platform.command_available?('aa')
         allow_any_instance_of(LibraryBackup).to receive(:aa_available?).and_return(true)
       end
 
@@ -74,9 +90,7 @@ RSpec.describe LibraryBackup do
         end
 
         lib1_archive = results.find { |p| p.include?('library1') }
-        listing, _, status = Open3.capture3('unzip', '-Z1', lib1_archive)
-        expect(status).to be_success
-        entries = listing.split("\n")
+        entries = zip_entries(lib1_archive)
         expect(entries).to include('library1/library.yaml')
         expect(entries).to include('library1/transcripts/video1_transcript.json')
         expect(entries).to include('library1/cuts/cut1.yaml')
@@ -130,6 +144,48 @@ RSpec.describe LibraryBackup do
 
     it 'returns nil when the library does not exist' do
       expect(LibraryBackup.new(temp_dir, backups_dir: backups_dir).backup_library('missing')).to be_nil
+    end
+  end
+
+  describe '#zip_command (tool selection)' do
+    let(:backup) { LibraryBackup.new(temp_dir, backups_dir: backups_dir) }
+
+    it 'uses the zip CLI when available' do
+      allow(Platform).to receive(:command_available?).with('zip').and_return(true)
+
+      expect(backup.send(:zip_command, '/b/x.zip', 'lib')).to eq(['zip', '-rq', '/b/x.zip', 'lib'])
+    end
+
+    it 'falls back to the Windows System32 bsdtar when zip is missing' do
+      allow(Platform).to receive(:command_available?).with('zip').and_return(false)
+      allow(Platform).to receive(:windows_system_tar).and_return('C:/Windows/System32/tar.exe')
+
+      expect(backup.send(:zip_command, 'C:/b/x.zip', 'lib'))
+        .to eq(['C:/Windows/System32/tar.exe', '-a', '-cf', 'C:/b/x.zip', 'lib'])
+    end
+
+    it 'falls back to PowerShell Compress-Archive when bsdtar is missing on Windows' do
+      allow(Platform).to receive(:command_available?).with('zip').and_return(false)
+      allow(Platform).to receive(:windows_system_tar).and_return(nil)
+      allow(Platform).to receive(:windows?).and_return(true)
+      allow(Platform).to receive(:powershell)
+        .and_return('C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe')
+
+      argv = backup.send(:zip_command, "C:/b/andrew's lib.zip", 'lib')
+
+      expect(argv.first).to end_with('powershell.exe')
+      expect(argv).to include('-NoProfile', '-Command')
+      # Single quotes doubled — PowerShell's own escaping for literal quotes.
+      expect(argv.last)
+        .to eq("Compress-Archive -Force -LiteralPath 'lib' -DestinationPath 'C:/b/andrew''s lib.zip'")
+    end
+
+    it 'returns nil on POSIX systems without a zip CLI' do
+      allow(Platform).to receive(:command_available?).with('zip').and_return(false)
+      allow(Platform).to receive(:windows_system_tar).and_return(nil)
+      allow(Platform).to receive(:windows?).and_return(false)
+
+      expect(backup.send(:zip_command, '/b/x.zip', 'lib')).to be_nil
     end
   end
 

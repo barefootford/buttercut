@@ -2,6 +2,7 @@
 # Copy this file to libraries/settings.yaml to configure defaults
 
 # Preferred video editor: fcpx, premiere, or resolve
+# (fcpx is Final Cut Pro, which only exists on macOS — on Windows use premiere or resolve)
 editor: fcpx
 
 # WhisperX model size: tiny, base, small, medium, or turbo

@@ -2,10 +2,12 @@
 # The CLI entrypoint lives in the edition-agnostic shim, lib/buttercut/export.rb.
 
 require 'date'
+require 'open3'
 require 'yaml'
 require_relative '../buttercut'
 require_relative 'library'
 require_relative 'media_verifier'
+require_relative 'platform'
 
 class Export
   EDITOR_LABELS = {
@@ -56,7 +58,7 @@ class Export
   end
 
   def library_name(roughcut_path)
-    roughcut_path[%r{libraries/([^/]+)/cuts}, 1] ||
+    Platform.forward_slashes(roughcut_path)[%r{libraries/([^/]+)/cuts}, 1] ||
       raise("Could not extract library name from path: #{roughcut_path}")
   end
 
@@ -148,10 +150,10 @@ class Export
   def validate_fcpxml(xml_path)
     dtd_path = File.expand_path('../../dtd/FCPXMLv1_12.dtd', __dir__)
     return puts "⚠ DTD not found at #{dtd_path}; skipping validation." unless File.exist?(dtd_path)
-    return puts '⚠ xmllint not found; skipping validation.' unless system('command -v xmllint > /dev/null 2>&1')
+    return puts '⚠ xmllint not found; skipping validation.' unless Platform.command_available?('xmllint')
 
-    output = `xmllint --noout --dtdvalid "#{dtd_path}" "#{xml_path}" 2>&1`
-    if $?.success?
+    output, status = Open3.capture2e('xmllint', '--noout', '--dtdvalid', dtd_path, xml_path)
+    if status.success?
       puts '✓ FCPXML validates against FCPXMLv1_12.dtd'
     else
       warn '✗ FCPXML failed DTD validation:'

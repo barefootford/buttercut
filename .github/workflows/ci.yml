@@ -11,11 +11,10 @@ concurrency:
 
 jobs:
   test:
-    # ButterCut is a macOS tool: the spec suite exercises Apple Archive (`aa`) in
-    # spec/buttercut/backup_spec.rb, which only exists on macOS. One job runs both
-    # the default suite and the :fixtures specs so setup (checkout, Ruby, ffmpeg)
-    # happens once. :benchmark stays out — its wall-time baselines are tuned to dev
-    # hardware and don't transfer to shared runners.
+    # macOS is ButterCut's primary platform: the suite's Apple Archive (`aa`)
+    # examples only run there. One job runs the default suite and the :fixtures
+    # specs so setup (checkout, Ruby, ffmpeg) happens once; :benchmark stays out
+    # (wall-time baselines tuned to dev hardware). Windows: test-windows below.
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
@@ -62,3 +61,25 @@ jobs:
         run: |
           bundle exec rspec
           bundle exec rspec --tag fixtures
+
+  test-windows:
+    # Exercises the Windows paths (.exe resolution, argv subprocesses, zip
+    # fallbacks) on a real runner; default suite only. Informational for now:
+    # a few specs still assert POSIX-shaped paths — flip to blocking once
+    # they're platform-aware (tracked in docs/windows.md).
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'   # matches .ruby-version; RubyInstaller build
+          bundler-cache: true     # exercises the x64-mingw-ucrt lockfile platform
+
+      - name: Install ffmpeg (gyan.dev build — includes drawtext)
+        run: choco install ffmpeg -y --no-progress
+
+      - name: Run specs (default suite)
+        shell: bash
+        run: bundle exec rspec

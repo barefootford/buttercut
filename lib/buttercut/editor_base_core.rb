@@ -4,7 +4,7 @@ require 'cgi'
 require 'erb'
 require 'json'
 require 'digest'
-require 'shellwords'
+require 'open3'
 require_relative 'rotation_metadata'
 require_relative 'media_tools'
 require_relative 'library'
@@ -420,10 +420,23 @@ class ButterCut
     # spaces, parens, #, &, …), slashes preserved. Editors resolve `src` /
     # `pathurl` strictly — a single unescaped reserved character imports as
     # offline ("missing") media.
+    #
+    # Windows shapes: drive-letter paths get the form Premiere itself writes
+    # (file://localhost/C%3a/…), and UNC paths put the server in the authority.
     def path_to_file_url(path)
       abs_path = get_absolute_path(path)
-      encoded = abs_path.split('/', -1).map { |segment| ERB::Util.url_encode(segment) }.join('/')
-      "file://#{encoded}"
+
+      if (drive = abs_path[%r{\A([A-Za-z]):(?=/)}, 1])
+        "file://localhost/#{drive}%3a/#{encode_url_path(abs_path[3..])}"
+      elsif abs_path.start_with?('//')
+        "file:#{encode_url_path(abs_path)}"
+      else
+        "file://#{encode_url_path(abs_path)}"
+      end
+    end
+
+    def encode_url_path(path)
+      path.split('/', -1).map { |segment| ERB::Util.url_encode(segment) }.join('/')
     end
 
     def escape_xml(str)
@@ -547,11 +560,11 @@ class ButterCut
     end
 
     def extract_metadata_from_ffprobe(video_path)
-      json_output = `#{Shellwords.escape(MediaTools.ffprobe)} -v quiet -print_format json -show_format -show_streams "#{video_path}" 2>&1`
-
-      if $?.exitstatus != 0
-        raise "Failed to extract metadata from #{video_path}: #{json_output}"
-      end
+      json_output, status = Open3.capture2e(
+        MediaTools.ffprobe, '-v', 'quiet', '-print_format', 'json',
+        '-show_format', '-show_streams', video_path
+      )
+      raise "Failed to extract metadata from #{video_path}: #{json_output}" unless status.success?
 
       JSON.parse(json_output)
     end
