@@ -4,7 +4,6 @@
 require 'date'
 require 'yaml'
 require_relative '../buttercut'
-require_relative 'format_checker'
 require_relative 'library'
 require_relative 'media_verifier'
 
@@ -36,9 +35,7 @@ class Export
     clips    = build_clips(roughcut, library)
 
     ensure_cut_media_paths_live!(clips)
-    generator = ButterCut.new(clips, editor: @editor, timeline: roughcut['timeline'])
-    notice_mixed_formats(clips, roughcut['timeline'], generator)
-    write_xml(generator, clips.length)
+    write_xml(clips, @editor, roughcut['timeline'])
     validate_fcpxml(@output_path) if fcpxml_editor?
     @output_path
   end
@@ -76,32 +73,6 @@ class Export
   # The source files one clip def needs on disk — an edition seam like
   # EditorBase#asset_sources: a variant whose clips fan out overrides it.
   def clip_source_paths(clip) = [clip[:path]]
-
-  # Advisory only — mixing is allowed, but the editor conforms mismatched clips
-  # and the symptoms read as mystery bugs. Never blocks an export (blanket rescue).
-  def notice_mixed_formats(clips, timeline, generator)
-    video_paths = clips.filter_map { |clip| clip[:path] if clip[:type] == :video }.uniq
-    checker = FormatChecker.new(video_paths, prober: ->(path) { generator.extract_metadata(path) })
-    summary = checker.mixed_summary(subject: 'This cut')
-    return unless summary
-
-    warn "⚠ #{summary}"
-    warn "  The timeline plays at #{timeline_target_label(timeline, generator)}, and the editor conforms " \
-         'everything else to fit: scaled clips can look soft or sit inside black bars, and retimed ' \
-         'clips can stutter on motion.'
-    warn '  The export imports fine as-is. If any of that shows up in the editor, ButterCut can convert ' \
-         'the outlier clips to one uniform format — see skills/process-library/conform_formats.md.'
-  rescue StandardError => e
-    warn "⚠ Mixed-format check skipped (#{e.message})."
-  end
-
-  # The generator owns the conform format (timeline block → first clip →
-  # defaults); this just labels the resolved value with where it came from.
-  def timeline_target_label(timeline, generator)
-    format = "#{generator.format_width}x#{generator.format_height} @ " \
-             "#{FormatChecker.fps_label(generator.format_frame_rate)}fps"
-    timeline && !timeline.empty? ? "#{format} (set by this cut)" : "#{format} (the first clip's format)"
-  end
 
   # The editors whose output is FCPXML and so DTD-validated.
   def fcpxml_editor? = %i[fcpx resolve].include?(@editor)
@@ -168,9 +139,9 @@ class Export
     raise ArgumentError, "Unknown editor '#{input}'. Use 'fcpx', 'premiere', 'resolve', or 'resolve_legacy'"
   end
 
-  def write_xml(generator, clip_count)
-    puts "Converting #{clip_count} clips to #{EDITOR_LABELS.fetch(@editor)}..."
-    generator.save(@output_path)
+  def write_xml(clips, editor, timeline)
+    puts "Converting #{clips.length} clips to #{EDITOR_LABELS.fetch(editor)}..."
+    ButterCut.new(clips, editor: editor, timeline: timeline).save(@output_path)
     puts "\n✓ Rough cut exported to: #{@output_path}"
   end
 

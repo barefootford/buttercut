@@ -388,103 +388,41 @@ RSpec.describe Library do
     end
   end
 
-  describe '#format_report' do
-    # Grouping/probing coverage lives in format_checker_spec. Here we just
-    # confirm Library hands the checker its video paths only — stills conform
-    # to any timeline, so images never count toward "mixed".
-    it 'checks video paths only and returns the report' do
-      write_library(media: [video_entry('a.mov'), image_entry('still.jpg'), video_entry('b.mp4')])
-      checker = instance_double(FormatChecker, report: { 'uniform' => true })
-      expect(FormatChecker).to receive(:new).with(['/tmp/a.mov', '/tmp/b.mp4']).and_return(checker)
-
-      expect(Library.find(library_name).format_report).to eq('uniform' => true)
-    end
-  end
-
-  describe '#replace_media!' do
-    # Create a real file at <libraries_root>/<parts> and return its path.
-    def make_file(*parts)
-      path = File.join(libraries_root, *parts)
-      FileUtils.mkdir_p(File.dirname(path))
-      FileUtils.touch(path)
-      path
-    end
-
-    let(:replacement) { make_file('conformed', 'a.mov') }
-
+  describe '#clip_formats / #format_message' do
     before do
-      write_library(media: [
-                      video_entry('a.mov', transcript: 'a.json', contact_sheet: 'a_full.jpg', summary: 'summary_a.md'),
-                      image_entry('b.jpg', summary: 'summary_b_jpg.md')
-                    ])
-      allow(Library).to receive(:probe_duration).and_return('00:00:07')
+      write_library(media: [video_entry('a.mov'), video_entry('b.mov'), image_entry('c.jpg')])
     end
 
-    it 'swaps the path, re-probes duration, and keeps the analysis fields' do
-      Library.find(library_name).replace_media!('a.mov', replacement)
+    it 'probes resolution and frame rate for videos only' do
+      allow(Library).to receive(:probe_format).and_return(['1920x1080', 29.97])
 
-      entry = load_yaml['media'].first
-      expect(entry['path']).to eq(replacement)
-      expect(entry['duration']).to eq('00:00:07')
-      expect(entry).to include('transcript' => 'a.json', 'contact_sheet' => 'a_full.jpg', 'summary' => 'summary_a.md')
+      expect(Library.find(library_name).clip_formats).to eq([
+        { 'filename' => 'a.mov', 'resolution' => '1920x1080', 'fps' => 29.97 },
+        { 'filename' => 'b.mov', 'resolution' => '1920x1080', 'fps' => 29.97 }
+      ])
     end
 
-    it 'allows a container change as long as the clip key holds' do
-      write_library(media: [video_entry('a.mts', path: '/tmp/a.mts')])
-      Library.find(library_name).replace_media!('a.mts', replacement)
+    it 'reports uniform footage in one friendly line' do
+      allow(Library).to receive(:probe_format).and_return(['1920x1080', 29.97])
 
-      expect(load_yaml['media'].first['path']).to eq(replacement)
+      expect(Library.find(library_name).format_message).to eq('All 2 clips are 1920x1080 at 29.97 fps.')
     end
 
-    it 'swaps an image without probing a duration' do
-      path = make_file('conformed', 'b.jpg')
+    it 'flags mixed formats' do
+      allow(Library).to receive(:probe_format).and_return(['1920x1080', 29.97], ['1280x720', 25])
 
-      Library.find(library_name).replace_media!('b.jpg', path)
-
-      entry = load_yaml['media'].last
-      expect(entry['path']).to eq(path)
-      expect(entry).not_to have_key('duration')
-      expect(Library).not_to have_received(:probe_duration)
+      expect(Library.find(library_name).format_message)
+        .to eq('Mixed formats detected: 1920x1080 at 29.97 fps; 1280x720 at 25 fps.')
     end
 
-    it 'raises when the replacement file does not exist' do
-      expect { Library.find(library_name).replace_media!('a.mov', '/nope/a.mov') }
-        .to raise_error(ArgumentError, /replacement file not found/)
+    it 'says so when there are no videos to check' do
+      write_library(media: [image_entry('c.jpg')])
+
+      expect(Library.find(library_name).format_message).to eq('No video clips to check.')
     end
 
-    it 'raises when the replacement changes the clip key' do
-      path = make_file('conformed', 'other.mov')
-
-      expect { Library.find(library_name).replace_media!('a.mov', path) }
-        .to raise_error(ArgumentError, /must keep the clip name/)
-      expect(File.basename(load_yaml['media'].first['path'])).to eq('a.mov')
-    end
-
-    it 'raises when the replacement changes the media type' do
-      path = make_file('conformed', 'a.png')
-
-      expect { Library.find(library_name).replace_media!('a.mov', path) }
-        .to raise_error(ArgumentError, /must stay video media/)
-    end
-
-    it 'rejects an unsupported extension with the supported-set message' do
-      path = make_file('conformed', 'a.mkv')
-
-      expect { Library.find(library_name).replace_media!('a.mov', path) }
-        .to raise_error(ArgumentError, /unsupported media format/)
-    end
-
-    it 'raises when the replacement path is already another entry' do
-      taken = make_file('src', 'b.jpg')
-      write_library(media: [video_entry('a.mov'), image_entry('b.jpg', path: taken)])
-
-      expect { Library.find(library_name).replace_media!('a.mov', taken) }
-        .to raise_error(ArgumentError, /media already in library/)
-    end
-
-    it 'raises when the entry is not present in library.yaml' do
-      expect { Library.find(library_name).replace_media!('nope.mov', replacement) }
-        .to raise_error(ArgumentError, /media not found in library\.yaml/)
+    it 'probes real media' do
+      expect(Library.probe_format(fixture_media('MVI_0309_720p.mov'))).to eq(['1280x720', 23.98])
     end
   end
 

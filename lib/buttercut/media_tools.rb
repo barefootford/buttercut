@@ -1,9 +1,5 @@
 # frozen_string_literal: true
 
-require 'English'
-require 'json'
-require 'shellwords'
-
 # Resolves the ffmpeg/ffprobe binaries ButterCut shells out to. Static builds
 # may be installed into the gitignored dependencies/ directory at the repo
 # root; when a binary is there it wins over PATH, so a ButterCut folder can be
@@ -19,16 +15,6 @@ module MediaTools
 
   def self.ffmpeg = resolve('ffmpeg')
   def self.ffprobe = resolve('ffprobe')
-
-  # Run ffprobe over `path` and return parsed JSON for the named sections
-  # ('streams', 'format', …). Raises with ffprobe's own output on failure.
-  def self.ffprobe_json(path, *sections)
-    flags = sections.map { |section| "-show_#{section}" }.join(' ')
-    output = `#{Shellwords.escape(ffprobe)} -v error -print_format json #{flags} #{Shellwords.escape(path)} 2>&1`
-    raise "ffprobe failed: #{output.strip}" unless $CHILD_STATUS.success?
-
-    JSON.parse(output)
-  end
 
   def self.resolve(name)
     local = File.join(DEPENDENCIES_DIR, name)

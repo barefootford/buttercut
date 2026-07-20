@@ -109,7 +109,8 @@ class ContactSheet
   def portrait?
     return false unless @source_width.to_i.positive? && @source_height.to_i.positive?
 
-    w, h = self.class.display_dimensions(@source_width, @source_height, @rotation)
+    w, h = @source_width, @source_height
+    w, h = h, w if [90, 270].include?(@rotation)
     h > w
   end
 

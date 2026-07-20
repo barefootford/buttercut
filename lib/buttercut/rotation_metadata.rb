@@ -23,10 +23,4 @@ module RotationMetadata
   def normalize_rotation(degrees)
     ((degrees.to_i % 360) + 360) % 360
   end
-
-  # Stored width/height swapped when `rotation` turns the clip sideways —
-  # the dimensions as displayed, which layout and format checks care about.
-  def display_dimensions(width, height, rotation)
-    [90, 270].include?(normalize_rotation(rotation)) ? [height, width] : [width, height]
-  end
 end
