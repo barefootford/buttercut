@@ -316,24 +316,14 @@ class Library
     MediaVerifier.new(media.map { |m| m['path'] }).report
   end
 
-  # Read-only report on whether the library's videos all share one display
-  # resolution + frame rate. Images are excluded — stills conform to any
-  # timeline. Mixing is allowed; this exists so the agent can warn the user
-  # (and offer the conform flow) instead of the mix surfacing as mystery
-  # softness/stutter in their editor. See FormatChecker for the report shape.
+  # Read-only: do the library's videos share one resolution + frame rate?
+  # Images are excluded (stills conform to any timeline). See FormatChecker.
   def format_report
     FormatChecker.new(media.filter_map { |m| m['path'] if m['type'] == 'video' }).report
   end
 
-  # Point one entry at a different source file while keeping its analysis —
-  # the swap half of the conform flow: ffmpeg writes a converted copy (same
-  # basename, different folder), and this makes the entry use it. The new file
-  # must be the same media type and share the clip key (for videos, the
-  # basename without extension), because artifact filenames are built from
-  # that key — under a different name the existing transcript/contact
-  # sheet/summary no longer belong to the file, so use remove_media +
-  # add_media (and reprocess) instead. Duration is re-probed; neither file on
-  # disk is touched.
+  # Point one entry at a converted copy while keeping its analysis (the conform
+  # swap). Same type + clip key required — artifact filenames derive from the key.
   def replace_media!(media_filename, new_path)
     expanded = File.expand_path(new_path.to_s)
     raise ArgumentError, "replacement file not found: #{expanded}" unless File.exist?(expanded)

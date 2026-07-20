@@ -402,12 +402,15 @@ RSpec.describe Library do
   end
 
   describe '#replace_media!' do
-    let(:replacement) do
-      path = File.join(libraries_root, 'conformed', 'a.mov')
+    # Create a real file at <libraries_root>/<parts> and return its path.
+    def make_file(*parts)
+      path = File.join(libraries_root, *parts)
       FileUtils.mkdir_p(File.dirname(path))
       FileUtils.touch(path)
       path
     end
+
+    let(:replacement) { make_file('conformed', 'a.mov') }
 
     before do
       write_library(media: [
@@ -434,9 +437,7 @@ RSpec.describe Library do
     end
 
     it 'swaps an image without probing a duration' do
-      path = File.join(libraries_root, 'conformed', 'b.jpg')
-      FileUtils.mkdir_p(File.dirname(path))
-      FileUtils.touch(path)
+      path = make_file('conformed', 'b.jpg')
 
       Library.find(library_name).replace_media!('b.jpg', path)
 
@@ -452,9 +453,7 @@ RSpec.describe Library do
     end
 
     it 'raises when the replacement changes the clip key' do
-      path = File.join(libraries_root, 'conformed', 'other.mov')
-      FileUtils.mkdir_p(File.dirname(path))
-      FileUtils.touch(path)
+      path = make_file('conformed', 'other.mov')
 
       expect { Library.find(library_name).replace_media!('a.mov', path) }
         .to raise_error(ArgumentError, /must keep the clip name/)
@@ -462,27 +461,21 @@ RSpec.describe Library do
     end
 
     it 'raises when the replacement changes the media type' do
-      path = File.join(libraries_root, 'conformed', 'a.png')
-      FileUtils.mkdir_p(File.dirname(path))
-      FileUtils.touch(path)
+      path = make_file('conformed', 'a.png')
 
       expect { Library.find(library_name).replace_media!('a.mov', path) }
         .to raise_error(ArgumentError, /must stay video media/)
     end
 
     it 'rejects an unsupported extension with the supported-set message' do
-      path = File.join(libraries_root, 'conformed', 'a.mkv')
-      FileUtils.mkdir_p(File.dirname(path))
-      FileUtils.touch(path)
+      path = make_file('conformed', 'a.mkv')
 
       expect { Library.find(library_name).replace_media!('a.mov', path) }
         .to raise_error(ArgumentError, /unsupported media format/)
     end
 
     it 'raises when the replacement path is already another entry' do
-      taken = File.join(libraries_root, 'src', 'b.jpg')
-      FileUtils.mkdir_p(File.dirname(taken))
-      FileUtils.touch(taken)
+      taken = make_file('src', 'b.jpg')
       write_library(media: [video_entry('a.mov'), image_entry('b.jpg', path: taken)])
 
       expect { Library.find(library_name).replace_media!('a.mov', taken) }

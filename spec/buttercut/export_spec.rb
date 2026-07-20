@@ -245,7 +245,7 @@ RSpec.describe Export do
       within_export_sandbox(cut: cut, media: [clip_a, @odd_clip]) do |cut_path, out|
         stderr = capture_stderr { perform(cut_path, out) }
 
-        expect(stderr).to include("the format set by this cut's timeline block")
+        expect(stderr).to include('1920x1080 @ 25fps (set by this cut)')
       end
     end
 
