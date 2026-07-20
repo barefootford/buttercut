@@ -73,6 +73,7 @@ ruby lib/buttercut/library.rb <name> summary      # JSON: metadata + per-type co
 ruby lib/buttercut/library.rb <name> incomplete_media
 ruby lib/buttercut/library.rb <name> unsupported_media   # JSON: entries whose extension no editor imports natively
 ruby lib/buttercut/library.rb <name> verify_media        # JSON: do the source files still resolve? On missing/phantom, read skills/cut/missing_footage.md
+ruby lib/buttercut/library.rb <name> format_report       # JSON: do all videos share one resolution + frame rate? uniform:false = mixed footage
 ruby lib/buttercut/library.rb <name> ready        # exit 0 if every clip is ready for a cut, 1 if not
 ruby lib/buttercut/library.rb update_checked      # record that you just checked for a newer ButterCut
 ruby lib/buttercut/library.rb edition             # print which ButterCut edition this is (core or pro)
@@ -88,10 +89,21 @@ user.
 
 Use `summary` when you want to look at *what's* missing; use `ready` when you only need a yes/no gate.
 
+`format_report` probes every **video** (images are skipped — stills conform to
+any timeline) and groups them by display resolution + frame rate. `uniform:
+false` means mixed footage: allowed, but the editor conforms mismatched clips
+to the timeline format, which can read as soft scaling, black bars, or
+stuttery motion. The report carries `dominant_format`, `outlier_clips`,
+per-clip rows (rotation-aware resolution, exact frame-rate fraction, audio
+sample rate), and an `unreadable` list for clips ffprobe couldn't read. The
+grouping rules live in the [`FormatChecker`](format_checker.rb) comment; the
+fix flow is `skills/process-library/conform_formats.md`.
+
 ### Add and update
 ```bash
 ruby lib/buttercut/library.rb <name> add_media    /abs/a.mov /abs/photo.jpg   # type inferred from extension
 ruby lib/buttercut/library.rb <name> remove_media a.mov                       # drop entry + its artifacts; source file untouched
+ruby lib/buttercut/library.rb <name> replace_media a.mov /abs/conformed/a.mov # point entry at a converted copy; analysis kept, both files untouched
 ruby lib/buttercut/library.rb <name> update_metadata footage_summary       "subjects, locations, activities"
 ruby lib/buttercut/library.rb <name> update_metadata user_context          "creative intent, characters"
 ruby lib/buttercut/library.rb <name> update_metadata language              english
@@ -105,6 +117,17 @@ unsupported extension is rejected with a message naming the supported sets.
 `remove_media` drops an entry and deletes its artifacts (transcripts, contact
 sheets, summaries, plus any legacy visual transcript) but **never** touches the
 source footage on disk.
+
+`replace_media` is the swap half of the conform flow
+(`skills/process-library/conform_formats.md`): after ffmpeg writes a converted
+copy of a clip (same basename, different folder), it points the entry at the
+new file and re-probes the duration while keeping the transcript, contact
+sheet, and summary. The replacement must be the same media type and keep the
+clip key (for videos, the basename without extension — so a container change
+like `a.mts` → `conformed/a.mov` is fine) because artifact filenames are built
+from that key; under a different name the artifacts no longer belong to the
+file, so use `remove_media` + `add_media` and reprocess instead. Neither file
+on disk is touched.
 
 `update_metadata` edits one field per call. Beyond the two free-text fields
 (`footage_summary`, `user_context`) it can also set the setup choices

@@ -85,13 +85,14 @@ ruby lib/buttercut/library.rb <name> summary             # JSON: metadata + clip
 ruby lib/buttercut/library.rb <name> incomplete_media    # JSON: clips still missing artifacts, with which fields are missing
 ruby lib/buttercut/library.rb <name> unsupported_media   # JSON: entries whose extension no editor imports natively (legacy footage to convert-and-swap)
 ruby lib/buttercut/library.rb <name> verify_media        # JSON: do the source files still resolve? If anything is missing/phantom, read skills/cut/missing_footage.md and follow it
+ruby lib/buttercut/library.rb <name> format_report       # JSON: do all videos share one resolution + frame rate? uniform:false = mixed footage — surface it per process-library Step 5
 ruby lib/buttercut/library.rb <name> ready               # exit 0 = ready to build a cut, 1 = not. Raises if a migration script should be run.
 
 # Understand
 ruby lib/buttercut/script_extractor.rb libraries/<name>/transcripts/<clip>.json   # clean dialogue to stdout: one transcript segment per line, no timing — cheap to skim when you want to know what's said in a clip. Generally these are small, but if editing a podcast or a speech they can be longer.
 ```
 
-Writes (`add_media`, `remove_media`, `complete`, `update_metadata`), destructive resets, legacy cleanup, and `Library.create` via `ruby -e`: see `lib/buttercut/library.md` for full documentation.
+Writes (`add_media`, `remove_media`, `replace_media`, `complete`, `update_metadata`), destructive resets, legacy cleanup, and `Library.create` via `ruby -e`: see `lib/buttercut/library.md` for full documentation.
 
 **Daily update-check gate.** Once a day, the first real-work `library.rb` command exits with `library: it's been over a day since ButterCut last checked for updates…`. When you see that: check for a newer version (`GIT_TERMINAL_PROMPT=0 git fetch origin main` then `git log --oneline HEAD..origin/main`); if `main` is ahead and you're in auto mode, run the `update-buttercut` skill. If you're not in auto mode, ask the user permission to update buttercut using that skill. If the fetch fails, don't retry — follow the failure guidance in the `update-buttercut` skill. Either way, run `ruby lib/buttercut/library.rb update_checked` to record it, then re-run your command. Discovery commands (`list`, `recent`, `exists`, `edition`) are never gated.
 
@@ -100,6 +101,7 @@ Writes (`add_media`, `remove_media`, `complete`, `update_metadata`), destructive
 ## Key Reminders
 
 - After exporting an XML file, offer to open it directly in the user's editor with `open -a "Final Cut Pro"`, `open -a "Adobe Premiere Pro"`, or `open -a "DaVinci Resolve"` (matching the library's `editor` setting). Check `libraries/settings.yaml` for `open_in_editor_after_export` — if the key is missing, ask and save the preference. If `open -a` fails with "Unable to find application named ...", don't assume the editor is missing — the app may be installed under a slightly different name (e.g. a version suffix). Grep the installed apps for it (`ls /Applications | grep -i premiere`, or `mdfind "kMDItemKind == 'Application'" | grep -i resolve`) and retry `open -a` with the actual name before telling the user it isn't installed.
+- Mixed resolutions/frame rates in a library are allowed but worth surfacing: `format_report` checks after processing (process-library Step 5), the export prints a notice when a cut mixes formats, and `skills/process-library/conform_formats.md` is the convert-and-swap fix when the user wants everything uniform.
 - Never modify source video files - always preserve originals
 - Flag areas needing human judgment rather than making assumptions
 - When possible, use the existing Ruby files to get work done. Make scripts when the skill or step doesn't provide what you need.

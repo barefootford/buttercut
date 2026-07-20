@@ -4,6 +4,7 @@
 require 'date'
 require 'yaml'
 require_relative '../buttercut'
+require_relative 'format_checker'
 require_relative 'library'
 require_relative 'media_verifier'
 
@@ -35,6 +36,7 @@ class Export
     clips    = build_clips(roughcut, library)
 
     ensure_cut_media_paths_live!(clips)
+    notice_mixed_formats(clips, roughcut['timeline'])
     write_xml(clips, @editor, roughcut['timeline'])
     validate_fcpxml(@output_path) if fcpxml_editor?
     @output_path
@@ -73,6 +75,35 @@ class Export
   # The source files one clip def needs on disk — an edition seam like
   # EditorBase#asset_sources: a variant whose clips fan out overrides it.
   def clip_source_paths(clip) = [clip[:path]]
+
+  # Advisory only — mixing formats is allowed, but the editor conforms every
+  # mismatched clip to the timeline format, and the symptoms (soft scaled
+  # footage, black bars, stuttery retimed motion) read as mystery bugs to a
+  # user who doesn't know their footage was mixed. Printed to stderr so the
+  # agent relays it; must never block or fail an export, hence the blanket
+  # rescue.
+  def notice_mixed_formats(clips, timeline)
+    video_paths = clips.filter_map { |clip| clip[:path] if clip[:type] == :video }.uniq
+    checker = FormatChecker.new(video_paths)
+    summary = checker.mixed_summary(subject: 'This cut')
+    return unless summary
+
+    warn "⚠ #{summary}"
+    warn "  The timeline plays at #{timeline_target_label(timeline, checker)}, and the editor conforms " \
+         'everything else to fit: scaled clips can look soft or sit inside black bars, and retimed ' \
+         'clips can stutter on motion.'
+    warn '  The export imports fine as-is. If any of that shows up in the editor, ButterCut can convert ' \
+         'the outlier clips to one uniform format — see skills/process-library/conform_formats.md.'
+  rescue StandardError => e
+    warn "⚠ Mixed-format check skipped (#{e.message})."
+  end
+
+  def timeline_target_label(timeline, checker)
+    return "the format set by this cut's timeline block" if timeline && !timeline.empty?
+
+    first = checker.readable.first
+    first ? "#{first['resolution']} @ #{first['fps']}fps (the first clip's format)" : "the first clip's format"
+  end
 
   # The editors whose output is FCPXML and so DTD-validated.
   def fcpxml_editor? = %i[fcpx resolve].include?(@editor)

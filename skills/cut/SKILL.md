@@ -93,6 +93,8 @@ ruby lib/buttercut/export.rb --editor resolve_legacy libraries/[library-name]/cu
 
 Don't offer this proactively or use it by default — only reach for it after the editor reports an import problem with the FCPXML export.
 
+**Mixed-format notice.** When the cut's clips don't all share one resolution and frame rate, the export prints a notice naming each format group and its clips. Relay it to the user in plain editor terms when you hand over the file: which clips differ, and that if anything looks soft, sits inside black bars, or stutters on motion after import, they should tell you — you can convert those clips so everything matches (follow `skills/process-library/conform_formats.md`). Don't block or re-ask about the export; the file imports fine as-is.
+
 ## 7. Copy File to Desktop (if enabled)
 Check `libraries/settings.yaml` for `save_to_desktop_after_export`:
 1. If the key is `true`, copy the exported XML to `~/Desktop/` so it's easy to grab and import into the editor.

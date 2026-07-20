@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### ButterCut Pro & Core
 
 #### Added
+- **ButterCut now flags mixed footage formats.** After processing, it checks whether every clip shares one resolution and frame rate (`format_report`), and exports print a heads-up when a cut mixes formats — so scaled-soft clips, black bars, or stuttery retimed motion in the editor don't read as mystery bugs. Mixing stays fully supported; when a user wants everything uniform, ButterCut can convert the outlier clips with ffmpeg and swap them in (`replace_media`) while keeping originals and all analysis.
 - **Exports now catch unplugged or renamed footage before an XML ships**, with new tools to help the agent reconnect moved footage.
 
 #### Changed

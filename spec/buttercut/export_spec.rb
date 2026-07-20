@@ -205,6 +205,75 @@ RSpec.describe Export do
     end
   end
 
+  describe 'mixed-format notice' do
+    # A clip that deliberately doesn't match the 1280x720 @ 23.976 fixtures.
+    before(:context) do
+      @odd_clip = File.join(@stills_dir, 'blue_180p_25fps.mov')
+      ok = system(MediaTools.ffmpeg, '-y',
+                  '-f', 'lavfi', '-i', 'color=c=blue:size=320x180:rate=25',
+                  '-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo',
+                  '-t', '1', '-pix_fmt', 'yuv420p', '-shortest', @odd_clip,
+                  out: File::NULL, err: File::NULL)
+      raise 'Could not generate mixed-format fixture with ffmpeg' unless ok && File.exist?(@odd_clip)
+    end
+
+    it 'warns on stderr when the cut mixes resolutions or frame rates, and still exports' do
+      cut = { 'clips' => [
+        { 'source_file' => 'MVI_0309_720p.mov', 'in_point' => 0, 'out_point' => 2 },
+        { 'source_file' => 'blue_180p_25fps.mov', 'in_point' => 0, 'out_point' => 1 }
+      ] }
+      within_export_sandbox(cut: cut, media: [clip_a, @odd_clip]) do |cut_path, out|
+        stderr = capture_stderr { perform(cut_path, out) }
+
+        expect(stderr).to include('This cut mixes 2 formats')
+        expect(stderr).to include('1280x720 @ 23.98fps (1 clip: MVI_0309_720p.mov)')
+        expect(stderr).to include('320x180 @ 25fps (1 clip: blue_180p_25fps.mov)')
+        expect(stderr).to include("the first clip's format")
+        expect(stderr).to include('conform_formats.md')
+        expect(File.exist?(out)).to be(true)
+      end
+    end
+
+    it 'names the timeline block as the target when the cut pins one' do
+      cut = {
+        'timeline' => { 'frame_rate' => 25, 'width' => 1920, 'height' => 1080 },
+        'clips' => [
+          { 'source_file' => 'MVI_0309_720p.mov', 'in_point' => 0, 'out_point' => 2 },
+          { 'source_file' => 'blue_180p_25fps.mov', 'in_point' => 0, 'out_point' => 1 }
+        ]
+      }
+      within_export_sandbox(cut: cut, media: [clip_a, @odd_clip]) do |cut_path, out|
+        stderr = capture_stderr { perform(cut_path, out) }
+
+        expect(stderr).to include("the format set by this cut's timeline block")
+      end
+    end
+
+    it 'stays quiet when every clip shares one format' do
+      cut = { 'clips' => [
+        { 'source_file' => 'MVI_0309_720p.mov', 'in_point' => 0, 'out_point' => 2 },
+        { 'source_file' => 'MVI_0323_720p.mov', 'in_point' => 0, 'out_point' => 2 }
+      ] }
+      within_export_sandbox(cut: cut, media: [clip_a, clip_b]) do |cut_path, out|
+        stderr = capture_stderr { perform(cut_path, out) }
+
+        expect(stderr).not_to include('mixes')
+      end
+    end
+
+    it 'ignores image clips — stills conform to any timeline' do
+      cut = { 'clips' => [
+        { 'source_file' => 'MVI_0309_720p.mov', 'in_point' => 0, 'out_point' => 2 },
+        { 'source_file' => 'title card.png', 'duration' => 3 }
+      ] }
+      within_export_sandbox(cut: cut, media: [clip_a, @still_path]) do |cut_path, out|
+        stderr = capture_stderr { perform(cut_path, out) }
+
+        expect(stderr).not_to include('mixes')
+      end
+    end
+  end
+
   describe 'editor targets' do
     let(:cut) do
       { 'clips' => [{ 'source_file' => 'MVI_0309_720p.mov', 'in_point' => 0, 'out_point' => 2 }] }

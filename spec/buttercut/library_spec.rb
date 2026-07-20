@@ -388,6 +388,113 @@ RSpec.describe Library do
     end
   end
 
+  describe '#format_report' do
+    # Grouping/probing coverage lives in format_checker_spec. Here we just
+    # confirm Library hands the checker its video paths only — stills conform
+    # to any timeline, so images never count toward "mixed".
+    it 'checks video paths only and returns the report' do
+      write_library(media: [video_entry('a.mov'), image_entry('still.jpg'), video_entry('b.mp4')])
+      checker = instance_double(FormatChecker, report: { 'uniform' => true })
+      expect(FormatChecker).to receive(:new).with(['/tmp/a.mov', '/tmp/b.mp4']).and_return(checker)
+
+      expect(Library.find(library_name).format_report).to eq('uniform' => true)
+    end
+  end
+
+  describe '#replace_media!' do
+    let(:replacement) do
+      path = File.join(libraries_root, 'conformed', 'a.mov')
+      FileUtils.mkdir_p(File.dirname(path))
+      FileUtils.touch(path)
+      path
+    end
+
+    before do
+      write_library(media: [
+                      video_entry('a.mov', transcript: 'a.json', contact_sheet: 'a_full.jpg', summary: 'summary_a.md'),
+                      image_entry('b.jpg', summary: 'summary_b_jpg.md')
+                    ])
+      allow(Library).to receive(:probe_duration).and_return('00:00:07')
+    end
+
+    it 'swaps the path, re-probes duration, and keeps the analysis fields' do
+      Library.find(library_name).replace_media!('a.mov', replacement)
+
+      entry = load_yaml['media'].first
+      expect(entry['path']).to eq(replacement)
+      expect(entry['duration']).to eq('00:00:07')
+      expect(entry).to include('transcript' => 'a.json', 'contact_sheet' => 'a_full.jpg', 'summary' => 'summary_a.md')
+    end
+
+    it 'allows a container change as long as the clip key holds' do
+      write_library(media: [video_entry('a.mts', path: '/tmp/a.mts')])
+      Library.find(library_name).replace_media!('a.mts', replacement)
+
+      expect(load_yaml['media'].first['path']).to eq(replacement)
+    end
+
+    it 'swaps an image without probing a duration' do
+      path = File.join(libraries_root, 'conformed', 'b.jpg')
+      FileUtils.mkdir_p(File.dirname(path))
+      FileUtils.touch(path)
+
+      Library.find(library_name).replace_media!('b.jpg', path)
+
+      entry = load_yaml['media'].last
+      expect(entry['path']).to eq(path)
+      expect(entry).not_to have_key('duration')
+      expect(Library).not_to have_received(:probe_duration)
+    end
+
+    it 'raises when the replacement file does not exist' do
+      expect { Library.find(library_name).replace_media!('a.mov', '/nope/a.mov') }
+        .to raise_error(ArgumentError, /replacement file not found/)
+    end
+
+    it 'raises when the replacement changes the clip key' do
+      path = File.join(libraries_root, 'conformed', 'other.mov')
+      FileUtils.mkdir_p(File.dirname(path))
+      FileUtils.touch(path)
+
+      expect { Library.find(library_name).replace_media!('a.mov', path) }
+        .to raise_error(ArgumentError, /must keep the clip name/)
+      expect(File.basename(load_yaml['media'].first['path'])).to eq('a.mov')
+    end
+
+    it 'raises when the replacement changes the media type' do
+      path = File.join(libraries_root, 'conformed', 'a.png')
+      FileUtils.mkdir_p(File.dirname(path))
+      FileUtils.touch(path)
+
+      expect { Library.find(library_name).replace_media!('a.mov', path) }
+        .to raise_error(ArgumentError, /must stay video media/)
+    end
+
+    it 'rejects an unsupported extension with the supported-set message' do
+      path = File.join(libraries_root, 'conformed', 'a.mkv')
+      FileUtils.mkdir_p(File.dirname(path))
+      FileUtils.touch(path)
+
+      expect { Library.find(library_name).replace_media!('a.mov', path) }
+        .to raise_error(ArgumentError, /unsupported media format/)
+    end
+
+    it 'raises when the replacement path is already another entry' do
+      taken = File.join(libraries_root, 'src', 'b.jpg')
+      FileUtils.mkdir_p(File.dirname(taken))
+      FileUtils.touch(taken)
+      write_library(media: [video_entry('a.mov'), image_entry('b.jpg', path: taken)])
+
+      expect { Library.find(library_name).replace_media!('a.mov', taken) }
+        .to raise_error(ArgumentError, /media already in library/)
+    end
+
+    it 'raises when the entry is not present in library.yaml' do
+      expect { Library.find(library_name).replace_media!('nope.mov', replacement) }
+        .to raise_error(ArgumentError, /media not found in library\.yaml/)
+    end
+  end
+
   describe '#relink!' do
     # Stand in for a drive mounted at <root>/<vol>, holding clips under CAC/.
     def make_drive(vol, *names)

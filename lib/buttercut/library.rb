@@ -11,6 +11,7 @@ require 'json'
 require 'shellwords'
 require 'yaml'
 
+require_relative 'format_checker'
 require_relative 'media_tools'
 require_relative 'media_verifier'
 require_relative 'version'
@@ -313,6 +314,54 @@ class Library
   # Read-only report on whether every source file still resolves. See MediaVerifier.
   def verify_media
     MediaVerifier.new(media.map { |m| m['path'] }).report
+  end
+
+  # Read-only report on whether the library's videos all share one display
+  # resolution + frame rate. Images are excluded — stills conform to any
+  # timeline. Mixing is allowed; this exists so the agent can warn the user
+  # (and offer the conform flow) instead of the mix surfacing as mystery
+  # softness/stutter in their editor. See FormatChecker for the report shape.
+  def format_report
+    FormatChecker.new(media.filter_map { |m| m['path'] if m['type'] == 'video' }).report
+  end
+
+  # Point one entry at a different source file while keeping its analysis —
+  # the swap half of the conform flow: ffmpeg writes a converted copy (same
+  # basename, different folder), and this makes the entry use it. The new file
+  # must be the same media type and share the clip key (for videos, the
+  # basename without extension), because artifact filenames are built from
+  # that key — under a different name the existing transcript/contact
+  # sheet/summary no longer belong to the file, so use remove_media +
+  # add_media (and reprocess) instead. Duration is re-probed; neither file on
+  # disk is touched.
+  def replace_media!(media_filename, new_path)
+    expanded = File.expand_path(new_path.to_s)
+    raise ArgumentError, "replacement file not found: #{expanded}" unless File.exist?(expanded)
+
+    mutate do |library|
+      media = find_media!(library, media_filename)
+      if library['media'].any? { |m| m['path'] == expanded }
+        raise ArgumentError, "media already in library: #{expanded}"
+      end
+
+      old_type = self.class.media_type_of(media['path']) || 'video'
+      new_type = self.class.media_type_of(expanded)
+      raise ArgumentError, self.class.unsupported_format_message(expanded) if new_type.nil?
+      unless new_type == old_type
+        raise ArgumentError, "replacement must stay #{old_type} media; " \
+                             "#{File.basename(expanded)} is #{new_type}"
+      end
+      unless self.class.clip_key(expanded) == self.class.clip_key(media['path'])
+        raise ArgumentError, "replacement must keep the clip name (expected key " \
+                             "#{self.class.clip_key(media['path'])}, got #{self.class.clip_key(expanded)}) " \
+                             'so existing artifacts still match — otherwise use remove_media + add_media and reprocess'
+      end
+
+      media['path'] = expanded
+      media['duration'] = self.class.probe_duration(expanded) if MEDIA_TYPES[new_type][:probe_duration]
+    end
+    puts "#{@name}: #{media_filename} now points at #{expanded} (analysis kept; both files untouched)"
+    self
   end
 
   # Rewrite media paths whose drive prefix moved. Never automatic (the user
@@ -754,6 +803,7 @@ if __FILE__ == $PROGRAM_NAME
       <name> incomplete_media                         — JSON array of incomplete clips
       <name> unsupported_media                        — JSON array of entries whose extension no editor imports natively
       <name> verify_media                             — JSON report: media paths still resolve? On missing/phantom, read skills/cut/missing_footage.md
+      <name> format_report                            — JSON report: do all videos share one resolution + frame rate? uniform:false = mixed footage
       <name> pending <field>                          — JSON array of clips still missing one field (only types the field applies to)
       <name> ready                                    — exits 0 if every clip is ready for roughcut, 1 otherwise
       <name> field_path <field> <clip>                — canonical path for a clip's artifact (e.g. summary → summaries/summary_<clip>.md)
@@ -761,6 +811,7 @@ if __FILE__ == $PROGRAM_NAME
     Writes:
       <name> add_media <path>...                      — append media records (type inferred from extension; video: #{Library::MEDIA_TYPES['video'][:extensions].join('/')}; image: #{Library::MEDIA_TYPES['image'][:extensions].join('/')})
       <name> remove_media <files>                     — drop entries + delete their artifacts (source footage untouched)
+      <name> replace_media <file> <new_path>          — point one entry at a converted copy (same basename; analysis kept, both files untouched)
       <name> relink <old_prefix> <new_prefix>         — rewrite media paths under old_prefix to new_prefix (segment-aware, all-or-nothing; propose from verify_media, user confirms)
       <name> update_metadata <key> <value...>         — set footage_summary, user_context, language, editor, or transcript_refinement
       <name> complete <field> <files>                 — mark files done for one field
@@ -842,6 +893,8 @@ if __FILE__ == $PROGRAM_NAME
       puts JSON.pretty_generate(library.unsupported_media)
     when 'verify_media'
       puts JSON.pretty_generate(library.verify_media)
+    when 'format_report'
+      puts JSON.pretty_generate(library.format_report)
     when 'pending'
       field, = rest
       raise ArgumentError, 'pending requires <field>' if field.nil?
@@ -862,6 +915,11 @@ if __FILE__ == $PROGRAM_NAME
       raise ArgumentError, 'remove_media requires <files>' if rest.empty?
 
       library.remove_media!(split_files.call(rest))
+    when 'replace_media'
+      filename, new_path = rest
+      raise ArgumentError, 'replace_media requires <filename> <new_path>' if filename.nil? || new_path.nil?
+
+      library.replace_media!(filename, new_path)
     when 'relink'
       # Volume names contain spaces ("Andrew SSD") — an unquoted call must fail
       # here, not downstream with a misleading "no media paths under /Volumes/Andrew".
