@@ -33,6 +33,20 @@ ButterCut has two primary abstractions: libraries (where footage goes) and cuts 
 
 See [docs/usage.md](docs/usage.md) for working with libraries and cuts.
 
+## ButterCut vs. ButterCut Pro
+
+This is the core (free) version of ButterCut. [ButterCut Pro](https://buttercut.io) is the paid edition ($49/year).
+
+| Feature | ButterCut | ButterCut Pro |
+| --- | :---: | :---: |
+| Single-track cuts | ✅ | ✅ |
+| Exports to Final Cut Pro, Premiere & DaVinci Resolve | ✅ | ✅ |
+| Multi-track cuts — B-roll laid over your A-roll spine | — | ✅ |
+| ButterCut Preview — browse libraries, clips & cuts in Claude Desktop | — | ✅ |
+| Multicam cuts | — | Coming soon |
+
+If you're a developer interested in a reduced-cost Pro license in exchange for bug reports, DM me on the ButterCut Discord linked from [buttercut.io](https://buttercut.io).
+
 ## License
 
 ButterCut is open source under the [PolyForm Noncommercial License 1.0.0 with a Commercial Output exception](LICENSE).
@@ -41,10 +55,6 @@ ButterCut is open source under the [PolyForm Noncommercial License 1.0.0 with a 
 - **You can't repackage ButterCut as commercial software.** Selling, hosting, or bundling the tool itself (or a fork of it) into a commercial product, plugin, or SaaS requires a separate commercial license from TubeSalt LLC.
 
 Personal, hobby, research, and educational use of the software is also free under the underlying license. If you'd like a commercial software license, reach out to [Andrew@TubeSalt.com](mailto:Andrew@TubeSalt.com).
-
-## Future features
-
-This is the core (basic) version of ButterCut. ButterCut Pro is also on the way, à la Sidekiq Pro. ButterCut will remain a single-track editing solution with WhisperX transcription. ButterCut Pro will support multiple tracks, faster transcription, and other "pro" features. If you're a developer interested in a reduced-cost Pro license in exchange for bug reports, DM me on the ButterCut Discord linked from [buttercut.io](https://buttercut.io).
 
 ## Contributing
 
