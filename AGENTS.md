@@ -102,7 +102,7 @@ Writes (`add_media`, `remove_media`, `complete`, `update_metadata`), destructive
 
 ButterCut runs on macOS (primary) and Windows 10/11 — on Windows through Claude Desktop (Cowork) or Claude Code with **Git for Windows** installed, which makes the working shell **Git Bash**. Write and run commands bash-first; they work on both platforms.
 
-**The OS decision belongs in Ruby, not in a skill.** A skill prompt that branches per platform is a branch the model has to get right every time, in every session, with no test covering it. `lib/buttercut/platform.rb` owns OS detection and every OS-specific decision, so a skill can call one command that works everywhere — `ruby lib/buttercut/keep_awake.rb start`, `ruby lib/buttercut/reveal.rb <path> <app>`, `ruby lib/buttercut/library.rb editors`. When you need new platform-specific behavior, add it there and give the skill one command; don't write `if macOS … if Windows …` into a prompt.
+**The OS decision belongs in Ruby, not in a skill.** A skill prompt that branches per platform is a branch the model has to get right every time, in every session, with no test covering it. `lib/buttercut/platform.rb` owns OS detection and every OS-specific decision, so a skill can call one command that works everywhere — `ruby lib/buttercut/keep_awake.rb start`, `ruby lib/buttercut/reveal.rb <path> <app>`, `ruby lib/buttercut/desktop.rb <path>`, `ruby lib/buttercut/library.rb editors`. When you need new platform-specific behavior, add it there and give the skill one command; don't write `if macOS … if Windows …` into a prompt. Outside `skills/setup/`, no skill should run a platform-specific command.
 
 Three rules keep `Platform` from turning into a pile of OS branches:
 

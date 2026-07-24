@@ -95,17 +95,17 @@ Don't offer this proactively or use it by default — only reach for it after th
 
 ## 7. Copy File to Desktop (if enabled)
 Check `libraries/settings.yaml` for `save_to_desktop_after_export`:
-1. If the key is `true`, copy the exported XML to `~/Desktop/` so it's easy to grab and import into the editor.
+1. If the key is `true`, copy the exported XML to the Desktop so it's easy to grab and import into the editor.
 2. If the key is `false`, skip this step.
 3. If the key is missing, ask the user whether to drop a copy of every export on the Desktop, save their answer (`true`/`false`) to `libraries/settings.yaml`, then act on it.
 
 ```bash
-cp [library xml path] ~/Desktop/
+ruby lib/buttercut/desktop.rb "[library xml path]"
 ```
 
-The library copy stays as the canonical artifact; the desktop copy is a convenience drop.
+It prints where the copy landed — use that path in steps 9 and 10. (It finds the real Desktop rather than assuming `~/Desktop`, which on Windows is often not the one the user is looking at: OneDrive relocates it.) If it reports that it couldn't find the Desktop folder, tell the user and carry on with the library path — the export itself is fine.
 
-(That command works in Git Bash on Windows too. If `~/Desktop` doesn't exist — OneDrive sometimes relocates it — find the real one with `powershell -NoProfile -Command "[Environment]::GetFolderPath('Desktop')"` and copy there.)
+The library copy stays as the canonical artifact; the desktop copy is a convenience drop.
 
 ## 8. Backup Library
 Run the `backup-library` skill. This snapshots the entire library directory so progress can be restored if needed.

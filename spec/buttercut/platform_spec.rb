@@ -267,6 +267,40 @@ RSpec.describe Platform do
     end
   end
 
+  describe '.desktop_dir' do
+    it 'is ~/Desktop off Windows' do
+      on_mac!
+      expect(Platform.desktop_dir).to eq(File.join(Dir.home, 'Desktop'))
+    end
+
+    # OneDrive's Folder Backup moves the Desktop and can leave the old path
+    # behind, so only the shell knows which one the user is actually looking at.
+    it 'asks the Windows shell where the Desktop is' do
+      on_windows!
+      Dir.mktmpdir('bc-onedrive') do |relocated|
+        allow(Open3).to receive(:capture2)
+          .and_return(["#{relocated.tr('/', '\\')}\r\n", instance_double(Process::Status, success?: true)])
+
+        expect(Platform.desktop_dir).to eq(relocated)
+      end
+    end
+
+    it 'falls back to ~/Desktop when the shell answers with nothing usable' do
+      on_windows!
+      allow(Open3).to receive(:capture2)
+        .and_return(['C:/definitely/not/here', instance_double(Process::Status, success?: true)])
+
+      expect(Platform.desktop_dir).to eq(File.join(Dir.home, 'Desktop'))
+    end
+
+    it 'falls back to ~/Desktop when PowerShell cannot be run at all' do
+      on_windows!
+      allow(Open3).to receive(:capture2).and_raise(Errno::ENOENT)
+
+      expect(Platform.desktop_dir).to eq(File.join(Dir.home, 'Desktop'))
+    end
+  end
+
   describe '.keep_awake_argv' do
     it 'uses caffeinate on macOS' do
       on_mac!

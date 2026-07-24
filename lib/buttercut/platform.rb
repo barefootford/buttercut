@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'open3'
+
 # One owner of OS detection and the OS-specific decisions ButterCut's Ruby layer
 # needs, so the rest of lib/ never sniffs RUBY_PLATFORM or shells out to
 # POSIX-only probes. Everything here avoids the shell: PATH lookups stat the
@@ -108,6 +110,31 @@ module Platform
     return ['caffeinate', '-i'] if mac?
     return powershell_script_argv(KEEP_AWAKE_SCRIPT) if windows?
 
+    nil
+  end
+
+  # Where the user's Desktop actually is.
+  #
+  # On Windows this is a question only Windows can answer. OneDrive's Folder
+  # Backup — on by default in a lot of consumer installs — redirects the
+  # Desktop to ~/OneDrive/Desktop, and the old ~/Desktop can survive the move
+  # empty. So "does ~/Desktop exist?" doesn't tell you whether it's the one the
+  # user is looking at, and guessing wrong means a file copied somewhere they
+  # never see: worse than a copy that fails loudly.
+  def desktop_dir = windows_known_desktop || File.join(Dir.home, 'Desktop')
+
+  # What the Windows shell reports as the Desktop, or nil — off Windows, if
+  # PowerShell can't be run, or if the answer isn't a directory that exists.
+  def windows_known_desktop
+    argv = powershell_argv("[Environment]::GetFolderPath('Desktop')")
+    return nil unless argv
+
+    output, status = Open3.capture2(*argv)
+    return nil unless status.success?
+
+    path = forward_slashes(output.strip)
+    path if !path.empty? && Dir.exist?(path)
+  rescue SystemCallError
     nil
   end
 
