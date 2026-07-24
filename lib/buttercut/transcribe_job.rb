@@ -31,9 +31,7 @@ class TranscribeJob < Job
   ].freeze
 
   def self.whisperx_command
-    return 'whisperx' if Platform.command_available?('whisperx')
-
-    WHISPERX_FALLBACK_DIRS.filter_map { |dir| Platform.find_executable('whisperx', dir) }.first ||
+    Platform.find_tool('whisperx', :path, *WHISPERX_FALLBACK_DIRS) ||
       raise(MediaTools::MissingBinary,
             'whisperx not found on PATH or under ~/.buttercut — run the setup skill to install it')
   end
@@ -67,7 +65,11 @@ class TranscribeJob < Job
     # resolve call is a preflight: no ffmpeg anywhere raises MediaTools'
     # clear error here instead of a cryptic decode failure inside whisperx.
     MediaTools.ffmpeg
-    env = { 'PATH' => [MediaTools::DEPENDENCIES_DIR, ENV.fetch('PATH', '')].join(File::PATH_SEPARATOR) }
+    # Keyed off the environment's own spelling: Windows says `Path`, and adding
+    # a second `PATH` to the child's environment is a coin flip over which one
+    # it reads — losing that flip silently drops the dependencies/ precedence.
+    path_key = Platform.path_env_key
+    env = { path_key => [MediaTools::DEPENDENCIES_DIR, ENV.fetch(path_key, '')].join(File::PATH_SEPARATOR) }
     output, status = Open3.capture2e(
       env,
       self.class.whisperx_command, @video_path,

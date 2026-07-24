@@ -313,17 +313,19 @@ RSpec.describe ButterCut::FCPX do
   end
 
   describe '#get_absolute_path' do
+    # What "absolute" looks like is the platform's business — a leading slash
+    # on POSIX, a drive letter on Windows — so ask it rather than assuming.
     it 'converts relative path to absolute' do
       generator = ButterCut::FCPX.new(clips)
       abs_path = generator.get_absolute_path('test.mp4')
-      expect(abs_path).to start_with('/')
+      expect(File.absolute_path?(abs_path)).to be(true)
       expect(abs_path).to end_with('test.mp4')
     end
 
     it 'returns absolute path unchanged' do
       generator = ButterCut::FCPX.new(clips)
-      abs_path = generator.get_absolute_path('/absolute/path/test.mp4')
-      expect(abs_path).to eq('/absolute/path/test.mp4')
+      absolute = File.expand_path('/absolute/path/test.mp4')
+      expect(generator.get_absolute_path(absolute)).to eq(absolute)
     end
   end
 

@@ -69,7 +69,7 @@ Planning and building a cut don't need the drive plugged in — only the export 
 Now that the cut YAML exists, resolve one editor value for the export:
 1. If `library.yaml` has `editor` set, use it.
 2. Otherwise fall back to `libraries/settings.yaml`'s `editor` and write the value back to `library.yaml`.
-3. If neither has one, ask the user (Final Cut Pro X / Adobe Premiere Pro / DaVinci Resolve), then save the choice to both `library.yaml` and `libraries/settings.yaml`. On Windows, offer only Premiere and Resolve — Final Cut is macOS-only.
+3. If neither has one, ask the user, then save the choice to both `library.yaml` and `libraries/settings.yaml`. Get the options from `ruby lib/buttercut/library.rb editors` rather than listing them from memory — it only offers what this machine can actually run.
 
 ## 6. Export the Cut
 Run the export with the editor resolved in step 5 and the YAML produced in step 3:
@@ -125,30 +125,19 @@ Check `libraries/settings.yaml` for `open_in_editor_after_export`:
 2. If the key is `false`, skip this step.
 3. If the key is missing, ask the user whether exports should be opened automatically, save their answer (`true`/`false`) to `libraries/settings.yaml`, then act on it.
 
-**On macOS**, use `open -a` with the correct application name so macOS doesn't fall back to a text editor or Xcode:
+Pass the file and the editor's application name (`Final Cut Pro`, `Adobe Premiere Pro`, or `DaVinci Resolve`):
 
 ```bash
-# Final Cut Pro X
-open -a "Final Cut Pro" [xml path]
-
-# Adobe Premiere Pro
-open -a "Adobe Premiere Pro" [xml path]
-
-# DaVinci Resolve
-open -a "DaVinci Resolve" [xml path]
+ruby lib/buttercut/reveal.rb "[xml path]" "[application name]"
 ```
-
-If this is enabled, tell them "I've opened the file for you in __application_name__. Let me know if I can help with anything else."
-
-**On Windows**, don't try to launch the editor with the XML — Premiere and Resolve *import* these files rather than open them, and the .xml file association would land in a browser or text editor. Reveal the file in Explorer instead and repeat the import instruction from step 9:
-
-```bash
-explorer /select,"$(cygpath -w "[xml path]")"
-```
-
-(Explorer often exits with code 1 even when it worked — don't treat that as a failure.) Then tell them "I've highlighted the exported file in Explorer — in __application_name__, use the import menu from above to bring it in."
 
 Use the desktop copy path if step 7 placed one there; otherwise use the library path.
+
+It handles the differences for you — including version-suffixed installs like "Adobe Premiere Pro 2026" — and prints which of these happened. Tell the user accordingly:
+
+- `opened in …` → "I've opened the file for you in __application_name__. Let me know if I can help with anything else."
+- `revealed in the file manager…` → "I've highlighted the exported file for you — in __application_name__, use the import menu from above to bring it in." (This is what Windows does: Premiere and Resolve *import* these files rather than open them, so launching the XML would land it in a browser.)
+- `exported to …` → just give them the path with the import instruction from step 9.
 
 
 ## Guidelines

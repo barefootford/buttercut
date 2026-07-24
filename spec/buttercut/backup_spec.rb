@@ -167,7 +167,6 @@ RSpec.describe LibraryBackup do
     it 'falls back to PowerShell Compress-Archive when bsdtar is missing on Windows' do
       allow(Platform).to receive(:command_available?).with('zip').and_return(false)
       allow(Platform).to receive(:windows_system_tar).and_return(nil)
-      allow(Platform).to receive(:windows?).and_return(true)
       allow(Platform).to receive(:powershell)
         .and_return('C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe')
 
@@ -180,10 +179,11 @@ RSpec.describe LibraryBackup do
         .to eq("Compress-Archive -Force -LiteralPath 'lib' -DestinationPath 'C:/b/andrew''s lib.zip'")
     end
 
+    # The ladder ends by itself off-Windows: both Windows locators return nil
+    # there, so nothing has to ask which OS this is.
     it 'returns nil on POSIX systems without a zip CLI' do
       allow(Platform).to receive(:command_available?).with('zip').and_return(false)
-      allow(Platform).to receive(:windows_system_tar).and_return(nil)
-      allow(Platform).to receive(:windows?).and_return(false)
+      allow(Platform).to receive(:host_os).and_return('darwin24')
 
       expect(backup.send(:zip_command, '/b/x.zip', 'lib')).to be_nil
     end
@@ -191,12 +191,14 @@ RSpec.describe LibraryBackup do
 
   describe '.resolve_backups_dir' do
     it 'uses the override when provided' do
-      expect(LibraryBackup.resolve_backups_dir(project_root: temp_dir, override: '/tmp/x')).to eq('/tmp/x')
+      # expand_path, so a POSIX absolute path picks up the current drive on Windows.
+      expect(LibraryBackup.resolve_backups_dir(project_root: temp_dir, override: '/tmp/x'))
+        .to eq(File.expand_path('/tmp/x'))
     end
 
     it 'reads backups_dir from libraries/settings.yaml when present' do
       File.write(File.join(libraries_dir, 'settings.yaml'), YAML.dump('backups_dir' => '/tmp/from-settings'))
-      expect(LibraryBackup.resolve_backups_dir(project_root: temp_dir)).to eq('/tmp/from-settings')
+      expect(LibraryBackup.resolve_backups_dir(project_root: temp_dir)).to eq(File.expand_path('/tmp/from-settings'))
     end
 
     it 'falls back to the default under ~/Documents when no override or setting' do

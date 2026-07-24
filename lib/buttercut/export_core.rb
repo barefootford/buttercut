@@ -5,6 +5,7 @@ require 'date'
 require 'open3'
 require 'yaml'
 require_relative '../buttercut'
+require_relative 'editors'
 require_relative 'library'
 require_relative 'media_verifier'
 require_relative 'platform'
@@ -17,7 +18,7 @@ class Export
     premiere: 'Adobe Premiere Pro (FCP7 XML + rotation)'
   }.freeze
 
-  def self.perform(roughcut_path:, output_path:, editor: 'fcpx')
+  def self.perform(roughcut_path:, output_path:, editor: Editors.default)
     new(roughcut_path: roughcut_path, output_path: output_path, editor: editor).perform
   end
 
@@ -136,9 +137,17 @@ class Export
 
   def resolve_editor(input)
     editor = input.downcase.to_sym
-    return editor if EDITOR_LABELS.key?(editor)
+    raise ArgumentError, "Unknown editor '#{input}'. Use 'fcpx', 'premiere', 'resolve', or 'resolve_legacy'" unless
+      EDITOR_LABELS.key?(editor)
 
-    raise ArgumentError, "Unknown editor '#{input}'. Use 'fcpx', 'premiere', 'resolve', or 'resolve_legacy'"
+    # Warn, don't raise: exporting FCPXML on Windows to hand to someone on a
+    # Mac is a real thing people do. This only catches the case where the
+    # library's editor setting predates the machine it's running on.
+    if (reason = Editors.unavailable_reason(editor))
+      warn "⚠ #{reason}"
+    end
+
+    editor
   end
 
   def write_xml(clips, editor, timeline)

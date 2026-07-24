@@ -246,7 +246,7 @@ RSpec.describe Export do
     end
 
     it 'produces fcpx output that validates against the FCPXML 1.12 DTD' do
-      skip 'xmllint not available' unless system('command -v xmllint > /dev/null 2>&1')
+      skip 'xmllint not available' unless Platform.command_available?('xmllint')
       dtd = File.expand_path('../../dtd/FCPXMLv1_12.dtd', __dir__)
       skip 'DTD not present' unless File.exist?(dtd)
 

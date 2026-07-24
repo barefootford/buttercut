@@ -17,17 +17,20 @@ cp templates/settings_template.yaml libraries/settings.yaml
 
 If no previous `settings.yaml` was present, use `AskUserQuestion` to ask the user to confirm or change their defaults (editor and `whisper_model`).
 
-Editor options (label shown to user → value to save):
-- Final Cut Pro X → `fcpx` (macOS only — don't offer this option on Windows)
-- Adobe Premiere Pro → `premiere`
-- DaVinci Resolve → `resolve`
+For the editor, offer exactly what this machine can run:
+
+```bash
+ruby lib/buttercut/library.rb editors
+```
+
+It returns the options to show (`label` for the user, `value` to save) and which one to present as the default. Don't offer anything it leaves out — Final Cut Pro doesn't exist off macOS, and picking it there produces a file the user can't open.
 
 `whisper_model` options:
 - Small (recommended — pairs well with per-library `transcript_refinement`)
 - Medium
 - Turbo (Large)
 
-Save the shortcode (`fcpx` / `premiere` / `resolve`) to `libraries/settings.yaml`.
+Save the chosen `value` to `libraries/settings.yaml`.
 
 ## Step 2 — Gather project information
 

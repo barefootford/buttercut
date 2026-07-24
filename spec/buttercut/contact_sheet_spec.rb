@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'fileutils'
 require 'tmpdir'
 require_relative '../../lib/buttercut/contact_sheet'
 
@@ -166,5 +167,51 @@ RSpec.describe ContactSheet, '.compute_vfr' do
   it 'returns false for malformed or missing rates' do
     expect(ContactSheet.compute_vfr('0/0', '30/1')).to be(false)
     expect(ContactSheet.compute_vfr('', '')).to be(false)
+  end
+end
+
+# The timestamp burned onto every contact-sheet tile comes from drawtext, whose
+# `fontfile=` value has to survive two ffmpeg parsers. The escaping is easy to
+# get subtly wrong and impossible to reason about reliably, so these run the
+# real binary: each font sits under a directory named after a shape that occurs
+# in the wild, and a failure to escape shows up as ffmpeg refusing the filter.
+#
+# Nothing here is Windows-specific — a Mac user with an apostrophe in a folder
+# name hits the same parser — but the drive colon is why it came up.
+RSpec.describe Platform, '.ffmpeg_filter_path through real ffmpeg' do
+  AWKWARD_DIRECTORIES = [
+    "O'Brien",        # an ordinary surname, and so an ordinary home directory
+    'shots, b-roll',
+    'take [2]',
+    'a;b',
+    'plain'
+  ].freeze
+
+  around do |example|
+    Dir.mktmpdir('drawtext-escape-') do |dir|
+      @tmp_dir = dir
+      example.run
+    end
+  end
+
+  AWKWARD_DIRECTORIES.each do |dirname|
+    it "renders drawtext with the font under #{dirname.inspect}" do
+      dir = File.join(@tmp_dir, dirname)
+      FileUtils.mkdir_p(dir)
+      font = File.join(dir, File.basename(ContactSheet::FONT_PATH))
+      FileUtils.cp(ContactSheet::FONT_PATH, font)
+      output = File.join(dir, 'out.png')
+
+      filter = "drawtext=fontfile=#{Platform.ffmpeg_filter_path(font)}:" \
+               "text='00\\:00\\:05':fontsize=20:fontcolor=white:x=5:y=5"
+      _stdout, stderr, status = Open3.capture3(
+        MediaTools.ffmpeg, '-hide_banner', '-loglevel', 'error', '-nostdin', '-y',
+        '-f', 'lavfi', '-i', 'color=c=black:s=320x240:d=1',
+        '-vf', filter, '-frames:v', '1', output
+      )
+
+      expect(status).to be_success, "ffmpeg rejected the filter: #{stderr.strip}"
+      expect(File.size?(output)).to be_truthy
+    end
   end
 end

@@ -306,7 +306,8 @@ RSpec.describe Library do
         Library.find(library_name).add_media(['./a.mov'])
         load_yaml['media'].last['path']
       end
-      expect(stored).to start_with('/')
+      expect(File.absolute_path?(stored)).to be(true)
+      # Stored paths stay forward-slash on every platform, drive letter or not.
       expect(stored).to end_with('/src/a.mov')
       expect(File.identical?(stored, video_a)).to be(true)
     end

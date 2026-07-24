@@ -124,16 +124,17 @@ class LibraryBackup
     backup_path
   end
 
-  # argv (run from @libraries_dir) that zips the library folder into backup_path.
-  # Windows has no zip CLI — fall back to System32 bsdtar, then PowerShell.
+  # argv (run from @libraries_dir) that zips the library folder into backup_path,
+  # or nil when this machine has nothing that can write one. Each rung asks what
+  # exists rather than which OS this is — Windows has no zip CLI, so it lands on
+  # System32's bsdtar, and PowerShell only if even that is missing (both nil
+  # off-Windows, which is what ends the ladder).
   def zip_command(backup_path, library_name)
     return ['zip', '-rq', backup_path, library_name] if Platform.command_available?('zip')
 
     if (bsdtar = Platform.windows_system_tar)
       return [bsdtar, '-a', '-cf', backup_path, library_name]
     end
-
-    return nil unless Platform.windows?
 
     Platform.powershell_argv(
       "Compress-Archive -Force -LiteralPath #{Platform.ps_quote(library_name)} " \

@@ -11,7 +11,8 @@ require_relative 'platform'
 # raises MissingBinary up front — a clear "run the setup skill" instead of a
 # cryptic command-not-found buried in subprocess output.
 #
-# Both checks go through Platform so Windows resolves the .exe variants.
+# The search order is Platform.find_tool's one ladder, so Windows resolves the
+# .exe variants for free.
 module MediaTools
   class MissingBinary < StandardError; end
 
@@ -21,11 +22,8 @@ module MediaTools
   def self.ffprobe = resolve('ffprobe')
 
   def self.resolve(name)
-    local = Platform.find_executable(name, DEPENDENCIES_DIR)
-    return local if local
-    return name if Platform.command_available?(name)
-
-    raise MissingBinary,
-          "#{name} not found in ButterCut's dependencies/ directory or on PATH — run the setup skill to install it"
+    Platform.find_tool(name, DEPENDENCIES_DIR, :path) ||
+      raise(MissingBinary,
+            "#{name} not found in ButterCut's dependencies/ directory or on PATH — run the setup skill to install it")
   end
 end

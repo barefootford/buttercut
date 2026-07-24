@@ -10,6 +10,7 @@ require 'json'
 require 'open3'
 require 'yaml'
 
+require_relative 'editors'
 require_relative 'media_tools'
 require_relative 'platform'
 require_relative 'media_verifier'
@@ -751,6 +752,7 @@ if __FILE__ == $PROGRAM_NAME
       ruby library.rb migrate                         — run all migrations across every library
       ruby library.rb update_checked                  — record that you just checked for a newer ButterCut
       ruby library.rb edition                         — print which ButterCut edition this is (core or pro)
+      ruby library.rb editors                         — JSON: the editors worth offering on this machine, + the default
       ruby library.rb <library_name> <action> [args]
 
     Existence + status (no library load required for `exists`):
@@ -796,6 +798,13 @@ if __FILE__ == $PROGRAM_NAME
   # branches on this; like update_checked it must never hit the daily gate.
   if ARGV.first == 'edition'
     puts ButterCut::EDITION
+    exit 0
+  end
+
+  # Which editors to offer on this machine, and what to default to. Ungated
+  # like the two above: it's a question about the computer, not a library.
+  if ARGV.first == 'editors'
+    puts JSON.pretty_generate('default' => Editors.default, 'options' => Editors.available)
     exit 0
   end
 

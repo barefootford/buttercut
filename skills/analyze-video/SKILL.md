@@ -37,23 +37,15 @@ In the public chat, refer to these non-technical steps. Keep the technical work 
 
 Before starting analysis, ask the user (via `AskUserQuestion`): "Processing can take a while — want me to keep your computer awake until it's done?" Options: "Yes (Recommended)" and "No".
 
-If yes, start the platform's keep-awake helper in the background and store the PID — you'll kill it in Step 6 once analysis is finished. (Backup is handled by the calling skill — `process-library` — after this skill returns.)
-
-macOS:
+If yes:
 
 ```bash
-caffeinate -i -w $$ &
-KEEPAWAKE_PID=$!
+ruby lib/buttercut/keep_awake.rb start
 ```
 
-Windows (Git Bash):
+It prints a PID — remember it, you'll need it in Step 6. (It prints nothing at all on a machine with no keep-awake mechanism; that's fine, carry on.) The display may still turn off while footage processes, which is fine.
 
-```bash
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/keep_awake.ps1 &
-KEEPAWAKE_PID=$!
-```
-
-Both prevent idle sleep while footage processes (the display may still turn off, which is fine).
+(Backup is handled by the calling skill — `process-library` — after this skill returns.)
 
 ## Step 2 — Process footage (transcripts, then contact sheets)
 
@@ -145,10 +137,10 @@ This is the one place to do this thorough pass. Every later roughcut planning ru
 
 ## Step 6 — Stop the keep-awake helper
 
-If you started one in Step 1, kill it now (both platforms):
+If Step 1 printed a PID, stop it now — pass that number back:
 
 ```bash
-kill $KEEPAWAKE_PID 2>/dev/null
+ruby lib/buttercut/keep_awake.rb stop <pid>
 ```
 
 ## Parallel sub-agent pattern (reference)

@@ -64,11 +64,11 @@ jobs:
 
   test-windows:
     # Exercises the Windows paths (.exe resolution, argv subprocesses, zip
-    # fallbacks) on a real runner; default suite only. Informational for now:
-    # a few specs still assert POSIX-shaped paths — flip to blocking once
-    # they're platform-aware (tracked in docs/windows.md).
+    # fallbacks, drive-letter file URLs) on a real runner; default suite only.
+    # Blocking, like the macOS job — the handful of examples that can only be
+    # true on one platform carry a `posix_only:`/`windows_only:` tag rather
+    # than the whole job carrying an excuse (see spec/spec_helper.rb).
     runs-on: windows-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v6
 
