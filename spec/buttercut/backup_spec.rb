@@ -32,11 +32,27 @@ RSpec.describe LibraryBackup do
     end
   end
 
+  # List a zip's entries with whatever this machine has: Info-ZIP's unzip
+  # (macOS/Linux), else the zip-reading bsdtar Windows ships in System32.
+  def zip_entries(archive)
+    argv = if Platform.command_available?('unzip')
+             ['unzip', '-Z1', archive]
+           elsif (bsdtar = Platform.windows_system_tar)
+             [bsdtar, '-tf', archive]
+           else
+             skip 'no tool available to list zip entries on this machine'
+           end
+    listing, _err, status = Open3.capture3(*argv)
+    expect(status).to be_success
+    listing.split("\n")
+  end
+
   describe '#backup_all' do
     before { seed_libraries }
 
     context 'when Apple Archive (aa) is available' do
       before do
+        skip 'Apple Archive (aa) is macOS-only' unless Platform.command_available?('aa')
         allow_any_instance_of(LibraryBackup).to receive(:aa_available?).and_return(true)
       end
 
@@ -74,9 +90,7 @@ RSpec.describe LibraryBackup do
         end
 
         lib1_archive = results.find { |p| p.include?('library1') }
-        listing, _, status = Open3.capture3('unzip', '-Z1', lib1_archive)
-        expect(status).to be_success
-        entries = listing.split("\n")
+        entries = zip_entries(lib1_archive)
         expect(entries).to include('library1/library.yaml')
         expect(entries).to include('library1/transcripts/video1_transcript.json')
         expect(entries).to include('library1/cuts/cut1.yaml')
@@ -133,14 +147,58 @@ RSpec.describe LibraryBackup do
     end
   end
 
+  describe '#zip_command (tool selection)' do
+    let(:backup) { LibraryBackup.new(temp_dir, backups_dir: backups_dir) }
+
+    it 'uses the zip CLI when available' do
+      allow(Platform).to receive(:command_available?).with('zip').and_return(true)
+
+      expect(backup.send(:zip_command, '/b/x.zip', 'lib')).to eq(['zip', '-rq', '/b/x.zip', 'lib'])
+    end
+
+    it 'falls back to the Windows System32 bsdtar when zip is missing' do
+      allow(Platform).to receive(:command_available?).with('zip').and_return(false)
+      allow(Platform).to receive(:windows_system_tar).and_return('C:/Windows/System32/tar.exe')
+
+      expect(backup.send(:zip_command, 'C:/b/x.zip', 'lib'))
+        .to eq(['C:/Windows/System32/tar.exe', '-a', '-cf', 'C:/b/x.zip', 'lib'])
+    end
+
+    it 'falls back to PowerShell Compress-Archive when bsdtar is missing on Windows' do
+      allow(Platform).to receive(:command_available?).with('zip').and_return(false)
+      allow(Platform).to receive(:windows_system_tar).and_return(nil)
+      allow(Platform).to receive(:powershell)
+        .and_return('C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe')
+
+      argv = backup.send(:zip_command, "C:/b/andrew's lib.zip", 'lib')
+
+      expect(argv.first).to end_with('powershell.exe')
+      expect(argv).to include('-NoProfile', '-Command')
+      # Single quotes doubled — PowerShell's own escaping for literal quotes.
+      expect(argv.last)
+        .to eq("Compress-Archive -Force -LiteralPath 'lib' -DestinationPath 'C:/b/andrew''s lib.zip'")
+    end
+
+    # The ladder ends by itself off-Windows: both Windows locators return nil
+    # there, so nothing has to ask which OS this is.
+    it 'returns nil on POSIX systems without a zip CLI' do
+      allow(Platform).to receive(:command_available?).with('zip').and_return(false)
+      allow(Platform).to receive(:host_os).and_return('darwin24')
+
+      expect(backup.send(:zip_command, '/b/x.zip', 'lib')).to be_nil
+    end
+  end
+
   describe '.resolve_backups_dir' do
     it 'uses the override when provided' do
-      expect(LibraryBackup.resolve_backups_dir(project_root: temp_dir, override: '/tmp/x')).to eq('/tmp/x')
+      # expand_path, so a POSIX absolute path picks up the current drive on Windows.
+      expect(LibraryBackup.resolve_backups_dir(project_root: temp_dir, override: '/tmp/x'))
+        .to eq(File.expand_path('/tmp/x'))
     end
 
     it 'reads backups_dir from libraries/settings.yaml when present' do
       File.write(File.join(libraries_dir, 'settings.yaml'), YAML.dump('backups_dir' => '/tmp/from-settings'))
-      expect(LibraryBackup.resolve_backups_dir(project_root: temp_dir)).to eq('/tmp/from-settings')
+      expect(LibraryBackup.resolve_backups_dir(project_root: temp_dir)).to eq(File.expand_path('/tmp/from-settings'))
     end
 
     it 'falls back to the default under ~/Documents when no override or setting' do

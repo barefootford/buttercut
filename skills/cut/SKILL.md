@@ -69,7 +69,7 @@ Planning and building a cut don't need the drive plugged in — only the export 
 Now that the cut YAML exists, resolve one editor value for the export:
 1. If `library.yaml` has `editor` set, use it.
 2. Otherwise fall back to `libraries/settings.yaml`'s `editor` and write the value back to `library.yaml`.
-3. If neither has one, ask the user (Final Cut Pro X / Adobe Premiere Pro / DaVinci Resolve), then save the choice to both `library.yaml` and `libraries/settings.yaml`.
+3. If neither has one, ask the user, then save the choice to both `library.yaml` and `libraries/settings.yaml`. Get the options from `ruby lib/buttercut/library.rb editors` rather than listing them from memory — it only offers what this machine can actually run.
 
 ## 6. Export the Cut
 Run the export with the editor resolved in step 5 and the YAML produced in step 3:
@@ -95,13 +95,15 @@ Don't offer this proactively or use it by default — only reach for it after th
 
 ## 7. Copy File to Desktop (if enabled)
 Check `libraries/settings.yaml` for `save_to_desktop_after_export`:
-1. If the key is `true`, copy the exported XML to `~/Desktop/` so it's easy to grab and import into the editor.
+1. If the key is `true`, copy the exported XML to the Desktop so it's easy to grab and import into the editor.
 2. If the key is `false`, skip this step.
 3. If the key is missing, ask the user whether to drop a copy of every export on the Desktop, save their answer (`true`/`false`) to `libraries/settings.yaml`, then act on it.
 
 ```bash
-cp [library xml path] ~/Desktop/
+ruby lib/buttercut/desktop.rb "[library xml path]"
 ```
+
+It prints where the copy landed — use that path in steps 9 and 10. (It finds the real Desktop rather than assuming `~/Desktop`, which on Windows is often not the one the user is looking at: OneDrive relocates it.) If it reports that it couldn't find the Desktop folder, tell the user and carry on with the library path — the export itself is fine.
 
 The library copy stays as the canonical artifact; the desktop copy is a convenience drop.
 
@@ -123,22 +125,19 @@ Check `libraries/settings.yaml` for `open_in_editor_after_export`:
 2. If the key is `false`, skip this step.
 3. If the key is missing, ask the user whether exports should be opened automatically, save their answer (`true`/`false`) to `libraries/settings.yaml`, then act on it.
 
-Use `open -a` with the correct application name so macOS doesn't fall back to a text editor or Xcode:
+Pass the file and the editor's application name (`Final Cut Pro`, `Adobe Premiere Pro`, or `DaVinci Resolve`):
 
 ```bash
-# Final Cut Pro X
-open -a "Final Cut Pro" [xml path]
-
-# Adobe Premiere Pro
-open -a "Adobe Premiere Pro" [xml path]
-
-# DaVinci Resolve
-open -a "DaVinci Resolve" [xml path]
+ruby lib/buttercut/reveal.rb "[xml path]" "[application name]"
 ```
 
-If this is enabled, tell them "I've opened the file for you in __application_name__. Let me know if I can help with anything else."
-
 Use the desktop copy path if step 7 placed one there; otherwise use the library path.
+
+It handles the differences for you — including version-suffixed installs like "Adobe Premiere Pro 2026" — and prints which of these happened. Tell the user accordingly:
+
+- `opened in …` → "I've opened the file for you in __application_name__. Let me know if I can help with anything else."
+- `revealed in the file manager…` → "I've highlighted the exported file for you — in __application_name__, use the import menu from above to bring it in." (This is what Windows does: Premiere and Resolve *import* these files rather than open them, so launching the XML would land it in a browser.)
+- `exported to …` → just give them the path with the import instruction from step 9.
 
 
 ## Guidelines

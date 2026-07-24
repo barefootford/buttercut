@@ -1,8 +1,12 @@
 # ButterCut User Settings
 # Copy this file to libraries/settings.yaml to configure defaults
 
-# Preferred video editor: fcpx, premiere, or resolve
-editor: fcpx
+# Preferred video editor: fcpx, premiere, or resolve.
+# Left unset on purpose — which of these exist depends on the machine (Final
+# Cut is macOS-only), so setup asks and writes the answer here rather than
+# shipping a default that's wrong half the time. See:
+#   ruby lib/buttercut/library.rb editors
+# editor: fcpx
 
 # WhisperX model size: tiny, base, small, medium, or turbo
 # turbo is nearly as accurate as large-v3 but significantly faster

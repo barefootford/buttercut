@@ -117,11 +117,12 @@ RSpec.describe 'Generator still handling' do
     it 'percent-encodes spaces and non-ASCII in the still asset src' do
       clips = [{ path: unicode_image_path, type: :image, duration: 3.0 }]
       xml = described_class.new(clips, timeline: timeline_block).to_xml
-      expect(xml).to include('src="file:///tmp/blue%20caf%C3%A9%20%28test%29.jpg"')
+      # The encoding is the point; the URL authority ahead of it is platform-dependent.
+      expect(xml).to match(%r{src="file://\S*/blue%20caf%C3%A9%20%28test%29\.jpg"})
     end
 
     it 'validates against the FCPXML 1.12 DTD' do
-      skip 'xmllint not available' unless system('command -v xmllint > /dev/null 2>&1')
+      skip 'xmllint not available' unless Platform.command_available?('xmllint')
       dtd = File.expand_path('../../dtd/FCPXMLv1_12.dtd', __dir__)
       skip 'DTD not present' unless File.exist?(dtd)
 
@@ -182,7 +183,7 @@ RSpec.describe 'Generator still handling' do
     it 'percent-encodes spaces and non-ASCII in the still pathurl' do
       clips = [{ path: unicode_image_path, type: :image, duration: 3.0 }]
       xml = described_class.new(clips, timeline: timeline_block).to_xml
-      expect(xml).to include('<pathurl>file:///tmp/blue%20caf%C3%A9%20%28test%29.jpg</pathurl>')
+      expect(xml).to match(%r{<pathurl>file://\S*/blue%20caf%C3%A9%20%28test%29\.jpg</pathurl>})
     end
   end
 

@@ -22,14 +22,14 @@ This is the main thread's playbook for the **Analyze Video** workflow step. Run 
 At this point, create a todo list, visible to the user, with high-level, non-technical steps so they can follow the overall plan for processing the library. Include caffeination steps only if they've opted in. e.g.:
 
 ```
-- [ ] Keep Mac Awake with Caffeinate 
+- [ ] Keep computer awake 
 - [ ] Create transcripts (0/30)
 - [ ] Analyze footage (0/30)
-- [ ] Turn off Mac Caffeinate 
+- [ ] Let computer sleep again 
 - [ ] Review the footage together
 ```
 
-These public todos map onto the steps below: "Keep Mac Awake with Caffeinate" is Step 1 and "Turn off Mac Caffeinate" is Step 6; "Create transcripts" covers the mechanical run in Step 2 plus the optional refinement pass in Step 3 (advance its count from Step 2's `[transcript …]` progress lines; hold it in-progress through Step 3 when refinement is on); "Analyze footage" tracks the summaries in Step 4 (advance its count as clips are summarized, *not* after contact sheets); "Review the footage together" is Step 5.
+These public todos map onto the steps below: "Keep computer awake" is Step 1 and "Let computer sleep again" is Step 6; "Create transcripts" covers the mechanical run in Step 2 plus the optional refinement pass in Step 3 (advance its count from Step 2's `[transcript …]` progress lines; hold it in-progress through Step 3 when refinement is on); "Analyze footage" tracks the summaries in Step 4 (advance its count as clips are summarized, *not* after contact sheets); "Review the footage together" is Step 5.
 
 In the public chat, refer to these non-technical steps. Keep the technical work (WhisperX, contact-sheet generation, Sonnet summaries) behind the scenes.
 
@@ -37,14 +37,15 @@ In the public chat, refer to these non-technical steps. Keep the technical work 
 
 Before starting analysis, ask the user (via `AskUserQuestion`): "Processing can take a while — want me to keep your computer awake until it's done?" Options: "Yes (Recommended)" and "No".
 
-If yes, start caffeinate in the background:
+If yes:
 
 ```bash
-caffeinate -i -w $$ &
-CAFFEINATE_PID=$!
+ruby lib/buttercut/keep_awake.rb start
 ```
 
-This prevents idle sleep for the lifetime of the shell. Store the PID — you'll kill it in Step 6 once analysis is finished. (Backup is handled by the calling skill — `process-library` — after this skill returns.)
+It prints a PID — remember it, you'll need it in Step 6. (It prints nothing at all on a machine with no keep-awake mechanism; that's fine, carry on.) The display may still turn off while footage processes, which is fine.
+
+(Backup is handled by the calling skill — `process-library` — after this skill returns.)
 
 ## Step 2 — Process footage (transcripts, then contact sheets)
 
@@ -134,12 +135,12 @@ Don't move forward until summaries are complete. Advance the "Analyze footage" c
 
 This is the one place to do this thorough pass. Every later roughcut planning run inherits the resulting context rather than re-interrogating the library.
 
-## Step 6 — Stop caffeinate
+## Step 6 — Stop the keep-awake helper
 
-If you started caffeinate in Step 1, kill it now:
+If Step 1 printed a PID, stop it now — pass that number back:
 
 ```bash
-kill $CAFFEINATE_PID 2>/dev/null
+ruby lib/buttercut/keep_awake.rb stop <pid>
 ```
 
 ## Parallel sub-agent pattern (reference)

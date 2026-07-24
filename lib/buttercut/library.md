@@ -76,7 +76,16 @@ ruby lib/buttercut/library.rb <name> verify_media        # JSON: do the source f
 ruby lib/buttercut/library.rb <name> ready        # exit 0 if every clip is ready for a cut, 1 if not
 ruby lib/buttercut/library.rb update_checked      # record that you just checked for a newer ButterCut
 ruby lib/buttercut/library.rb edition             # print which ButterCut edition this is (core or pro)
+ruby lib/buttercut/library.rb editors             # JSON: the editors worth offering on this machine, + the default
 ```
+
+`editors` answers a question about the computer, not a library — which is why
+it takes no library name and, like `edition`, never hits the daily gate. Use it
+anywhere you're about to offer the user an editor choice instead of listing the
+three from memory: Final Cut Pro doesn't exist off macOS, and picking it there
+produces an FCPXML the user has nothing to open with. It returns `default` plus
+an `options` array of `{value, label}` — `label` for the question, `value` for
+`library.yaml` / `settings.yaml`.
 
 **Daily update-check gate.** The Library class has a once-a-day gate to check
 for updates to ButterCut. If in Auto mode, check for updates. Otherwise ask the
@@ -135,12 +144,12 @@ ruby lib/buttercut/library.rb <name> complete <field> <files...>
 Examples:
 ```bash
 ruby lib/buttercut/library.rb my-lib complete transcript DJI_0123.mov DJI_0124.mov
-ruby lib/buttercut/library.rb my-lib complete summary    DJI_0123.mov,DJI_0124.mov
+ruby lib/buttercut/library.rb my-lib complete summary    DJI_0123.mov "My Clip, Take 2.mov"
 ```
 
-`<files>` is space- and/or comma-separated. Call `complete` incrementally
-as each batch lands — not in one final sweep — so progress persists if a
-later batch fails.
+`<files>` is one filename per argument — quote names containing spaces or
+commas. Call `complete` incrementally as each batch lands — not in one
+final sweep — so progress persists if a later batch fails.
 
 ### Destructive resets
 ```bash

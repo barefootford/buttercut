@@ -2,10 +2,13 @@
 # The CLI entrypoint lives in the edition-agnostic shim, lib/buttercut/export.rb.
 
 require 'date'
+require 'open3'
 require 'yaml'
 require_relative '../buttercut'
+require_relative 'editors'
 require_relative 'library'
 require_relative 'media_verifier'
+require_relative 'platform'
 
 class Export
   EDITOR_LABELS = {
@@ -15,7 +18,7 @@ class Export
     premiere: 'Adobe Premiere Pro (FCP7 XML + rotation)'
   }.freeze
 
-  def self.perform(roughcut_path:, output_path:, editor: 'fcpx')
+  def self.perform(roughcut_path:, output_path:, editor: Editors.default)
     new(roughcut_path: roughcut_path, output_path: output_path, editor: editor).perform
   end
 
@@ -56,7 +59,7 @@ class Export
   end
 
   def library_name(roughcut_path)
-    roughcut_path[%r{libraries/([^/]+)/cuts}, 1] ||
+    Platform.forward_slashes(roughcut_path)[%r{libraries/([^/]+)/cuts}, 1] ||
       raise("Could not extract library name from path: #{roughcut_path}")
   end
 
@@ -134,9 +137,17 @@ class Export
 
   def resolve_editor(input)
     editor = input.downcase.to_sym
-    return editor if EDITOR_LABELS.key?(editor)
+    raise ArgumentError, "Unknown editor '#{input}'. Use 'fcpx', 'premiere', 'resolve', or 'resolve_legacy'" unless
+      EDITOR_LABELS.key?(editor)
 
-    raise ArgumentError, "Unknown editor '#{input}'. Use 'fcpx', 'premiere', 'resolve', or 'resolve_legacy'"
+    # Warn, don't raise: exporting FCPXML on Windows to hand to someone on a
+    # Mac is a real thing people do. This only catches the case where the
+    # library's editor setting predates the machine it's running on.
+    if (reason = Editors.unavailable_reason(editor))
+      warn "⚠ #{reason}"
+    end
+
+    editor
   end
 
   def write_xml(clips, editor, timeline)
@@ -148,10 +159,10 @@ class Export
   def validate_fcpxml(xml_path)
     dtd_path = File.expand_path('../../dtd/FCPXMLv1_12.dtd', __dir__)
     return puts "⚠ DTD not found at #{dtd_path}; skipping validation." unless File.exist?(dtd_path)
-    return puts '⚠ xmllint not found; skipping validation.' unless system('command -v xmllint > /dev/null 2>&1')
+    return puts '⚠ xmllint not found; skipping validation.' unless Platform.command_available?('xmllint')
 
-    output = `xmllint --noout --dtdvalid "#{dtd_path}" "#{xml_path}" 2>&1`
-    if $?.success?
+    output, status = Open3.capture2e('xmllint', '--noout', '--dtdvalid', dtd_path, xml_path)
+    if status.success?
       puts '✓ FCPXML validates against FCPXMLv1_12.dtd'
     else
       warn '✗ FCPXML failed DTD validation:'

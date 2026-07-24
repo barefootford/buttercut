@@ -72,6 +72,12 @@ RSpec.describe Export do
       end
     end
 
+    it 'extracts the library name from a Windows backslash cut path' do
+      export = Export.new(roughcut_path: 'x.yaml', output_path: 'x.xml', editor: 'fcpx')
+      name = export.send(:library_name, 'C:\\Users\\andrew\\buttercut\\libraries\\my-lib\\cuts\\cut.yaml')
+      expect(name).to eq('my-lib')
+    end
+
     it 'raises when the library.yaml is missing' do
       cut = { 'clips' => [] }
       within_export_sandbox(cut: cut, media: [clip_a]) do |cut_path, out|
@@ -240,7 +246,7 @@ RSpec.describe Export do
     end
 
     it 'produces fcpx output that validates against the FCPXML 1.12 DTD' do
-      skip 'xmllint not available' unless system('command -v xmllint > /dev/null 2>&1')
+      skip 'xmllint not available' unless Platform.command_available?('xmllint')
       dtd = File.expand_path('../../dtd/FCPXMLv1_12.dtd', __dir__)
       skip 'DTD not present' unless File.exist?(dtd)
 

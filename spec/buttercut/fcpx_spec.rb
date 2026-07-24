@@ -313,17 +313,19 @@ RSpec.describe ButterCut::FCPX do
   end
 
   describe '#get_absolute_path' do
+    # What "absolute" looks like is the platform's business — a leading slash
+    # on POSIX, a drive letter on Windows — so ask it rather than assuming.
     it 'converts relative path to absolute' do
       generator = ButterCut::FCPX.new(clips)
       abs_path = generator.get_absolute_path('test.mp4')
-      expect(abs_path).to start_with('/')
+      expect(File.absolute_path?(abs_path)).to be(true)
       expect(abs_path).to end_with('test.mp4')
     end
 
     it 'returns absolute path unchanged' do
       generator = ButterCut::FCPX.new(clips)
-      abs_path = generator.get_absolute_path('/absolute/path/test.mp4')
-      expect(abs_path).to eq('/absolute/path/test.mp4')
+      absolute = File.expand_path('/absolute/path/test.mp4')
+      expect(generator.get_absolute_path(absolute)).to eq(absolute)
     end
   end
 
@@ -341,6 +343,21 @@ RSpec.describe ButterCut::FCPX do
       allow(generator).to receive(:get_absolute_path).and_return('/path/with space/test.mp4')
       url = generator.path_to_file_url('test.mp4')
       expect(url).to eq('file:///path/with%20space/test.mp4')
+    end
+
+    it 'writes the Premiere-style URL for a Windows drive-letter path' do
+      generator = ButterCut::FCPX.new(clips)
+      # On Windows, File.expand_path normalizes to forward slashes: C:/…
+      allow(generator).to receive(:get_absolute_path).and_return('C:/Users/andrew ford/clip 1.mov')
+      url = generator.path_to_file_url('clip 1.mov')
+      expect(url).to eq('file://localhost/C%3a/Users/andrew%20ford/clip%201.mov')
+    end
+
+    it 'puts the server of a Windows UNC path in the URL authority' do
+      generator = ButterCut::FCPX.new(clips)
+      allow(generator).to receive(:get_absolute_path).and_return('//nas/footage/clip.mov')
+      url = generator.path_to_file_url('clip.mov')
+      expect(url).to eq('file://nas/footage/clip.mov')
     end
   end
 

@@ -13,7 +13,7 @@ Transcribes video audio using WhisperX and produces a clean JSON transcript with
 
 ## Parallelism
 
-Launch at most **2 in parallel**. WhisperX is already multithreaded internally (~4 CPU threads via CTranslate2); 2 processes is the throughput-vs-RAM sweet spot on a 16GB Mac.
+Launch at most **2 in parallel**. WhisperX is already multithreaded internally (~4 CPU threads via CTranslate2); 2 processes is the throughput-vs-RAM sweet spot on a 16GB machine.
 
 ## Inputs to gather and pass inline
 

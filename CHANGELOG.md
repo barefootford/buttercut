@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### ButterCut Pro & Core
 
 #### Added
+- **Windows support (beta).** ButterCut now runs on Windows 10 and 11 through Claude Desktop or Claude Code (with Git for Windows installed). Setup has a Windows path that installs everything without an admin password, footage analysis (transcripts and contact sheets) runs on Windows, backups use Windows' built-in zip tooling, and exported cuts link media the way Premiere and Resolve on Windows expect. Final Cut stays Mac-only, so Windows libraries target Premiere or Resolve. Windows support is young — tell us what you hit.
 - **Exports now catch unplugged or renamed footage before an XML ships**, with new tools to help the agent reconnect moved footage.
 
 #### Changed

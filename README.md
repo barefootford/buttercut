@@ -17,7 +17,7 @@ This is the source code for the core ButterCut XML generator and video editing a
 
 ## Getting Started
 
-ButterCut targets Macs with Apple Silicon (M-series chips). If you're technical and don't mind agent churn, you can likely get it working on Windows, Linux, etc. — but until revenue from ButterCut Pro is full time ish (🤞), broad Windows/Linux compatibility isn't a priority and isn't something I'll publicly support for non-technical users.
+ButterCut targets Macs with Apple Silicon (M-series chips), and now runs on Windows 10/11 in beta — through Claude Desktop or Claude Code with Git for Windows installed (their shell on Windows is Git Bash). The `/setup` skill branches by platform; Windows details and current status live in [docs/windows.md](docs/windows.md). One hard platform difference: Final Cut Pro is macOS-only, so Windows libraries target Premiere or Resolve. Windows support is young — expect some rough edges and please report what you hit. Linux remains unsupported for non-technical users.
 
 Clone this repository and then set it as your active directory.
 

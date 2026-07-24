@@ -58,7 +58,7 @@ If you're simply resuming or processing a freshly created library, skip this ste
 
 Inform the user: "Found [N] videos ([total size]). Starting footage analysis..."
 
-Follow `skills/analyze-video/SKILL.md` end-to-end. That skill covers keeping the Mac awake during processing (caffeinate), footage processing (transcripts then contact sheets, two deterministic `process_footage.rb` runs), optional transcript refinement, summaries (Sonnet sub-agents, batched + rolling), and the post-analysis footage-understanding pass.
+Follow `skills/analyze-video/SKILL.md` end-to-end. That skill covers keeping the computer awake during processing, footage processing (transcripts then contact sheets, two deterministic `process_footage.rb` runs), optional transcript refinement, summaries (Sonnet sub-agents, batched + rolling), and the post-analysis footage-understanding pass.
 
 As footage gets processed, don't make assumptions about the the footage based on the filename or camera brand. A `dji` clip is not "drone footage" just because of the brand. DJI also makes gimbal and cinema cameras. Sony makes mirrorless cameras as well as action cameras. Don't characterize footage as aerial, drone, etc unless the footage reveals it.
 

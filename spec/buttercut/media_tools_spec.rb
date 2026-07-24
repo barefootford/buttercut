@@ -21,13 +21,6 @@ RSpec.describe MediaTools do
     FileUtils.remove_entry(@root)
   end
 
-  def install(dir, name)
-    path = File.join(dir, name)
-    File.write(path, "#!/bin/sh\n")
-    File.chmod(0o755, path)
-    path
-  end
-
   it 'prefers an executable in dependencies/ over PATH' do
     local = install(@deps_dir, 'ffmpeg')
     install(@path_dir, 'ffmpeg')
@@ -51,5 +44,21 @@ RSpec.describe MediaTools do
     install(@path_dir, 'ffmpeg')
 
     expect(MediaTools.ffmpeg).to eq('ffmpeg')
+  end
+
+  context 'on Windows' do
+    before { allow(Platform).to receive(:host_os).and_return('mingw32') }
+
+    it 'resolves the .exe variant from dependencies/' do
+      exe = install(@deps_dir, 'ffmpeg.exe')
+
+      expect(MediaTools.ffmpeg).to eq(exe)
+    end
+
+    it 'falls back to the bare name when only ffprobe.exe is on PATH' do
+      install(@path_dir, 'ffprobe.exe')
+
+      expect(MediaTools.ffprobe).to eq('ffprobe')
+    end
   end
 end

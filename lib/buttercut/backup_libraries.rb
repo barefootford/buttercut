@@ -3,14 +3,15 @@
 
 # Library Backup Utility
 # Creates per-library, timestamped backups under <backups_dir>/<library>/.
-# Uses Apple Archive (.aar) when the `aa` CLI is available — hardware-
+# Uses Apple Archive (.aar) when the macOS `aa` CLI is available — hardware-
 # accelerated on Apple Silicon, Finder handles double-click extract. Falls
-# back to system zip otherwise.
+# back to a .zip otherwise (`zip` CLI, or Windows' built-in tooling).
 
 require 'fileutils'
 require 'optparse'
 require 'time'
 require 'yaml'
+require_relative 'platform'
 
 class LibraryBackup
   DEFAULT_BACKUPS_DIR = File.join(Dir.home, 'Documents', 'buttercut-video-editor-backups')
@@ -93,7 +94,7 @@ class LibraryBackup
   end
 
   def aa_available?
-    system('command -v aa > /dev/null 2>&1')
+    Platform.mac? && Platform.command_available?('aa')
   end
 
   def backup_with_apple_archive(library_name, library_path, dest_dir, timestamp)
@@ -107,14 +108,38 @@ class LibraryBackup
 
   def backup_with_zip(library_name, dest_dir, timestamp)
     backup_path = File.join(dest_dir, "#{library_name}_#{timestamp}.zip")
+    argv = zip_command(backup_path, library_name)
+    unless argv
+      puts 'No zip tool found (looked for zip, the Windows System32 tar.exe, and PowerShell) — backup not written'
+      return nil
+    end
+
     puts "Creating backup: #{backup_path}"
     success = Dir.chdir(@libraries_dir) do
-      system('zip', '-rq', backup_path, library_name)
+      system(*argv)
     end
     return nil unless success
 
     puts 'Backup complete'
     backup_path
+  end
+
+  # argv (run from @libraries_dir) that zips the library folder into backup_path,
+  # or nil when this machine has nothing that can write one. Each rung asks what
+  # exists rather than which OS this is — Windows has no zip CLI, so it lands on
+  # System32's bsdtar, and PowerShell only if even that is missing (both nil
+  # off-Windows, which is what ends the ladder).
+  def zip_command(backup_path, library_name)
+    return ['zip', '-rq', backup_path, library_name] if Platform.command_available?('zip')
+
+    if (bsdtar = Platform.windows_system_tar)
+      return [bsdtar, '-a', '-cf', backup_path, library_name]
+    end
+
+    Platform.powershell_argv(
+      "Compress-Archive -Force -LiteralPath #{Platform.ps_quote(library_name)} " \
+      "-DestinationPath #{Platform.ps_quote(backup_path)}"
+    )
   end
 end
 
