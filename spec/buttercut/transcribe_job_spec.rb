@@ -23,8 +23,15 @@ RSpec.describe TranscribeJob do
 
     job.perform
 
-    expect(captured_env['PATH'].split(File::PATH_SEPARATOR).first).to eq(MediaTools::DEPENDENCIES_DIR)
-    expect(captured_env['PATH']).to include(ENV.fetch('PATH'))
+    # Exactly one PATH key, spelled the way this environment spells it —
+    # Windows says `Path`, and handing the child a second `PATH` beside it is
+    # a coin flip over which one it reads.
+    keys = captured_env.keys.select { |key| key.casecmp?('PATH') }
+    expect(keys.size).to eq(1)
+
+    path = captured_env.fetch(keys.first)
+    expect(path.split(File::PATH_SEPARATOR).first).to eq(MediaTools::DEPENDENCIES_DIR)
+    expect(path).to include(ENV.fetch(keys.first))
   end
 
   describe '.whisperx_command' do
