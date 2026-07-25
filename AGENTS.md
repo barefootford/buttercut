@@ -143,6 +143,8 @@ bundle exec rspec
 ### Running scripts
 The project pins Ruby via `.mise.toml`; once mise is activated in the user shell (the default setup), plain `ruby` and `python` should resolve to it through mise shims. However, if the shell has been changed/shell didn't activate/user has a custom setting, read `.buttercut_env`. If this doesn't exist, attempt to find the dependencies in standard locations and then replace this file. You can look for information about setting up this file in simple-setup.md.
 
+**If a script dies with `syntax error, unexpected '='`** — usually a wall of them from `library.rb` — that is macOS system Ruby 2.6 trying to parse ButterCut's Ruby 3 syntax. It is **not** a corrupt checkout, and re-cloning won't help. It means mise never reached this shell: non-interactive shells (how agentic clients run commands) read `~/.zshenv`, not `~/.zshrc`. Read `.buttercut_env` and use the absolute invocation it records, then tell the user their shell setup needs the mise shims line in `~/.zshenv` (see simple-setup.md).
+
 ## Claude Skills
 
 **Before creating any skill, check your mode** (`cat .buttercut_mode 2>/dev/null || echo "video editor/Youtube creator"`, labeled "Loading ButterCut" as above). If the file is absent, the person asking is a non-technical video editor — help them describe what they want, then build the skill for them. Keep skills brief, use plain language, active voice.
