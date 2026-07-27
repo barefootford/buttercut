@@ -161,9 +161,50 @@ class ButterCut
       nil
     end
 
+    # The QuickTime timecode track ('tmcd'), when the clip carries one. Its
+    # single sample is the start frame number, which is the same value ffprobe
+    # formats into the `timecode` tag — so this only matters when that tag is
+    # missing.
+    def timecode_track(video_path)
+      streams = extract_metadata(video_path)['streams'] or return nil
+
+      streams.find { |stream| stream['codec_tag_string'] == 'tmcd' }
+    end
+
+    # Start frame number read straight out of the timecode track, or nil if it
+    # can't be read.
+    #
+    # Some cameras — Final Cut Camera among them — write a timecode track whose
+    # drop-frame flag is invalid for the clip's frame rate (24 fps footage
+    # flagged DF). ffprobe refuses to format that into a timecode string, so the
+    # `timecode` tag is absent even though the track itself is intact: a 32-bit
+    # big-endian frame number. ffprobe still reports where that sample lives, so
+    # read the four bytes directly.
+    def timecode_track_frames(video_path)
+      stream = timecode_track(video_path) or return nil
+
+      command = "#{Shellwords.escape(MediaTools.ffprobe)} -v error " \
+                "-select_streams #{stream['index'].to_i} -show_packets -of json " \
+                "#{Shellwords.escape(video_path)} 2>/dev/null"
+      output = `#{command}`
+      return nil unless $?.exitstatus.zero?
+
+      packet = JSON.parse(output)['packets']&.first or return nil
+      position = packet['pos']&.to_i
+      size = packet['size']&.to_i
+      return nil if position.nil? || size.nil? || size < 4
+
+      bytes = File.binread(video_path, 4, position)
+      return nil unless bytes&.bytesize == 4
+
+      bytes.unpack1('N')
+    rescue JSON::ParserError, SystemCallError, IOError
+      nil
+    end
+
     def clip_timecode_fraction(video_path)
       timecode = clip_timecode_string(video_path)
-      return "0s" if timecode.nil? || timecode.strip.empty?
+      return timecode_track_fraction(video_path) if timecode.nil? || timecode.strip.empty?
 
       parts = timecode.strip.tr(';', ':').split(':').map(&:to_i)
       return "0s" unless parts.length == 4
@@ -186,13 +227,42 @@ class ButterCut
         ((hours * 3600 + minutes * 60 + seconds) * fps_nominal) + frames
       end
 
+      frames_to_fraction(total_frames, video_path)
+    end
+
+    # A whole number of start frames against the clip's real frame rate:
+    # 1697293 frames of 24/1 footage is 1697293/24s, the exact value Final Cut
+    # writes for the same clip.
+    def frames_to_fraction(total_frames, video_path)
       return "0s" if total_frames.negative?
+
+      rate_num, rate_denom = frame_rate(video_path).split('/').map(&:to_i)
+      return "0s" if rate_denom.zero? || rate_num.zero?
 
       start_num = total_frames * rate_denom
       start_denom = rate_num
 
       divisor = gcd(start_num, start_denom)
       "#{start_num / divisor}/#{start_denom / divisor}s"
+    end
+
+    # Start timecode for a clip whose timecode track ffprobe wouldn't format
+    # into a string. No track at all means the clip really does start at zero.
+    # A track we can't read must NOT collapse to zero: that anchors the asset
+    # away from its own media, and Final Cut then rejects every edit against it
+    # as "invalid edit with no respective media" — a broken export that looks
+    # fine until it reaches the editor. Fail here instead.
+    def timecode_track_fraction(video_path)
+      return "0s" if timecode_track(video_path).nil?
+
+      total_frames = timecode_track_frames(video_path)
+      if total_frames.nil?
+        raise "#{File.basename(video_path)} has a timecode track that could not be read. Exporting it " \
+              'would anchor the clip at 00:00:00:00 and Final Cut would reject every edit against it ' \
+              'as "invalid edit with no respective media".'
+      end
+
+      frames_to_fraction(total_frames, video_path)
     end
 
     # Drop-frame is a frame-NUMBERING scheme in the timecode digits, not a
