@@ -255,6 +255,67 @@ RSpec.describe ButterCut::FCPX do
         expect(xml).to match(/<asset-clip[^>]*start="298851\/5s"/)
       end
     end
+
+    # The 24 fps Final Cut Camera case: the clip carries a perfectly good
+    # timecode track, but its drop-frame flag is invalid at 24 fps, so ffprobe
+    # refuses to format the tag and reports no timecode at all. Falling back to
+    # "0s" there anchored the asset ~19.6 hours away from its own media, and
+    # Final Cut rejected every edit against it as "invalid edit with no
+    # respective media" (verified against Final Cut Pro's own XML export of the
+    # same clip, which anchors it at 1697293000/24000s).
+    context 'with a timecode track ffprobe cannot format into a string' do
+      let(:tmcd_path) { '/tmp/fcc_24_tmcd.mov' }
+      let(:tmcd_metadata) do
+        metadata = build_metadata(frame_rate: '24/1', duration_seconds: 170.059417)
+        metadata['streams'] << { 'codec_type' => 'data', 'codec_tag_string' => 'tmcd', 'index' => 2 }
+        metadata
+      end
+
+      before do
+        allow_any_instance_of(ButterCut::FCPX).to receive(:extract_metadata_from_ffprobe).and_return(tmcd_metadata)
+      end
+
+      it 'recovers the start frame from the timecode track' do
+        generator = ButterCut::FCPX.new([{ path: tmcd_path }])
+        allow(generator).to receive(:timecode_track_frames).and_return(1_697_293)
+
+        # 1697293 frames ÷ 24 — the exact anchor Final Cut writes for this clip.
+        expect(generator.clip_timecode_fraction(tmcd_path)).to eq('1697293/24s')
+      end
+
+      it 'anchors the asset and asset-clip at the recovered timecode' do
+        generator = ButterCut::FCPX.new([{ path: tmcd_path }])
+        allow(generator).to receive(:timecode_track_frames).and_return(1_697_293)
+        xml = generator.to_xml
+        asset_id = asset_id_for(generator, tmcd_path)
+
+        expect(xml).to match(/<asset id="#{Regexp.escape(asset_id)}"[^>]*start="1697293\/24s"/)
+        expect(xml).to match(/<asset-clip[^>]*start="1697293\/24s"/)
+      end
+
+      it 'refuses to export when the timecode track cannot be read' do
+        generator = ButterCut::FCPX.new([{ path: tmcd_path }])
+        allow(generator).to receive(:timecode_track_frames).and_return(nil)
+
+        expect { generator.clip_timecode_fraction(tmcd_path) }
+          .to raise_error(/timecode track that could not be read/)
+      end
+    end
+
+    context 'with no timecode of any kind' do
+      let(:no_tc_path) { '/tmp/no_timecode.mov' }
+
+      before do
+        allow_any_instance_of(ButterCut::FCPX).to receive(:extract_metadata_from_ffprobe)
+          .and_return(build_metadata(frame_rate: '24/1', duration_seconds: 10.0))
+      end
+
+      it 'starts at zero, because the clip genuinely has no timecode' do
+        generator = ButterCut::FCPX.new([{ path: no_tc_path }])
+
+        expect(generator.clip_timecode_fraction(no_tc_path)).to eq('0s')
+      end
+    end
   end
 
   describe '#generate_uuid' do
