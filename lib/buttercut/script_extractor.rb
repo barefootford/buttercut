@@ -12,6 +12,8 @@
 #   ruby script_extractor.rb <audio_transcript.json>            # → stdout
 #   ruby script_extractor.rb <audio_transcript.json> > out.txt  # → file
 
+require_relative 'boot'
+
 require 'json'
 
 class ScriptExtractor

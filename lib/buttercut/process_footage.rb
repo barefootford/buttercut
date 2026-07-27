@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require_relative 'boot'
+
 require 'optparse'
 require_relative 'footage_processor'
 require_relative 'run_log'

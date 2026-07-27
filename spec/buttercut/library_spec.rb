@@ -1203,7 +1203,7 @@ RSpec.describe Library do
       FileUtils.mkdir_p(lib_dir)
       File.write(File.join(lib_dir, 'library.yaml'), { 'media' => [] }.to_yaml)
 
-      out = `ruby #{Shellwords.escape(cli)} cli-relink-arity-spec relink /Volumes/Andrew SSD /Volumes/Other 2>&1`
+      out = `#{Shellwords.escape(RbConfig.ruby)} #{Shellwords.escape(cli)} cli-relink-arity-spec relink /Volumes/Andrew SSD /Volumes/Other 2>&1`
 
       expect($CHILD_STATUS.exitstatus).to eq(1)
       expect(out).to include('quote prefixes containing spaces')
@@ -1217,7 +1217,7 @@ RSpec.describe Library do
     # byte-identical across the core and pro editions.
     it 'prints ButterCut::EDITION and exits 0' do
       cli = File.expand_path('../../lib/buttercut/library.rb', __dir__)
-      out = `ruby #{Shellwords.escape(cli)} edition`
+      out = `#{Shellwords.escape(RbConfig.ruby)} #{Shellwords.escape(cli)} edition`
       expect($CHILD_STATUS.exitstatus).to eq(0)
       expect(out.strip).to eq(ButterCut::EDITION.to_s)
     end

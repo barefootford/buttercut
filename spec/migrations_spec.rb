@@ -787,10 +787,13 @@ RSpec.describe 'Migration scripts' do
   describe 'migrate_all' do
     let(:script_path) { File.expand_path('../scripts/migrate_all.rb', __dir__) }
     let(:repo_root) { File.expand_path('..', __dir__) }
+    # Not a bare `ruby`: PATH can lead to macOS system Ruby 2.6, which cannot
+    # parse this codebase. RbConfig.ruby is the interpreter running the suite.
+    let(:ruby) { Shellwords.escape(RbConfig.ruby) }
 
     it 'runs all numbered migration scripts in order' do
       Dir.chdir(repo_root) do
-        output = `ruby #{script_path} 2>&1`
+        output = `#{ruby} #{script_path} 2>&1`
         expect($?.success?).to be(true), "migrate_all.rb failed:\n#{output}"
         expect(output).to include('001_migrate_0.2_to_0.3.rb')
         expect(output).to include('002_migrate_add_transcript_refinement.rb')
@@ -802,7 +805,7 @@ RSpec.describe 'Migration scripts' do
 
     it 'runs scripts in numeric order' do
       Dir.chdir(repo_root) do
-        output = `ruby #{script_path} 2>&1`
+        output = `#{ruby} #{script_path} 2>&1`
         positions = %w[001 002 003 004 005].map { |n| output.index(n) }
         expect(positions).to eq(positions.sort)
       end
@@ -820,7 +823,7 @@ RSpec.describe 'Migration scripts' do
         FileUtils.cp(File.join(repo_root, 'scripts', 'migrate_all.rb'), File.join(tmpdir, 'scripts'))
 
         Dir.chdir(tmpdir) do
-          output = `ruby scripts/migrate_all.rb 2>&1`
+          output = `#{ruby} scripts/migrate_all.rb 2>&1`
           expect($?.success?).to be(true), "migrate_all.rb failed with no libraries:\n#{output}"
         end
       end

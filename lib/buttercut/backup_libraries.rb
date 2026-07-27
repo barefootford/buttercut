@@ -7,6 +7,8 @@
 # accelerated on Apple Silicon, Finder handles double-click extract. Falls
 # back to system zip otherwise.
 
+require_relative 'boot'
+
 require 'fileutils'
 require 'optparse'
 require 'time'

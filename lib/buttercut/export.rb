@@ -4,6 +4,8 @@
 # Edition shim plus the shared CLI entrypoint. Loads the single-track (core) or
 # multi-track (pro) exporter via ButterCut.engine_variant — see
 # lib/buttercut/version.rb.
+require_relative 'boot'
+
 require 'optparse'
 require_relative 'version'
 require_relative ButterCut.engine_variant('export')

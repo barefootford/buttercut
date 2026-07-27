@@ -143,7 +143,13 @@ bundle exec rspec
 ### Running scripts
 The project pins Ruby via `.mise.toml`; once mise is activated in the user shell (the default setup), plain `ruby` and `python` should resolve to it through mise shims. However, if the shell has been changed/shell didn't activate/user has a custom setting, read `.buttercut_env`. If this doesn't exist, attempt to find the dependencies in standard locations and then replace this file. You can look for information about setting up this file in simple-setup.md.
 
-**If a script dies with `syntax error, unexpected '='`** — usually a wall of them from `library.rb` — that is macOS system Ruby 2.6 trying to parse ButterCut's Ruby 3 syntax. It is **not** a corrupt checkout, and re-cloning won't help. It means mise never reached this shell: non-interactive shells (how agentic clients run commands) read `~/.zshenv`, not `~/.zshrc`. Read `.buttercut_env` and use the absolute invocation it records, then tell the user their shell setup needs the mise shims line in `~/.zshenv` (see simple-setup.md).
+Every script the skills invoke starts by requiring `lib/buttercut/boot.rb`, which checks the Ruby version and, if the shell handed it macOS system Ruby (2.6), finds the real interpreter and re-runs itself under that. So this normally sorts itself out with no output. Two rules keep it working, both enforced by `spec/buttercut/boot_spec.rb`: **`boot.rb` and every directly-invoked script must stay parseable by Ruby 2.6** (no endless `def x = y` in those files — the ones they require can use anything), and **`require_relative 'boot'` comes before any other project require**. Ruby parses a whole file before running line 1, so a check inside a file that itself uses 3.x syntax never gets to run.
+
+**If a script still dies with `syntax error, unexpected '='`** — usually a wall of them — that is Ruby 2.6 parsing Ruby 3 syntax, in a file that lost one of the two rules above. It is **not** a corrupt checkout, and re-cloning won't help. Fix the file, and run `bundle exec rspec spec/buttercut/boot_spec.rb` to confirm.
+
+**If a script aborts with `buttercut: needs Ruby 3.0+`**, the gate ran and couldn't find any Ruby 3 to hand off to. The message lists what it tried and why each failed — read that first, since the cause is often specific (an untrusted `.mise.toml` needs `mise trust`, for instance). Also worth knowing: this can misfire on a machine that *is* set up correctly. `/etc/zprofile` runs `path_helper`, which rebuilds `PATH` with the system directories first — and it runs *after* `~/.zshenv`, so mise's shims get demoted behind `/usr/bin` in any login shell. The durable fix is the shims line in `~/.zprofile` (see simple-setup.md); `.buttercut_env` records a working absolute invocation to use in the meantime.
+
+When shelling out to Ruby from Ruby, use `RbConfig.ruby`, never a bare `'ruby'` — the latter re-resolves through `PATH` and can land the child process back on 2.6.
 
 ## Claude Skills
 

@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require_relative 'boot'
+
 require 'English'
 require 'json'
 require 'optparse'

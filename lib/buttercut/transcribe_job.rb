@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require_relative 'boot'
+
 require 'English'
 require 'fileutils'
 require 'json'
@@ -17,7 +19,9 @@ require_relative 'media_tools'
 # deliberately NOT here. That step is judgment, not mechanics, so it stays a
 # Claude step that runs after these jobs finish — see analyze-video/SKILL.md.
 class TranscribeJob < Job
-  def self.field = 'transcript'
+  def self.field
+    'transcript'
+  end
 
   PREPARE_SCRIPT = File.expand_path('prepare_audio_script.rb', __dir__)
 
@@ -86,7 +90,9 @@ class TranscribeJob < Job
     json = File.join(@output_dir, "#{File.basename(@video_path, '.*')}.json")
     raise "whisperx produced no transcript at #{json}" unless File.exist?(json)
 
-    ok = system('ruby', PREPARE_SCRIPT, json, @video_path)
+    # RbConfig.ruby rather than a bare 'ruby' — see the note in library.rb's
+    # migrate dispatch. PATH may still lead to system 2.6.
+    ok = system(RbConfig.ruby, PREPARE_SCRIPT, json, @video_path)
     raise "prepare_audio_script failed for #{clip}" unless ok
   end
 end

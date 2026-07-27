@@ -4,6 +4,8 @@
 # `Library` handle for reading and writing library.yaml. See README.md in
 # this directory for the Ruby and shell API reference and usage rules.
 
+require_relative 'boot'
+
 require 'date'
 require 'English'
 require 'fileutils'
@@ -64,7 +66,9 @@ class Library
     'transcript_refinement' => nil
   }.freeze
 
-  def self.find(library_name) = new(library_name)
+  def self.find(library_name)
+    new(library_name)
+  end
 
   def self.exists?(library_name)
     return false if library_name.to_s.strip.empty?
@@ -172,7 +176,9 @@ class Library
   # The basename used everywhere to refer to a clip. Derived from the full
   # `path` and never stored in library.yaml — one owner so reads, lookups, and
   # the `media` reader all agree on what a clip is called.
-  def self.filename_of(media) = File.basename(media['path'].to_s)
+  def self.filename_of(media)
+    File.basename(media['path'].to_s)
+  end
 
   # The key artifact filenames are built from. Videos keep the original
   # convention (extension stripped, matching every existing artifact on disk).
@@ -250,7 +256,9 @@ class Library
     raise ArgumentError, "library.yaml not found in #{@library_dir}" unless File.exist?(@library_yaml_path)
   end
 
-  def dir = @library_dir
+  def dir
+    @library_dir
+  end
 
   # Canonical on-disk path for one clip's artifact in a given field — the single
   # owner of the per-field filename convention (e.g. summary → `summaries/
@@ -448,12 +456,28 @@ class Library
   # extensions already in the yaml read as video). The merge returns copies,
   # so the convenience keys never reach the write path — mutations load and
   # persist via `load_library` directly.
-  def media = merged_media(load_library)
-  def language = load_library['language']
-  def transcript_refinement = load_library['transcript_refinement']
-  def user_context = load_library['user_context'].to_s
-  def footage_summary = load_library['footage_summary'].to_s
-  def editor = load_library['editor']
+  def media
+    merged_media(load_library)
+  end
+
+  def language
+    load_library['language']
+  end
+
+  def transcript_refinement
+    load_library['transcript_refinement']
+  end
+
+  def user_context
+    load_library['user_context'].to_s
+  end
+
+  def footage_summary
+    load_library['footage_summary'].to_s
+  end
+  def editor
+    load_library['editor']
+  end
 
   # Update any subset of the editable metadata fields. Omitted (nil) fields are
   # left alone; pass `''` to clear a string field. `transcript_refinement` takes
@@ -493,7 +517,9 @@ class Library
     meds.all? { |m| artifacts_ready?(m) }
   end
 
-  def incomplete_media = incomplete_from(media)
+  def incomplete_media
+    incomplete_from(media)
+  end
 
   # Clips still missing one specific artifact, as records the JobRunner can turn
   # straight into jobs. Unlike `incomplete_media` (missing ANY applicable
@@ -513,7 +539,9 @@ class Library
   # Every clip as a job-ready record, in the same shape as `pending` but
   # unfiltered. FootageProcessor's --force path uses this to rebuild artifacts
   # that already exist; keeping it here means the record shape has one owner.
-  def clip_records = media.map { |m| clip_record(m) }
+  def clip_records
+    media.map { |m| clip_record(m) }
+  end
 
   # Per-clip artifact status for the live "follow along" view: every clip with
   # a boolean per applicable field. Read-only, so it's safe to poll from a
@@ -561,14 +589,22 @@ class Library
     FIELDS.fetch(field.to_s) { raise ArgumentError, "unknown field: #{field.inspect}" }
   end
 
-  def present?(value) = !(value.nil? || value.to_s.strip.empty?)
+  def present?(value)
+    !(value.nil? || value.to_s.strip.empty?)
+  end
 
-  def pluralize(count, word) = "#{word}#{'s' unless count == 1}"
+  def pluralize(count, word)
+    "#{word}#{'s' unless count == 1}"
+  end
 
   # Segment-boundary match: `/a/b` matches `/a/b` and `/a/b/…`, never `/a/bc`.
-  def under_prefix?(path, prefix) = path == prefix || path.to_s.start_with?("#{prefix}/")
+  def under_prefix?(path, prefix)
+    path == prefix || path.to_s.start_with?("#{prefix}/")
+  end
 
-  def rewrite_prefix(path, old, new) = path == old ? new : new + path[old.length..]
+  def rewrite_prefix(path, old, new)
+    path == old ? new : new + path[old.length..]
+  end
 
   def merged_media(data)
     data['media'].map do |m|
@@ -808,7 +844,10 @@ if __FILE__ == $PROGRAM_NAME
   if ARGV.first == 'migrate' && ARGV.size == 1
     migrate_script = File.expand_path('../../scripts/migrate_all.rb', __dir__)
     repo_root = Library::REPO_ROOT
-    exec('ruby', migrate_script, chdir: repo_root)
+    # RbConfig.ruby, not 'ruby': the interpreter we're running under is known to
+    # be new enough (boot.rb saw to that), while a bare 'ruby' would go back
+    # through PATH and can land on system 2.6 all over again.
+    exec(RbConfig.ruby, migrate_script, chdir: repo_root)
   end
 
   library_name, action, *rest = ARGV

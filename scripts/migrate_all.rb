@@ -25,7 +25,10 @@ failed = []
 MIGRATIONS.each do |script|
   name = File.basename(script)
   puts "=== #{name} ==="
-  system('ruby', script, '--all')
+  # RbConfig.ruby keeps every migration on the interpreter this script is
+  # already running under. A bare 'ruby' re-resolves through PATH, which on a
+  # half-configured Mac means system 2.6 and a wall of syntax errors.
+  system(RbConfig.ruby, script, '--all')
   failed << name unless $?.success?
   puts
 end
