@@ -40,4 +40,23 @@ class Settings
 
     value
   end
+
+  # Opt-in flags for features still in testing, as a name→bool map. Which
+  # features exist is the edition's business — Settings only stores and reports.
+  def beta_features
+    map = @data['beta_features']
+    map.is_a?(Hash) ? map : {}
+  end
+
+  # Is a beta feature on? A missing map, an unlisted feature, or any falsey value
+  # all read as off, so a fresh (or pre-feature) settings.yaml has every beta off.
+  def beta_feature?(name) = truthy?(beta_features[name.to_s])
+
+  private
+
+  def truthy?(value)
+    return value if [true, false].include?(value)
+
+    %w[true yes 1 on].include?(value.to_s.strip.downcase)
+  end
 end
