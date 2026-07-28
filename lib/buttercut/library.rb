@@ -13,10 +13,23 @@ require 'yaml'
 
 require_relative 'media_tools'
 require_relative 'media_verifier'
+require_relative 'settings'
 require_relative 'version'
 
 class Library
   LIBRARIES_ROOT = File.expand_path('../../libraries', __dir__)
+
+  # Edition seam: extensions register extra CLI subcommands here (usage line +
+  # handler taking (library, args)). Core ships none.
+  EXTENSION_COMMANDS = {}
+
+  def self.register_command(name, usage:, &handler)
+    EXTENSION_COMMANDS[name.to_s] = { usage: usage, handler: handler }
+  end
+
+  # CLI file arguments, comma- and/or space-separated. A class method (not a
+  # CLI-block local) so registered extension commands parse file lists the same way.
+  def self.split_file_args(args) = args.flat_map { |a| a.split(',').map(&:strip).reject(&:empty?) }
 
   # Per-field on-disk layout. `namer` builds the filename from a clip key
   # (see `clip_key`); `keep` is an optional regex of filenames the
@@ -278,11 +291,14 @@ class Library
 
   # Remove entries from library.yaml and delete their artifact files
   # (transcripts, contact sheets, summaries — plus legacy visual transcripts).
-  # NEVER touches the source footage itself.
+  # NEVER touches the source footage itself. before_remove_media! runs first,
+  # so an edition can refuse the whole batch before anything is deleted.
   def remove_media!(media_filenames)
     removed = []
     mutate do |library|
-      Array(media_filenames).each do |filename|
+      filenames = Array(media_filenames)
+      before_remove_media!(library, filenames)
+      filenames.each do |filename|
         media = find_media!(library, filename)
         delete_artifacts(media)
         library['media'].delete(media)
@@ -449,6 +465,12 @@ class Library
   # so the convenience keys never reach the write path — mutations load and
   # persist via `load_library` directly.
   def media = merged_media(load_library)
+
+  # Edition seam: multicam groups (Pro layers them onto library.yaml; core has
+  # none). media_and_multicams serves both from one parse for per-request callers.
+  def multicams = []
+  def media_and_multicams = [media, multicams]
+
   def language = load_library['language']
   def transcript_refinement = load_library['transcript_refinement']
   def user_context = load_library['user_context'].to_s
@@ -548,6 +570,7 @@ class Library
       'media_count' => meds.size
     }
     MEDIA_TYPES.each_key { |type| snapshot["#{type}_count"] = counts.fetch(type, 0) }
+    snapshot.merge!(edition_summary(data))
     snapshot.merge(
       'complete_count' => meds.size - incomplete.size,
       'incomplete_count' => incomplete.size,
@@ -736,10 +759,20 @@ class Library
     library['media'].find { |m| self.class.filename_of(m) == media_filename } ||
       raise(ArgumentError, "media not found in library.yaml: #{media_filename}")
   end
+
+  # Edition seam: refuse a whole remove_media! batch before any artifact is
+  # deleted (Pro guards multicam angles). Inside the lock, so a refusal changes nothing.
+  def before_remove_media!(library, filenames) = nil
+
+  # Edition seam: extra #summary fields (Pro adds multicam counts). Core has none.
+  def edition_summary(data) = {}
 end
 
+# Pro layers multicam groups onto the library here; core ships no such file.
+ButterCut.load_extension('library')
+
 if __FILE__ == $PROGRAM_NAME
-  USAGE = <<~USAGE
+  BASE_USAGE = <<~USAGE
     Usage:
       ruby library.rb list                            — every library, newest first (library.yaml mtime)
       ruby library.rb recent [N]                      — N most recent libraries by deepest file mtime (default 10)
@@ -762,6 +795,12 @@ if __FILE__ == $PROGRAM_NAME
       <name> add_media <path>...                      — append media records (type inferred from extension; video: #{Library::MEDIA_TYPES['video'][:extensions].join('/')}; image: #{Library::MEDIA_TYPES['image'][:extensions].join('/')})
       <name> remove_media <files>                     — drop entries + delete their artifacts (source footage untouched)
       <name> relink <old_prefix> <new_prefix>         — rewrite media paths under old_prefix to new_prefix (segment-aware, all-or-nothing; propose from verify_media, user confirms)
+  USAGE
+
+  # Registered extension subcommands slot in here — blank in core.
+  EXTENSION_USAGE = Library::EXTENSION_COMMANDS.values.map { |command| "#{command[:usage]}\n" }.join
+
+  REST_USAGE = <<~USAGE
       <name> update_metadata <key> <value...>         — set footage_summary, user_context, language, editor, or transcript_refinement
       <name> complete <field> <files>                 — mark files done for one field
       <name> reset <field> [<field>...]               — wipe one or more phases
@@ -780,6 +819,8 @@ if __FILE__ == $PROGRAM_NAME
                        transcript_refinement: true, media_paths: ['/abs/a.mov', '/abs/b.jpg'])"
   USAGE
 
+  USAGE = BASE_USAGE + EXTENSION_USAGE + REST_USAGE
+
   # Agent records that it just checked for updates (see check_for_update!). Kept
   # ahead of the daily gate below so recording a check is never itself gated.
   if ARGV.first == 'update_checked'
@@ -797,6 +838,15 @@ if __FILE__ == $PROGRAM_NAME
   if ARGV.first == 'list'
     puts Library.list
     exit 0
+  end
+
+  # Beta-feature gate for skills: exit 0 = on, 1 = off. A plain settings read,
+  # so it never hits the daily update gate.
+  if ARGV.first == 'beta_feature'
+    feature = ARGV[1].to_s.strip
+    abort 'beta_feature requires <name>' if feature.empty?
+
+    exit Settings.load.beta_feature?(feature) ? 0 : 1
   end
 
   if ARGV.first == 'recent'
@@ -827,8 +877,6 @@ if __FILE__ == $PROGRAM_NAME
     warn "library: #{e.message}"
     exit 1
   end
-
-  split_files = ->(args) { args.flat_map { |a| a.split(',').map(&:strip).reject(&:empty?) } }
 
   begin
     Library.check_for_update!
@@ -861,7 +909,7 @@ if __FILE__ == $PROGRAM_NAME
     when 'remove_media'
       raise ArgumentError, 'remove_media requires <files>' if rest.empty?
 
-      library.remove_media!(split_files.call(rest))
+      library.remove_media!(Library.split_file_args(rest))
     when 'relink'
       # Volume names contain spaces ("Andrew SSD") — an unquoted call must fail
       # here, not downstream with a misleading "no media paths under /Volumes/Andrew".
@@ -894,7 +942,7 @@ if __FILE__ == $PROGRAM_NAME
       field, *files = rest
       raise ArgumentError, 'complete requires <field> <files>' if field.nil? || files.empty?
 
-      library.complete!(field, split_files.call(files))
+      library.complete!(field, Library.split_file_args(files))
     when 'reset'
       raise ArgumentError, 'reset requires <field> [<field>...]' if rest.empty?
 
@@ -909,9 +957,14 @@ if __FILE__ == $PROGRAM_NAME
     when 'remove_visual_transcripts'
       library.remove_visual_transcripts!
     else
-      warn "unknown action: #{action}"
-      warn USAGE
-      exit 1
+      command = Library::EXTENSION_COMMANDS[action]
+      if command
+        command[:handler].call(library, rest)
+      else
+        warn "unknown action: #{action}"
+        warn USAGE
+        exit 1
+      end
     end
   rescue StandardError => e
     warn "library: #{e.message}"
