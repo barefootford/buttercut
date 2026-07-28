@@ -14,12 +14,16 @@ module ExportSandbox
   def fixture_media(filename) = File.join(MEDIA_DIR, filename)
 
   # Yields [relative cut path, absolute output path] from inside the sandbox.
-  def within_export_sandbox(cut:, media:, library: 'export-sandbox')
+  # A `media:` entry is a path, or a Hash of library-entry keys when the spec
+  # needs more of one — `duration:`, say, which Export reads to bound a
+  # multicam span.
+  def within_export_sandbox(cut:, media:, library: 'export-sandbox', multicams: nil)
     Dir.mktmpdir do |dir|
       cuts_dir = File.join(dir, 'libraries', library, 'cuts')
       FileUtils.mkdir_p(cuts_dir)
-      File.write(File.join(dir, 'libraries', library, 'library.yaml'),
-                 { 'media' => media.map { |path| { 'path' => path } } }.to_yaml)
+      library_yaml = { 'media' => media.map { |entry| entry.is_a?(Hash) ? entry : { 'path' => entry } } }
+      library_yaml['multicams'] = multicams if multicams
+      File.write(File.join(dir, 'libraries', library, 'library.yaml'), library_yaml.to_yaml)
       File.write(File.join(cuts_dir, 'cut.yaml'), cut.to_yaml)
       Dir.chdir(dir) do
         yield File.join('libraries', library, 'cuts', 'cut.yaml'), File.join(dir, 'output.xml')
