@@ -25,3 +25,9 @@ save_to_desktop_after_export: true
 # the project directory and survive a fresh clone or `update-buttercut` run.
 # Set to a different absolute path (or one starting with ~) to redirect.
 # backups_dir: ~/Documents/buttercut-video-editor-backups
+
+# Beta features — opt-in flags for features still in testing. Off unless set to
+# true here (a missing key or feature reads as off). Uncomment the block and
+# name the feature to try it.
+# beta_features:
+#   feature_name: true
