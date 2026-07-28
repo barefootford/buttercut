@@ -90,13 +90,19 @@ mise --version
 brew upgrade mise   # run if version is older than 2025.12.4
 ```
 
-Activate mise in shell profile. This happens in **two** files on purpose:
+Activate mise in shell profile. This happens in **three** files on purpose:
 interactive shells (a human at a prompt) read `~/.zshrc`, but non-interactive
 shells — how agentic clients like Claude Code and Codex shell out to run
 commands — read only `~/.zshenv`. If mise is activated only in `~/.zshrc`, then
 in an agent session `ruby`/`python` fall through to the macOS system versions
 and ButterCut's Ruby 3 scripts fail to parse under system Ruby 2.6. So we also
-put mise's PATH shims in `~/.zshenv`, which every zsh reads.
+put mise's PATH shims in `~/.zshenv`, which every zsh reads. Login shells
+(`zsh -lc`, which some agentic clients use) need one more: after `~/.zshenv`,
+macOS's `/etc/zprofile` runs `path_helper`, which rebuilds PATH with the system
+directories in front — demoting the shims below `/usr/bin` so `ruby` resolves
+to system Ruby 2.6 again. `~/.zprofile` is read *after* `/etc/zprofile`, so a
+shims line there re-prepends them and wins. Without it, `zsh -c` works while
+`zsh -lc` is silently broken.
 
 ```bash
 # Detect shell and add mise activation
@@ -105,12 +111,19 @@ if [[ "$SHELL" == *"zsh"* ]]; then
   grep -q 'mise activate' ~/.zshrc 2>/dev/null || echo 'eval "$(mise activate zsh)"' >> ~/.zshrc
   # Non-interactive (agentic clients): shims in ~/.zshenv, the one file every zsh reads
   grep -q 'mise activate --shims' ~/.zshenv 2>/dev/null || echo 'eval "$(mise activate --shims zsh)"' >> ~/.zshenv
+  # Login shells (zsh -lc): ~/.zprofile runs after /etc/zprofile's path_helper,
+  # which demotes the ~/.zshenv shims below /usr/bin — re-prepend them here
+  grep -q 'mise activate --shims' ~/.zprofile 2>/dev/null || echo 'eval "$(mise activate --shims zsh)"' >> ~/.zprofile
   eval "$(mise activate zsh)"
 elif [[ "$SHELL" == *"bash"* ]]; then
   grep -q 'mise activate' ~/.bash_profile 2>/dev/null || echo 'eval "$(mise activate bash)"' >> ~/.bash_profile
+  # Non-interactive login shells (bash -lc) read ~/.bash_profile but the full
+  # activate hook only fires at a prompt — add shims so scripts resolve too
+  grep -q 'mise activate --shims' ~/.bash_profile 2>/dev/null || echo 'eval "$(mise activate --shims bash)"' >> ~/.bash_profile
   # Best-effort shims for interactive non-login bash. A purely non-interactive
-  # bash reads neither file (only $BASH_ENV), so bash is less robust here than
-  # zsh — macOS defaults to zsh, which agentic clients use, so this gap is fine.
+  # non-login bash reads neither file (only $BASH_ENV), so bash is less robust
+  # here than zsh — macOS defaults to zsh, which agentic clients use, so this
+  # gap is fine.
   grep -q 'mise activate --shims' ~/.bashrc 2>/dev/null || echo 'eval "$(mise activate --shims bash)"' >> ~/.bashrc
   eval "$(mise activate bash)"
 fi
@@ -129,20 +142,25 @@ mise install
 
 Mise downloads precompiled Ruby and Python binaries (configured in `.mise.toml`), so this typically finishes in under a minute. If a precompiled binary isn't available for the pinned version, mise falls back to building from source, which can take 5-10 minutes.
 
-Verify versions in a **fresh non-interactive shell** — the same way agentic
+Verify versions in **fresh non-interactive shells** — the same way agentic
 clients invoke tools — so the check catches a PATH that only works at an
-interactive prompt (the failure mode Step 3's `~/.zshenv` activation prevents).
+interactive prompt (the failure mode Step 3's activation lines prevent).
 Verifying in the current already-activated shell would report success while real
-agent commands stayed broken.
+agent commands stayed broken. Check both the plain and login (`-l`) variants:
+some agentic clients use login shells, where macOS's `path_helper` reorders PATH
+and only the Step 3 `~/.zprofile` line keeps the shims in front.
 
 ```bash
-"$SHELL" -c 'ruby --version'    # Should show 3.3.6
-"$SHELL" -c 'python3 --version' # Should show 3.12.8
+"$SHELL" -c 'ruby --version'      # Should show 3.3.6
+"$SHELL" -lc 'ruby --version'     # Should ALSO show 3.3.6 (login shell)
+"$SHELL" -c 'python3 --version'   # Should show 3.12.8
+"$SHELL" -lc 'python3 --version'  # Should ALSO show 3.12.8 (login shell)
 ```
 
-If either prints a system version (Ruby 2.6.x, Python 2.7.x) or "command not
-found", mise activation didn't reach non-interactive shells — recheck that the
-`--shims` line landed in `~/.zshenv`.
+If any of these prints a system version (Ruby 2.6.x, Python 2.7.x) or "command
+not found", mise activation didn't reach that shell type — recheck that the
+`--shims` lines landed in `~/.zshenv` (plain non-interactive) and `~/.zprofile`
+(login).
 
 ## Step 5: FFmpeg (full build with drawtext)
 
