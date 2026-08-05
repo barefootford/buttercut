@@ -20,8 +20,16 @@ RSpec.describe ButterCut::FCP7 do
       'sample_rate' => sample_rate
     }
 
+    # A camera reporting a timecode carries a real 'tmcd' track behind it —
+    # the track the exporter gates on. See the note in fcpx_spec.rb.
+    streams = [video_stream, audio_stream]
+    if timecode
+      streams << { 'codec_type' => 'data', 'codec_tag_string' => 'tmcd', 'index' => 2,
+                   'tags' => { 'timecode' => timecode } }
+    end
+
     {
-      'streams' => [video_stream, audio_stream],
+      'streams' => streams,
       'format' => {
         'duration' => duration_seconds.to_s,
         'tags' => timecode ? { 'timecode' => timecode } : {}

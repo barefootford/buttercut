@@ -22,8 +22,15 @@ RSpec.describe 'Generator still handling' do
       'color_space' => 'bt709', 'color_primaries' => 'bt709', 'color_transfer' => 'bt709'
     }
     video_stream['tags'] = { 'timecode' => timecode } if timecode
+    # A camera reporting a timecode carries a real 'tmcd' track behind it —
+    # the track the exporter gates on. See the note in fcpx_spec.rb.
+    streams = [video_stream, { 'codec_type' => 'audio', 'sample_rate' => sample_rate }]
+    if timecode
+      streams << { 'codec_type' => 'data', 'codec_tag_string' => 'tmcd', 'index' => 2,
+                   'tags' => { 'timecode' => timecode } }
+    end
     {
-      'streams' => [video_stream, { 'codec_type' => 'audio', 'sample_rate' => sample_rate }],
+      'streams' => streams,
       'format' => { 'duration' => duration.to_s, 'tags' => timecode ? { 'timecode' => timecode } : {} }
     }
   end
