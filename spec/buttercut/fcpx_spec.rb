@@ -20,8 +20,16 @@ RSpec.describe ButterCut::FCPX do
 
     audio_streams ||= [{ 'codec_type' => 'audio', 'sample_rate' => sample_rate }]
 
+    # A camera reporting timecode has a real 'tmcd' track behind it, and ffprobe
+    # copies the value onto track, video stream and format tags alike.
+    streams = [video_stream, *audio_streams]
+    if timecode
+      streams << { 'codec_type' => 'data', 'codec_tag_string' => 'tmcd', 'index' => streams.size,
+                   'tags' => { 'timecode' => timecode } }
+    end
+
     {
-      'streams' => [video_stream, *audio_streams],
+      'streams' => streams,
       'format' => {
         'duration' => duration_seconds.to_s,
         'tags' => timecode ? { 'timecode' => timecode } : {}
@@ -297,6 +305,57 @@ RSpec.describe ButterCut::FCPX do
 
         expect { generator.clip_timecode_fraction(tmcd_path) }
           .to raise_error(/timecode track that could not be read/)
+      end
+    end
+
+    # Sony XAVC hangs start timecode off an `rtmd` stream with no timecode track.
+    # AVFoundation hides that stream, so Final Cut sees media starting at zero.
+    context 'with timecode on a Sony rtmd metadata stream and no timecode track' do
+      let(:rtmd_path) { '/tmp/sony_C0055.MP4' }
+      let(:rtmd_metadata) do
+        metadata = build_metadata(frame_rate: '50/1', duration_seconds: 20.64, width: 1920, height: 1080)
+        metadata['streams'] << { 'codec_type' => 'data', 'codec_tag_string' => 'rtmd', 'index' => 2,
+                                 'tags' => { 'timecode' => '18:07:16:04' } }
+        metadata
+      end
+
+      before do
+        allow_any_instance_of(ButterCut::FCPX).to receive(:extract_metadata_from_ffprobe).and_return(rtmd_metadata)
+      end
+
+      it 'ignores a timecode the editor cannot see' do
+        generator = ButterCut::FCPX.new([{ path: rtmd_path }])
+
+        expect(generator.clip_timecode_string(rtmd_path)).to be_nil
+        expect(generator.clip_timecode_fraction(rtmd_path)).to eq('0s')
+      end
+
+      it 'anchors the asset and asset-clip at zero so the edits land inside the media' do
+        generator = ButterCut::FCPX.new([{ path: rtmd_path }])
+        xml = generator.to_xml
+        asset_id = asset_id_for(generator, rtmd_path)
+
+        expect(xml).to match(/<asset id="#{Regexp.escape(asset_id)}"[^>]*start="0s"/)
+        expect(xml).to match(/<asset-clip[^>]*start="0s"/)
+        expect(xml).not_to include('1630902/25s')
+      end
+    end
+
+    # The other over-broad carrier: a format-tag timecode with no tmcd track
+    # behind it (Panasonic Semi-Pro clips reach this via their embedded XML).
+    context 'with a format-level timecode and no timecode track' do
+      let(:format_tc_path) { '/tmp/format_only_tc.mov' }
+
+      before do
+        metadata = build_metadata(frame_rate: '25/1', duration_seconds: 10.0)
+        metadata['format']['tags'] = { 'timecode' => '01:00:00:00' }
+        allow_any_instance_of(ButterCut::FCPX).to receive(:extract_metadata_from_ffprobe).and_return(metadata)
+      end
+
+      it 'exports anchored at zero' do
+        generator = ButterCut::FCPX.new([{ path: format_tc_path }])
+
+        expect(generator.clip_timecode_fraction(format_tc_path)).to eq('0s')
       end
     end
 
