@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 - **Final Cut Camera (iPhone) exports now import into Final Cut Pro cleanly.** The app records true 30/60fps media with drop-frame timecode; the exporter skipped the drop-frame correction for those files, so Final Cut rejected every clip ("Invalid edit with no respective media"). Thanks to @acreagetcg for the report and diagnosis.
-- **Sony camera exports now import into Final Cut Pro cleanly.** Sony's XAVC cameras write their start timecode into a metadata stream that Final Cut can't read, so the exporter anchored every clip to a camera clock the editor never saw — and Final Cut rejected the whole timeline ("Invalid edit with no respective media"). Exports now use a clip's timecode only when the editor can see it too, and start from zero when it can't.
+- **Sony camera exports now import into Final Cut Pro and DaVinci Resolve cleanly.** Sony's XAVC cameras write their start timecode into a metadata stream Final Cut can't read but Resolve can, so no single anchor suited both: anchoring every clip to the camera clock made Final Cut reject the whole timeline ("Invalid edit with no respective media"), and starting from zero left Resolve unable to match the footage in the media pool, importing every clip offline. Each export now anchors to the timecode that editor actually reads.
 
 ## [0.8.0] - 2026-06-26
 

@@ -143,46 +143,51 @@ class ButterCut
       (rate_num.to_f / rate_denom).round
     end
 
-    # A clip's start timecode as an "hh:mm:ss:ff" string — but only when a real
-    # QuickTime timecode track ('tmcd') stands behind it.
-    #
-    # The gate matters because ffprobe and Final Cut don't read the same
-    # metadata. Sony XAVC cameras carry their start timecode as a tag on an
-    # `rtmd` real-time-metadata stream and ship no timecode track at all;
-    # ffprobe reports that tag happily, but AVFoundation — which is how Final
-    # Cut sees media — doesn't expose the stream (`avmediainfo` on the same
-    # file: "Track count: 2", video and audio). Anchoring the asset to a camera
-    # clock the editor can't read put every edit 18 hours past media it thinks
-    # starts at zero, and Final Cut rejected all of them as "invalid edit with
-    # no respective media". A timecode is usable as an anchor only if the editor
-    # can see it too; anything else exports anchored at zero.
-    #
-    # With a track present the value can sit in three places — ffprobe copies a
-    # tmcd track's timecode onto the track, onto the video stream, and into the
-    # format tags alike — so read it off the track itself, then fall back to the
-    # format tags (Panasonic Semi-Pro clips bury theirs in an embedded XML blob).
+    # A clip's start timecode as "hh:mm:ss:ff", or nil when it carries none this
+    # editor reads — a per-editor question, since ffprobe sees more than they do.
     def clip_timecode_string(video_path)
-      track = timecode_track(video_path) or return nil
-
-      tag = track.dig('tags', 'timecode')
-      return tag unless tag.nil? || tag.empty?
-
-      format_tags = extract_metadata(video_path).dig('format', 'tags') or return nil
-
-      tc = format_tags['timecode']
-      return tc unless tc.nil? || tc.empty?
-
-      panasonic_xml = format_tags['com.panasonic.Semi-Pro.metadata.xml']
-      match = panasonic_xml&.match(/<StartTimecode>([^<]+)<\/StartTimecode>/)
-      match && match[1].strip
+      tracked_timecode_string(video_path) || untracked_timecode_string(video_path)
     end
 
-    # The QuickTime timecode track ('tmcd'), when the clip carries one. This is
-    # the gate on every source timecode: it's the only carrier AVFoundation
-    # exposes, so no track means the clip exports anchored at zero however much
-    # timecode ffprobe found elsewhere. Its single sample is the start frame
-    # number — the same value ffprobe formats into the `timecode` tag, which
-    # only matters directly when that tag is missing.
+    # Timecode standing on a real 'tmcd' track — the one carrier every editor
+    # reads. ffprobe copies it to track, video stream and format tags alike.
+    def tracked_timecode_string(video_path)
+      track = timecode_track(video_path) or return nil
+
+      present(track.dig('tags', 'timecode')) || format_timecode_string(video_path)
+    end
+
+    # Timecode carried anywhere but a 'tmcd' track. Nil on purpose: only an
+    # editor that actually reads these carriers may anchor to them.
+    def untracked_timecode_string(_video_path) = nil
+
+    # The first `timecode` tag hanging off any stream — where Sony XAVC puts
+    # its, on the `rtmd` data stream.
+    def stream_timecode_string(video_path)
+      streams = extract_metadata(video_path)['streams'] or return nil
+
+      streams.filter_map { |stream| present(stream.dig('tags', 'timecode')) }.first
+    end
+
+    # Timecode in the container's format tags, plain or buried in the embedded
+    # XML blob Panasonic Semi-Pro clips use.
+    def format_timecode_string(video_path)
+      tags = extract_metadata(video_path).dig('format', 'tags') or return nil
+
+      present(tags['timecode']) || present(panasonic_start_timecode(tags))
+    end
+
+    def panasonic_start_timecode(format_tags)
+      xml = format_tags['com.panasonic.Semi-Pro.metadata.xml'] or return nil
+
+      xml[%r{<StartTimecode>([^<]+)</StartTimecode>}, 1]
+    end
+
+    # Nil for blank, the trimmed string otherwise.
+    def present(value) = (stripped = value.to_s.strip).empty? ? nil : stripped
+
+    # The QuickTime timecode track ('tmcd'), when the clip carries one — the
+    # only carrier AVFoundation, and so Final Cut, exposes.
     def timecode_track(video_path)
       streams = extract_metadata(video_path)['streams'] or return nil
 
