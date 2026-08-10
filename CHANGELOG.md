@@ -5,20 +5,38 @@ All notable changes to ButterCut will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.9.0] - 2026-08-09
+
+**ButterCut Pro learns multicam**
+
+Shoot the same take on two or three cameras at once and ButterCut Pro can now sync the angles for you and insert native multicam elements (Resolve, Final Cut) or synced tracks (Premiere). It lines the cameras up by listening to what was said on each one, asks which camera's mic should carry the sound, and builds cuts that switch between angles. Detection and syncing are done programmatically, so finding multicam clips is fast and doesn't drain your account usage.
+
+Multicam is in beta: switch it on under Beta Features in ButterCut Pro's Preview settings and tell us how it goes.
+
+ButterCut now catches and reports its own errors automatically (with your permission), so the thing that broke for you gets fixed for everyone. You can also report a one-off bug or request a feature yourself, right in chat:
+
+**`/report-bug`** my export won't open in Premiere
+
+**`/request-feature`** can ButterCut add subtitles?
+
+### ButterCut Pro
+
+- **Multicam editing (beta).** Group the angles from a multi-camera shoot and ButterCut syncs them automatically from their transcripts — no clap, no slate, no manual lining-up. Choose which camera's audio carries the take, then cut between angles freely. When auto-sync isn't confident it never guesses; you can set an angle's offset by hand from any moment both cameras caught.
+- **A real clip player in Preview.** Step through footage frame by frame with a running timecode readout, keyboard shortcuts, and volume that remembers your setting.
 
 ### ButterCut Pro & Core
 
-#### Added
-- **Exports now catch unplugged or renamed footage before an XML ships**, with new tools to help the agent reconnect moved footage.
-- **ButterCut can now tell its makers when something breaks.** When an error looks like ButterCut's fault, it can send a report so it gets fixed — and you can send feature ideas the same way ("request a feature"). The first time it happens, ButterCut asks whether to send errors automatically, ask each time, or never, and whether to include your email for follow-up. Reports never include your footage, transcripts, contact sheets, or the names of your libraries and clips. Change your mind any time in `libraries/settings.yaml`.
-
-#### Changed
-- **DaVinci Resolve exports now ship as FCPXML**, the same format Final Cut uses. It's a modern format with better support for future ButterCut features (multicam, connected clips, etc.).
+#### New & Improved
+- **Exports now catch unplugged or renamed footage** before a timeline ships, with new tools to help reconnect footage that moved.
+- **ButterCut can tell its makers when something breaks.** With your permission it sends an error report so bugs get fixed — and you can send feature ideas the same way ("request a feature"). Reports never include your footage, transcripts, or the names of your libraries and clips.
+- **DaVinci Resolve exports now use FCPXML**, the same modern format Final Cut uses — with better support for features like multicam.
+- **Sturdier installs and updates.** Fixes for Macs where the wrong Ruby was picked up after setup, and updating now repairs older installs automatically.
 
 #### Fixed
-- **Final Cut Camera (iPhone) exports now import into Final Cut Pro cleanly.** The app records true 30/60fps media with drop-frame timecode; the exporter skipped the drop-frame correction for those files, so Final Cut rejected every clip ("Invalid edit with no respective media"). Thanks to @acreagetcg for the report and diagnosis.
-- **Sony camera exports now import into Final Cut Pro and DaVinci Resolve cleanly.** Sony's XAVC cameras write their start timecode into a metadata stream Final Cut can't read but Resolve can, so no single anchor suited both: anchoring every clip to the camera clock made Final Cut reject the whole timeline ("Invalid edit with no respective media"), and starting from zero left Resolve unable to match the footage in the media pool, importing every clip offline. Each export now anchors to the timecode that editor actually reads.
+- **Final Cut no longer rejects cuts with Final Cut Camera (iPhone) clips** ("Invalid edit with no respective media") — the exporter mishandled the app's drop-frame timecode. Thanks to @acreagetcg for the report and diagnosis.
+- **Sony XAVC start timecode no longer breaks imports** — Final Cut rejected those cuts and DaVinci Resolve brought the clips in offline; exports now anchor to the timecode each editor can actually read.
+- **Clips shot at a different frame rate than the sequence** no longer get trimmed at the wrong moment in Premiere and DaVinci Resolve.
+- **HDR and Apple Log footage now looks right in Final Cut** — exports carry each clip's true format and color.
 
 ## [0.8.0] - 2026-06-26
 
