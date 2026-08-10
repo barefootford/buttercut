@@ -1,14 +1,16 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Consent-based error reporting. When a ButterCut CLI hits an unexpected
-# exception, `ErrorReport.capture!` writes a crash dump — a full report draft —
-# under errors/ and prints a banner pointing the agent at the report-error
-# skill. Nothing ever leaves the machine without the user's say-so: `send`
-# posts a reviewed report file to the ButterCut error endpoint (TubeSalt),
-# honoring the consent file and a local ledger so one fingerprint is only
-# reported once. Reports carry technical metadata only — never transcript
-# text, never full paths.
+# Consent-based reporting. Two things travel from a ButterCut install to the
+# developers, and both go through this file: bug reports and feature requests.
+# When a ButterCut CLI hits an unexpected exception, `Report.capture!` writes a
+# crash dump — a full report draft — under reports/ and prints a banner
+# pointing the agent at the report-bug skill. Feature requests start empty,
+# from `Report.new_feature_request`. Nothing ever leaves the machine without
+# the user's say-so: `send` posts a reviewed report file to the ButterCut
+# report endpoint (TubeSalt), honoring the consent file and a local ledger so
+# one fingerprint is only sent once. Reports carry technical metadata only —
+# never transcript text, never full paths.
 
 require 'digest'
 require 'English'
@@ -28,17 +30,19 @@ class ButterCut
   # they print cleanly and never produce a crash dump.
   class UserError < StandardError; end
 
-  class ErrorReport
+  class Report
     SCHEMA_VERSION = 1
+    KINDS = %w[bug feature].freeze
     REPO_ROOT = File.expand_path('../..', __dir__)
-    ERRORS_DIR = File.join(REPO_ROOT, 'errors')
-    LEDGER_FILE = File.join(ERRORS_DIR, '.sent_fingerprints.json')
-    CONSENT_FILE = File.join(REPO_ROOT, '.buttercut_error_reporting')
+    REPORTS_DIR = File.join(REPO_ROOT, 'reports')
+    LEDGER_FILE = File.join(REPORTS_DIR, '.sent_fingerprints.json')
+    CONSENT_FILE = File.join(REPO_ROOT, '.buttercut_reporting')
     LICENSE_FILE = File.join(REPO_ROOT, '.buttercut_pro_license')
     CONSENT_STATES = %w[ask always never].freeze
-    DEFAULT_ENDPOINT = 'https://tubesalt.com/api/v1/buttercut_error_reports'
+    DEFAULT_ENDPOINT = 'https://tubesalt.com/api/v1/buttercut_reports'
     MAX_REPORT_BYTES = 48 * 1024 # the server rejects bodies over 64 KB; leave headroom
     BACKTRACE_LIMIT = 40
+    TITLE_LIMIT = 255 # the server truncates past this — clip here so the user reviews what's stored
 
     # Expected error classes never dump — they're user- or agent-fixable and
     # their message is the whole story. Matched by ancestor name so this file
@@ -86,30 +90,47 @@ class ButterCut
 
       def write_dump(error, action:)
         write_report(draft(
-          source: 'cli',
-          fingerprint: fingerprint(error, action: action),
-          error: {
-            'class' => error.class.name,
-            'message' => scrub(error.message.to_s),
-            'action' => action,
-            'argv' => ARGV.map { |arg| scrub(arg) },
-            'backtrace' => (error.backtrace || []).first(BACKTRACE_LIMIT).map { |line| scrub(relativize(line)) }
-          }
-        ))
+                       kind: 'bug',
+                       source: 'cli',
+                       fingerprint: fingerprint(error, action: action),
+                       title: clip("#{error.class.name} during #{action}"),
+                       error: {
+                         'class' => error.class.name,
+                         'message' => scrub(error.message.to_s),
+                         'action' => action,
+                         'argv' => ARGV.map { |arg| scrub(arg) },
+                         'backtrace' => (error.backtrace || []).first(BACKTRACE_LIMIT).map { |line| scrub(relativize(line)) }
+                       }
+                     ))
       end
 
-      # A report drafted by the agent for a failure with no Ruby crash dump
-      # (ffmpeg exits, malformed XML, a skill dead end). The summary seeds the
-      # fingerprint, so keep it short and stable — a title, not a paragraph.
-      def new_agent_report(action, summary)
-        raise UserError, 'a short --summary is required' if summary.to_s.strip.empty?
-
-        fingerprint = Digest::SHA256.hexdigest(['agent', action, summary.strip.downcase].join('|'))[0, 12]
+      # A bug the agent saw with no Ruby crash dump behind it (ffmpeg exits,
+      # malformed XML, a skill dead end). The summary seeds the fingerprint, so
+      # keep it short and stable — a title, not a paragraph.
+      def new_bug_report(action, summary)
+        summary = require_text(summary, '--summary')
         write_report(draft(
-          source: 'agent',
-          fingerprint: fingerprint,
-          error: { 'class' => nil, 'message' => scrub(summary), 'action' => action, 'argv' => nil, 'backtrace' => nil }
-        ))
+                       kind: 'bug',
+                       source: 'agent',
+                       fingerprint: hash_key('agent', action, summary.downcase),
+                       title: clip(summary),
+                       error: { 'class' => nil, 'message' => scrub(summary), 'action' => action,
+                                'argv' => nil, 'backtrace' => nil }
+                     ))
+      end
+
+      # A feature the user asked for. No error and no CLI action — the title is
+      # the whole identity, so it seeds the fingerprint and two people asking
+      # for the same thing in the same words land on one row server-side.
+      def new_feature_request(title)
+        title = require_text(title, '--title')
+        write_report(draft(
+                       kind: 'feature',
+                       source: 'user',
+                       fingerprint: hash_key('feature', title.downcase),
+                       title: clip(title),
+                       error: nil
+                     ))
       end
 
       # Technical metadata only — basename, container, codecs, geometry. Never
@@ -141,16 +162,17 @@ class ButterCut
         raise UserError, "report file not found: #{path}" unless File.exist?(path)
 
         report = JSON.parse(File.read(path))
-        %w[report_uuid fingerprint].each do |key|
+        %w[report_uuid fingerprint title].each do |key|
           raise UserError, "report is missing #{key}" if report[key].to_s.empty?
         end
+        noun = noun_for(report)
 
         if (sent = ledger[report['fingerprint']])
-          return outcome('already_reported', "this error was already reported on #{sent['sent_at']} — no need to send again")
+          return outcome('already_reported', "#{noun} was already sent on #{sent['sent_at']} — no need to send it again")
         end
-        return outcome('skipped', 'error reporting is set to never — nothing was sent') if consent == 'never'
+        return outcome('skipped', 'reporting is set to never — nothing was sent') if consent == 'never'
         if consent == 'ask' && !user_approved
-          return outcome('needs_approval', 'show the user what the report contains, ask permission, then re-run send with --user-approved')
+          return outcome('needs_approval', "show the user what #{noun} contains, ask permission, then re-run send with --user-approved")
         end
 
         body = JSON.generate(report)
@@ -169,20 +191,22 @@ class ButterCut
       rescue UserError
         raise
       rescue StandardError => e
-        outcome('failed', "could not reach the error endpoint (#{e.class}) — the report file is kept locally")
+        outcome('failed', "could not reach the report endpoint (#{e.class}) — the report file is kept locally")
       end
 
       def list
-        return [] unless File.directory?(ERRORS_DIR)
+        return [] unless File.directory?(REPORTS_DIR)
 
         sent = ledger
-        Dir[File.join(ERRORS_DIR, '*.json')].sort.map do |path|
-          fingerprint = begin
-            JSON.parse(File.read(path))['fingerprint']
+        Dir[File.join(REPORTS_DIR, '*.json')].sort.map do |path|
+          report = begin
+            JSON.parse(File.read(path))
           rescue JSON::ParserError
-            nil
+            {}
           end
-          { 'file' => relativize(path), 'fingerprint' => fingerprint, 'reported' => sent.key?(fingerprint.to_s) }
+          fingerprint = report['fingerprint']
+          { 'file' => relativize(path), 'kind' => report['kind'], 'title' => report['title'],
+            'fingerprint' => fingerprint, 'reported' => sent.key?(fingerprint.to_s) }
         end
       end
 
@@ -192,16 +216,18 @@ class ButterCut
       # releases must group as one.
       def fingerprint(error, action:)
         frame = app_frame(error) || (error.backtrace || []).first.to_s
-        Digest::SHA256.hexdigest([error.class.name, normalize_frame(frame), action].join('|'))[0, 12]
+        hash_key(error.class.name, normalize_frame(frame), action)
       end
 
       private
 
-      def draft(source:, fingerprint:, error:)
+      def draft(kind:, source:, fingerprint:, title:, error:)
         {
           'schema_version' => SCHEMA_VERSION,
+          'kind' => kind,
           'report_uuid' => SecureRandom.uuid,
           'fingerprint' => fingerprint,
+          'title' => title,
           'source' => source,
           'created_at' => Time.now.utc.iso8601,
           'buttercut' => { 'version' => ButterCut::VERSION, 'edition' => ButterCut::EDITION.to_s },
@@ -216,11 +242,25 @@ class ButterCut
       end
 
       def write_report(report)
-        FileUtils.mkdir_p(ERRORS_DIR)
-        path = File.join(ERRORS_DIR, "#{Time.now.utc.strftime('%Y%m%dT%H%M%SZ')}-#{report['fingerprint']}.json")
+        FileUtils.mkdir_p(REPORTS_DIR)
+        stamp = Time.now.utc.strftime('%Y%m%dT%H%M%SZ')
+        path = File.join(REPORTS_DIR, "#{stamp}-#{report['kind']}-#{report['fingerprint']}.json")
         File.write(path, JSON.pretty_generate(report))
         path
       end
+
+      def hash_key(*parts) = Digest::SHA256.hexdigest(parts.join('|'))[0, 12]
+
+      def require_text(value, flag)
+        text = value.to_s.strip
+        raise UserError, "a short #{flag} is required" if text.empty?
+
+        text
+      end
+
+      def clip(text) = text.to_s.strip[0, TITLE_LIMIT]
+
+      def noun_for(report) = report['kind'] == 'feature' ? 'this feature request' : 'this bug report'
 
       def banner(path)
         <<~BANNER
@@ -228,7 +268,7 @@ class ButterCut
           If this failure came from your own input (a wrong path, a malformed cut
           file), fix the input and move on — no report needed. If ButterCut itself
           misbehaved: do not edit ButterCut's code (lib/, skills/, scripts/) to work
-          around it. Use the report-error skill to tell the developers what happened
+          around it. Use the report-bug skill to tell the developers what happened
           (only ever sent with the user's permission), and put any temporary
           workaround in a user- skill (skills/user-*/), never in lib/.
         BANNER
@@ -279,7 +319,7 @@ class ButterCut
 
       def record_sent(fingerprint, report_uuid)
         entries = ledger.merge(fingerprint => { 'sent_at' => Time.now.utc.iso8601, 'report_uuid' => report_uuid })
-        FileUtils.mkdir_p(ERRORS_DIR)
+        FileUtils.mkdir_p(REPORTS_DIR)
         File.write(LEDGER_FILE, JSON.pretty_generate(entries))
       end
 
@@ -300,7 +340,7 @@ class ButterCut
       end
 
       def post(body)
-        uri = URI(ENV.fetch('BUTTERCUT_ERROR_ENDPOINT', DEFAULT_ENDPOINT))
+        uri = URI(ENV.fetch('BUTTERCUT_REPORT_ENDPOINT', DEFAULT_ENDPOINT))
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = uri.scheme == 'https'
         http.open_timeout = 3
@@ -315,47 +355,54 @@ end
 
 if __FILE__ == $PROGRAM_NAME
   USAGE = <<~USAGE
-    Usage: ruby lib/buttercut/error_report.rb <command>
+    Usage: ruby lib/buttercut/report.rb <command>
 
     Commands:
-      consent [ask|always|never]        — show or set the error-reporting consent
-      list                              — captured reports under errors/ and whether each was sent
-      new <action> --summary "<title>"  — draft a report for a failure with no crash dump (agent-observed)
+      consent [ask|always|never]        — show or set the reporting consent
+      list                              — drafted reports under reports/ and whether each was sent
+      bug <action> --summary "<title>"  — draft a bug report for a failure with no crash dump (agent-observed)
+      feature --title "<title>"         — draft a feature request the user asked for
       probe <media-file>                — scrubbed technical metadata for a media file (goes in a report's "media")
       send <report.json> [--user-approved]
-                                        — send a reviewed report to the ButterCut error endpoint
+                                        — send a reviewed report to the ButterCut report endpoint
   USAGE
+
+  def flag_value(args, flag)
+    index = args.index(flag)
+    index && args[index + 1]
+  end
 
   command, *rest = ARGV
 
   begin
     case command
     when 'consent'
-      ButterCut::ErrorReport.consent = rest.first if rest.first
-      puts ButterCut::ErrorReport.consent
+      ButterCut::Report.consent = rest.first if rest.first
+      puts ButterCut::Report.consent
     when 'list'
-      puts JSON.pretty_generate(ButterCut::ErrorReport.list)
-    when 'new'
+      puts JSON.pretty_generate(ButterCut::Report.list)
+    when 'bug'
       action = rest.shift
-      raise ButterCut::UserError, 'new requires <action>' if action.to_s.empty? || action.start_with?('--')
+      raise ButterCut::UserError, 'bug requires <action>' if action.to_s.empty? || action.start_with?('--')
 
-      summary_index = rest.index('--summary')
-      puts ButterCut::ErrorReport.new_agent_report(action, summary_index && rest[summary_index + 1])
+      puts ButterCut::Report.new_bug_report(action, flag_value(rest, '--summary'))
+    when 'feature'
+      puts ButterCut::Report.new_feature_request(flag_value(rest, '--title'))
     when 'probe'
       raise ButterCut::UserError, 'probe requires <media-file>' if rest.first.to_s.empty?
 
-      puts JSON.pretty_generate(ButterCut::ErrorReport.probe(rest.first))
+      puts JSON.pretty_generate(ButterCut::Report.probe(rest.first))
     when 'send'
       path = rest.reject { |arg| arg.start_with?('--') }.first
       raise ButterCut::UserError, 'send requires <report.json>' if path.to_s.empty?
 
-      puts JSON.pretty_generate(ButterCut::ErrorReport.send_report(path, user_approved: rest.include?('--user-approved')))
+      puts JSON.pretty_generate(ButterCut::Report.send_report(path, user_approved: rest.include?('--user-approved')))
     else
       warn USAGE
       exit 1
     end
   rescue ButterCut::UserError, ArgumentError => e
-    warn "error_report: #{e.message}"
+    warn "report: #{e.message}"
     exit 1
   end
 end

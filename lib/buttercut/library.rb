@@ -11,7 +11,7 @@ require 'json'
 require 'shellwords'
 require 'yaml'
 
-require_relative 'error_report'
+require_relative 'report'
 require_relative 'media_tools'
 require_relative 'media_verifier'
 require_relative 'settings'
@@ -876,7 +876,7 @@ if __FILE__ == $PROGRAM_NAME
     Library.find(library_name)
   rescue StandardError => e
     warn "library: #{e.message}"
-    ButterCut::ErrorReport.capture!(e, action: action)
+    ButterCut::Report.capture!(e, action: action)
     exit 1
   end
 
@@ -970,7 +970,7 @@ if __FILE__ == $PROGRAM_NAME
     end
   rescue StandardError => e
     warn "library: #{e.message}"
-    ButterCut::ErrorReport.capture!(e, action: action)
+    ButterCut::Report.capture!(e, action: action)
     exit 1
   end
 end

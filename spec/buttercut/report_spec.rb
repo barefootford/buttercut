@@ -2,25 +2,25 @@
 
 require 'spec_helper'
 require 'tmpdir'
-require_relative '../../lib/buttercut/error_report'
+require_relative '../../lib/buttercut/report'
 
-RSpec.describe ButterCut::ErrorReport do
+RSpec.describe ButterCut::Report do
   let(:repo_root) { @repo_root }
-  let(:errors_dir) { File.join(repo_root, 'errors') }
+  let(:reports_dir) { File.join(repo_root, 'reports') }
 
   around do |example|
-    Dir.mktmpdir('error-report-spec-') do |root|
+    Dir.mktmpdir('report-spec-') do |root|
       @repo_root = root
       example.run
     end
   end
 
   before do
-    stub_const('ButterCut::ErrorReport::REPO_ROOT', repo_root)
-    stub_const('ButterCut::ErrorReport::ERRORS_DIR', errors_dir)
-    stub_const('ButterCut::ErrorReport::LEDGER_FILE', File.join(errors_dir, '.sent_fingerprints.json'))
-    stub_const('ButterCut::ErrorReport::CONSENT_FILE', File.join(repo_root, '.buttercut_error_reporting'))
-    stub_const('ButterCut::ErrorReport::LICENSE_FILE', File.join(repo_root, '.buttercut_pro_license'))
+    stub_const('ButterCut::Report::REPO_ROOT', repo_root)
+    stub_const('ButterCut::Report::REPORTS_DIR', reports_dir)
+    stub_const('ButterCut::Report::LEDGER_FILE', File.join(reports_dir, '.sent_fingerprints.json'))
+    stub_const('ButterCut::Report::CONSENT_FILE', File.join(repo_root, '.buttercut_reporting'))
+    stub_const('ButterCut::Report::LICENSE_FILE', File.join(repo_root, '.buttercut_pro_license'))
   end
 
   def error_with_backtrace(message = 'boom', klass: RuntimeError, frames: nil)
@@ -29,7 +29,7 @@ RSpec.describe ButterCut::ErrorReport do
     error
   end
 
-  def dumps = Dir[File.join(errors_dir, '*.json')]
+  def dumps = Dir[File.join(reports_dir, '*.json')]
 
   describe '.fingerprint' do
     it 'is stable across line-number changes in the same frame' do
@@ -66,11 +66,12 @@ RSpec.describe ButterCut::ErrorReport do
     it 'writes a dump and prints the banner for an unexpected error' do
       path = nil
       expect { path = described_class.capture!(error_with_backtrace, action: 'export') }
-        .to output(/BUTTERCUT ERROR CAPTURED: errors\//).to_stderr
+        .to output(%r{BUTTERCUT ERROR CAPTURED: reports/}).to_stderr
 
       expect(dumps).to eq([path])
       report = JSON.parse(File.read(path))
-      expect(report).to include('schema_version' => 1, 'source' => 'cli')
+      expect(report).to include('schema_version' => 1, 'source' => 'cli', 'kind' => 'bug',
+                                'title' => 'RuntimeError during export')
       expect(report['report_uuid']).to match(/\A\h{8}-/)
       expect(report['buttercut']).to eq('version' => ButterCut::VERSION, 'edition' => ButterCut::EDITION.to_s)
       expect(report['error']).to include('class' => 'RuntimeError', 'action' => 'export')
@@ -137,25 +138,60 @@ RSpec.describe ButterCut::ErrorReport do
 
       expect { described_class.consent = 'maybe' }.to raise_error(ButterCut::UserError, /must be one of/)
 
-      File.write(File.join(repo_root, '.buttercut_error_reporting'), "gibberish\n")
+      File.write(File.join(repo_root, '.buttercut_reporting'), "gibberish\n")
       expect(described_class.consent).to eq('ask')
     end
   end
 
-  describe '.new_agent_report' do
-    it 'drafts a source=agent report with a summary-seeded fingerprint' do
-      path = described_class.new_agent_report('export', 'Premiere rejects exported XML')
+  describe '.new_bug_report' do
+    it 'drafts a source=agent bug with a summary-seeded fingerprint and title' do
+      path = described_class.new_bug_report('export', 'Premiere rejects exported XML')
       report = JSON.parse(File.read(path))
 
-      expect(report).to include('source' => 'agent')
+      expect(report).to include('kind' => 'bug', 'source' => 'agent', 'title' => 'Premiere rejects exported XML')
       expect(report['error']).to include('class' => nil, 'message' => 'Premiere rejects exported XML', 'action' => 'export')
 
-      again = JSON.parse(File.read(described_class.new_agent_report('export', 'premiere rejects exported xml')))
+      again = JSON.parse(File.read(described_class.new_bug_report('export', 'premiere rejects exported xml')))
       expect(again['fingerprint']).to eq(report['fingerprint'])
     end
 
     it 'requires a summary' do
-      expect { described_class.new_agent_report('export', ' ') }.to raise_error(ButterCut::UserError, /--summary/)
+      expect { described_class.new_bug_report('export', ' ') }.to raise_error(ButterCut::UserError, /--summary/)
+    end
+  end
+
+  describe '.new_feature_request' do
+    # The server keys triage off kind/source/title and expects error to be null
+    # for a feature — see spec/requests/api/v1/buttercut_reports_spec.rb in TubeSalt.
+    it 'drafts the shape the reports endpoint stores as a feature' do
+      path = described_class.new_feature_request('Support multicam angles in exports')
+      report = JSON.parse(File.read(path))
+
+      expect(report).to include(
+        'kind' => 'feature', 'source' => 'user', 'error' => nil,
+        'title' => 'Support multicam angles in exports'
+      )
+      expect(report['report_uuid']).to match(/\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/)
+      expect(report['fingerprint']).to match(/\A\h{8,64}\z/)
+      expect(File.basename(path)).to include('-feature-')
+    end
+
+    it 'collapses the same request asked in the same words' do
+      first = JSON.parse(File.read(described_class.new_feature_request('Add vertical exports')))
+      again = JSON.parse(File.read(described_class.new_feature_request('  add vertical exports  ')))
+
+      expect(again['fingerprint']).to eq(first['fingerprint'])
+      expect(again['report_uuid']).not_to eq(first['report_uuid'])
+    end
+
+    it 'clips an overlong title to what the server stores' do
+      path = described_class.new_feature_request('x' * 400)
+
+      expect(JSON.parse(File.read(path))['title'].length).to eq(ButterCut::Report::TITLE_LIMIT)
+    end
+
+    it 'requires a title' do
+      expect { described_class.new_feature_request(' ') }.to raise_error(ButterCut::UserError, /--title/)
     end
   end
 
@@ -191,6 +227,32 @@ RSpec.describe ButterCut::ErrorReport do
       result = described_class.send_report(write_reviewed_report)
 
       expect(result['outcome']).to eq('skipped')
+    end
+
+    # The path is the whole contract with TubeSalt: config/routes.rb mounts
+    # api/v1/buttercut_reports, and a wrong path just 404s at send time.
+    it 'posts to the ButterCut reports endpoint' do
+      described_class.consent = 'always'
+      http = instance_double(Net::HTTP, :open_timeout= => nil, :read_timeout= => nil, :use_ssl= => nil)
+      allow(Net::HTTP).to receive(:new).with('tubesalt.com', 443).and_return(http)
+      allow(http).to receive(:request) { |req| @request = req }.and_return(success)
+
+      expect(described_class.send_report(write_reviewed_report)['outcome']).to eq('sent')
+      expect(@request.path).to eq('/api/v1/buttercut_reports')
+      expect(@request['Content-Type']).to eq('application/json')
+    end
+
+    it 'attaches the Pro license headers when the install has a license' do
+      described_class.consent = 'always'
+      File.write(File.join(repo_root, '.buttercut_pro_license'), "email=ada@example.com\nlicense_key=BC-KEY-1\n")
+      http = instance_double(Net::HTTP, :open_timeout= => nil, :read_timeout= => nil, :use_ssl= => nil)
+      allow(Net::HTTP).to receive(:new).and_return(http)
+      allow(http).to receive(:request) { |req| @request = req }.and_return(success)
+
+      described_class.send_report(write_reviewed_report)
+
+      expect(@request['X-Buttercut-Email']).to eq('ada@example.com')
+      expect(@request['X-Buttercut-License-Key']).to eq('BC-KEY-1')
     end
 
     it 'demands approval when consent is ask' do
@@ -235,7 +297,7 @@ RSpec.describe ButterCut::ErrorReport do
     it 'rejects oversize reports before posting' do
       path = write_reviewed_report
       report = JSON.parse(File.read(path))
-      report['narrative'] = 'x' * (ButterCut::ErrorReport::MAX_REPORT_BYTES + 1)
+      report['narrative'] = 'x' * (ButterCut::Report::MAX_REPORT_BYTES + 1)
       File.write(path, JSON.generate(report))
 
       expect { described_class.send_report(path, user_approved: true) }
@@ -244,14 +306,18 @@ RSpec.describe ButterCut::ErrorReport do
   end
 
   describe '.list' do
-    it 'reports each dump with its sent status' do
+    it 'reports each draft with its kind, title, and sent status' do
       allow(described_class).to receive(:warn)
       described_class.capture!(error_with_backtrace, action: 'export')
+      described_class.new_feature_request('Support multicam angles in exports')
 
       list = described_class.list
-      expect(list.length).to eq(1)
-      expect(list.first['reported']).to be false
-      expect(list.first['file']).to start_with('errors/')
+      expect(list.length).to eq(2)
+      expect(list.map { |entry| entry['kind'] }).to contain_exactly('bug', 'feature')
+      expect(list.map { |entry| entry['reported'] }).to all(be false)
+      expect(list.map { |entry| entry['file'] }).to all(start_with('reports/'))
+      expect(list.map { |entry| entry['title'] })
+        .to contain_exactly('RuntimeError during export', 'Support multicam angles in exports')
     end
   end
 

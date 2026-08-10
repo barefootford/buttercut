@@ -28,8 +28,10 @@
 !create-library/**
 !process-library/
 !process-library/**
-!report-error/
-!report-error/**
+!report-bug/
+!report-bug/**
+!request-feature/
+!request-feature/**
 !reprocess-with-contact-sheets/
 !reprocess-with-contact-sheets/**
 !misc-task/

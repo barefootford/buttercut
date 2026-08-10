@@ -5,7 +5,7 @@ require 'English'
 require 'fileutils'
 require 'json'
 require 'open3'
-require_relative 'error_report'
+require_relative 'report'
 require_relative 'job'
 require_relative 'media_tools'
 
@@ -111,7 +111,7 @@ if __FILE__ == $PROGRAM_NAME
     puts "✓ #{File.basename(video_path)} transcribed → #{File.join(output_dir, "#{File.basename(video_path, '.*')}.json")}"
   rescue StandardError => e
     warn "transcribe_job: #{e.message}"
-    ButterCut::ErrorReport.capture!(e, action: 'transcribe')
+    ButterCut::Report.capture!(e, action: 'transcribe')
     exit 1
   end
 end
