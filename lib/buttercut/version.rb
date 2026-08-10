@@ -20,4 +20,12 @@ class ButterCut
 
     "#{base}_core"
   end
+
+  # Load this edition's optional extension for a shared file, if it ships one.
+  # Unlike engine_variant (which swaps a whole file), this layers Pro behavior
+  # onto a file both editions share — see library.rb.
+  def self.load_extension(base)
+    path = File.join(__dir__, "#{base}_pro.rb")
+    require path if pro? && File.exist?(path)
+  end
 end

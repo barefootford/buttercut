@@ -16,7 +16,9 @@ class ButterCut
 
     DEFAULT_START_TIME = "0s"
     DEFAULT_INITIAL_OFFSET = "0s"
-    DEFAULT_VOLUME_ADJUSTMENT = "-13.100000000000001db"
+    # The standard mix level every unmuted clip gets in FCPXML exports. A bare
+    # decibel number — see the volume note on FCPX::MUTE_VOLUME_ADJUSTMENT.
+    DEFAULT_VOLUME_ADJUSTMENT = "-13.1"
 
     attr_reader :clips, :initial_offset, :volume_adjustment
 
@@ -86,8 +88,17 @@ class ButterCut
       extract_metadata(video_path)['streams'].find { |s| s['codec_type'] == 'video' }
     end
 
+    # Audio codecs ffmpeg cannot decode. iPhone spatial recordings carry a
+    # 4-channel APAC stream alongside the plain stereo track; Apple happens
+    # to order the stereo track first, but don't rely on that — skip past
+    # undecodable streams explicitly. If a file somehow has only undecodable
+    # audio, fall back to the first stream: it still marks the asset as
+    # having audio, and the editors decode APAC themselves.
+    UNDECODABLE_AUDIO_CODECS = %w[apac].freeze
+
     def audio_stream(video_path)
-      extract_metadata(video_path)['streams'].find { |s| s['codec_type'] == 'audio' }
+      streams = extract_metadata(video_path)['streams'].select { |s| s['codec_type'] == 'audio' }
+      streams.find { |s| !UNDECODABLE_AUDIO_CODECS.include?(s['codec_name']) } || streams.first
     end
 
     def video_width(video_path)
@@ -132,36 +143,91 @@ class ButterCut
       (rate_num.to_f / rate_denom).round
     end
 
+    # A clip's start timecode as "hh:mm:ss:ff", or nil when it carries none this
+    # editor reads — a per-editor question, since ffprobe sees more than they do.
     def clip_timecode_string(video_path)
-      metadata = extract_metadata(video_path)
+      tracked_timecode_string(video_path) || untracked_timecode_string(video_path)
+    end
 
-      if metadata['streams']
-        metadata['streams'].each do |stream|
-          tags = stream['tags']
-          next unless tags && tags['timecode'] && !tags['timecode'].empty?
+    # Timecode standing on a real 'tmcd' track — the one carrier every editor
+    # reads. ffprobe copies it to track, video stream and format tags alike.
+    def tracked_timecode_string(video_path)
+      track = timecode_track(video_path) or return nil
 
-          return tags['timecode']
-        end
-      end
+      present(track.dig('tags', 'timecode')) || format_timecode_string(video_path)
+    end
 
-      format_tags = metadata.dig('format', 'tags')
-      if format_tags
-        tc = format_tags['timecode']
-        return tc unless tc.nil? || tc.empty?
+    # Timecode carried anywhere but a 'tmcd' track. Nil on purpose: only an
+    # editor that actually reads these carriers may anchor to them.
+    def untracked_timecode_string(_video_path) = nil
 
-        panasonic_xml = format_tags['com.panasonic.Semi-Pro.metadata.xml']
-        if panasonic_xml
-          match = panasonic_xml.match(/<StartTimecode>([^<]+)<\/StartTimecode>/)
-          return match[1].strip if match
-        end
-      end
+    # The first `timecode` tag hanging off any stream — where Sony XAVC puts
+    # its, on the `rtmd` data stream.
+    def stream_timecode_string(video_path)
+      streams = extract_metadata(video_path)['streams'] or return nil
 
+      streams.filter_map { |stream| present(stream.dig('tags', 'timecode')) }.first
+    end
+
+    # Timecode in the container's format tags, plain or buried in the embedded
+    # XML blob Panasonic Semi-Pro clips use.
+    def format_timecode_string(video_path)
+      tags = extract_metadata(video_path).dig('format', 'tags') or return nil
+
+      present(tags['timecode']) || present(panasonic_start_timecode(tags))
+    end
+
+    def panasonic_start_timecode(format_tags)
+      xml = format_tags['com.panasonic.Semi-Pro.metadata.xml'] or return nil
+
+      xml[%r{<StartTimecode>([^<]+)</StartTimecode>}, 1]
+    end
+
+    # Nil for blank, the trimmed string otherwise.
+    def present(value) = (stripped = value.to_s.strip).empty? ? nil : stripped
+
+    # The QuickTime timecode track ('tmcd'), when the clip carries one — the
+    # only carrier AVFoundation, and so Final Cut, exposes.
+    def timecode_track(video_path)
+      streams = extract_metadata(video_path)['streams'] or return nil
+
+      streams.find { |stream| stream['codec_tag_string'] == 'tmcd' }
+    end
+
+    # Start frame number read straight out of the timecode track, or nil if it
+    # can't be read.
+    #
+    # Some cameras — Final Cut Camera among them — write a timecode track whose
+    # drop-frame flag is invalid for the clip's frame rate (24 fps footage
+    # flagged DF). ffprobe refuses to format that into a timecode string, so the
+    # `timecode` tag is absent even though the track itself is intact: a 32-bit
+    # big-endian frame number. ffprobe still reports where that sample lives, so
+    # read the four bytes directly.
+    def timecode_track_frames(video_path)
+      stream = timecode_track(video_path) or return nil
+
+      command = "#{Shellwords.escape(MediaTools.ffprobe)} -v error " \
+                "-select_streams #{stream['index'].to_i} -show_packets -of json " \
+                "#{Shellwords.escape(video_path)} 2>/dev/null"
+      output = `#{command}`
+      return nil unless $?.exitstatus.zero?
+
+      packet = JSON.parse(output)['packets']&.first or return nil
+      position = packet['pos']&.to_i
+      size = packet['size']&.to_i
+      return nil if position.nil? || size.nil? || size < 4
+
+      bytes = File.binread(video_path, 4, position)
+      return nil unless bytes&.bytesize == 4
+
+      bytes.unpack1('N')
+    rescue JSON::ParserError, SystemCallError, IOError
       nil
     end
 
     def clip_timecode_fraction(video_path)
       timecode = clip_timecode_string(video_path)
-      return "0s" if timecode.nil? || timecode.strip.empty?
+      return timecode_track_fraction(video_path) if timecode.nil? || timecode.strip.empty?
 
       parts = timecode.strip.tr(';', ':').split(':').map(&:to_i)
       return "0s" unless parts.length == 4
@@ -184,13 +250,42 @@ class ButterCut
         ((hours * 3600 + minutes * 60 + seconds) * fps_nominal) + frames
       end
 
+      frames_to_fraction(total_frames, video_path)
+    end
+
+    # A whole number of start frames against the clip's real frame rate:
+    # 1697293 frames of 24/1 footage is 1697293/24s, the exact value Final Cut
+    # writes for the same clip.
+    def frames_to_fraction(total_frames, video_path)
       return "0s" if total_frames.negative?
+
+      rate_num, rate_denom = frame_rate(video_path).split('/').map(&:to_i)
+      return "0s" if rate_denom.zero? || rate_num.zero?
 
       start_num = total_frames * rate_denom
       start_denom = rate_num
 
       divisor = gcd(start_num, start_denom)
       "#{start_num / divisor}/#{start_denom / divisor}s"
+    end
+
+    # Start timecode for a clip whose timecode track ffprobe wouldn't format
+    # into a string. No track at all means the clip really does start at zero.
+    # A track we can't read must NOT collapse to zero: that anchors the asset
+    # away from its own media, and Final Cut then rejects every edit against it
+    # as "invalid edit with no respective media" — a broken export that looks
+    # fine until it reaches the editor. Fail here instead.
+    def timecode_track_fraction(video_path)
+      return "0s" if timecode_track(video_path).nil?
+
+      total_frames = timecode_track_frames(video_path)
+      if total_frames.nil?
+        raise "#{File.basename(video_path)} has a timecode track that could not be read. Exporting it " \
+              'would anchor the clip at 00:00:00:00 and Final Cut would reject every edit against it ' \
+              'as "invalid edit with no respective media".'
+      end
+
+      frames_to_fraction(total_frames, video_path)
     end
 
     # Drop-frame is a frame-NUMBERING scheme in the timecode digits, not a
@@ -219,11 +314,26 @@ class ButterCut
       end
     end
 
-    # Color space is currently always emitted as Rec. 709; non-709 sources
-    # (HDR / Rec. 2020, P3) are not yet mapped. Takes a path for signature
-    # parity with the other per-clip metadata accessors.
-    def color_space(_video_path)
-      "1-1-1 (Rec. 709)"
+    # FCPXML colorSpace strings are "primaries-transfer-matrix" code triples.
+    # Rec. 2020 sources split by transfer curve; everything else (including
+    # sources with no color metadata, and image-only timelines with no video
+    # path at all) keeps the Rec. 709 label ButterCut has always written.
+    # Final Cut's own exports label Apple Log media "9-1-9 (Rec. 2020)" —
+    # bt2020 primaries with an unflagged transfer — verified on FCP 12.3.
+    REC_709_COLOR_SPACE = "1-1-1 (Rec. 709)".freeze
+    REC_2020_COLOR_SPACE = "9-1-9 (Rec. 2020)".freeze
+    REC_2020_HDR_COLOR_SPACES = {
+      'smpte2084' => '9-16-9 (Rec. 2020 PQ)',
+      'arib-std-b67' => '9-18-9 (Rec. 2020 HLG)'
+    }.freeze
+
+    def color_space(video_path)
+      return REC_709_COLOR_SPACE if video_path.nil?
+
+      stream = video_stream(video_path)
+      return REC_709_COLOR_SPACE unless stream['color_primaries'] == 'bt2020'
+
+      REC_2020_HDR_COLOR_SPACES.fetch(stream['color_transfer'], REC_2020_COLOR_SPACE)
     end
 
     def duration_to_fraction(video_path)

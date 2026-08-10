@@ -18,13 +18,13 @@
         <sequence duration="3003/1000s" format="r1" tcStart="0s" audioRate="48k">
           <spine>
             <asset-clip name="MVI_0309_720p.mov" ref="__ASSET_ID_MVI_0309__" start="77077/24000s" offset="0s" duration="1001/1000s" audioRole="dialogue">
-              <adjust-volume amount="-13.100000000000001db"/>
+              <adjust-volume amount="-13.1"/>
             </asset-clip>
             <asset-clip name="MVI_0323_720p.mov" ref="__ASSET_ID_MVI_0323__" start="121121/24000s" offset="1001/1000s" duration="1001/1000s" audioRole="dialogue">
-              <adjust-volume amount="-13.100000000000001db"/>
+              <adjust-volume amount="-13.1"/>
             </asset-clip>
             <asset-clip name="P1044376_timecode_fixture.mov" ref="__ASSET_ID_GH5__" start="626629003/8000s" offset="1001/500s" duration="1001/1000s" audioRole="dialogue">
-              <adjust-volume amount="-13.100000000000001db"/>
+              <adjust-volume amount="-13.1"/>
             </asset-clip>
           </spine>
         </sequence>

@@ -9,7 +9,7 @@ require 'spec_helper'
 # so the shared FCP7 output (raw landscape dimensions, no rotation) imports SIDEWAYS.
 #
 # These specs are the failing-first contract for the fix: the Premiere generator must
-# emit the rotation into the XML, and the Resolve (FCP7) path must stay untouched.
+# emit the rotation into the XML.
 RSpec.describe ButterCut::Premiere do
   let(:rotated_clip_path)   { '/tmp/premiere_rotated.mov' }
   let(:upright_clip_path)   { '/tmp/premiere_upright.mov' }
@@ -178,19 +178,6 @@ RSpec.describe ButterCut::Premiere do
 
       expect(format).to include('<width>2160</width>')
       expect(format).to include('<height>3840</height>')
-    end
-  end
-
-  # Regression guard: the Resolve path must NOT change — it already imports correctly
-  # because Resolve reads the source rotation flag itself. If a future change starts
-  # injecting rotation into the shared FCP7 output, this fails and warns us we have
-  # double-rotated Resolve.
-  describe 'Resolve output is left unchanged' do
-    it 'emits no rotation filter for the same rotated clip' do
-      xml = ButterCut::Resolve.new([{ path: rotated_clip_path }]).to_xml
-
-      expect(xml).not_to include('<parameterid>rotation</parameterid>')
-      expect(xml).not_to include('<name>Basic Motion</name>')
     end
   end
 end

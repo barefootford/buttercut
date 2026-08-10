@@ -46,4 +46,21 @@ RSpec.describe Settings do
       with_settings("editor: fcpx\n") { |s| expect { s.whisper_model }.to raise_error(/whisper_model is not set/) }
     end
   end
+
+  describe 'beta features' do
+    it 'reads every flag as off when the key is absent' do
+      with_settings("whisper_model: small\n") do |s|
+        expect(s.beta_feature?('multicam')).to be(false)
+        expect(s.beta_features).to eq({})
+      end
+    end
+
+    it 'reads a flag as on only when explicitly truthy' do
+      with_settings("beta_features:\n  multicam: true\n  other: false\n") do |s|
+        expect(s.beta_feature?('multicam')).to be(true)
+        expect(s.beta_feature?('other')).to be(false)
+        expect(s.beta_feature?('unlisted')).to be(false)
+      end
+    end
+  end
 end
