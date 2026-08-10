@@ -45,3 +45,11 @@ Based on user choice:
 ## Step 4: Verify Installation
 
 After setup completes, re-run the checklist from Step 1 and report results to the user.
+
+## Step 5: Ask About Error Reports
+
+Only if `ruby lib/buttercut/report.rb consent` prints `error_reporting=unset` — otherwise this user has already answered, so leave it alone.
+
+Ask the two questions in `skills/report-bug/SKILL.md` (step 2), worded for a fresh install rather than a crash: "ButterCut sometimes hits errors. Want me to send those to the team so they can fix them?" Save the answers by setting `error_reporting:` and `error_report_email:` in `libraries/settings.yaml`.
+
+Keep it to those two questions and move on — it's the last thing standing between them and their first cut.

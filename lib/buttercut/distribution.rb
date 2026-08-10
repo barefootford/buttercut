@@ -5,6 +5,9 @@ class ButterCut
   # it lives. Isolating it here keeps the rest of the library free of
   # branding/URL details, so a fork only needs to change this one file.
   REPO_URL = "https://github.com/barefootford/buttercut".freeze
+
+  # Where bug reports and feature requests are posted — see report.rb.
+  REPORT_ENDPOINT = "https://tubesalt.com/api/v1/buttercut_reports".freeze
 end
 
 # The buttercut RubyGems gem was deprecated in 0.7.1; the XML generator now

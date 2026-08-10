@@ -36,3 +36,7 @@
 !buttercut/**
 !bc/
 !bc/**
+!report-bug/
+!report-bug/**
+!request-feature/
+!request-feature/**

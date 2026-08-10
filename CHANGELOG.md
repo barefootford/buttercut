@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 - **Exports now catch unplugged or renamed footage before an XML ships**, with new tools to help the agent reconnect moved footage.
+- **ButterCut can now tell its makers when something breaks.** When an error looks like ButterCut's fault, it can send a report so it gets fixed — and you can send feature ideas the same way ("request a feature"). The first time it happens, ButterCut asks whether to send errors automatically, ask each time, or never, and whether to include your email for follow-up. Reports never include your footage, transcripts, contact sheets, or the names of your libraries and clips. Change your mind any time in `libraries/settings.yaml`.
 
 #### Changed
 - **DaVinci Resolve exports now ship as FCPXML**, the same format Final Cut uses. It's a modern format with better support for future ButterCut features (multicam, connected clips, etc.).

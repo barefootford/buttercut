@@ -18,6 +18,10 @@ class Settings
 
   DEFAULT_PARALLEL_JOBS = 2 # WhisperX is RAM-hungry; 2 is the safe default.
 
+  # What the user told us to do with error reports. Absent from settings.yaml
+  # means we haven't asked yet — the report-bug skill asks and writes it.
+  ERROR_REPORTING_CHOICES = %w[always ask never].freeze
+
   def self.load(path: PATH) = new(path: path)
 
   def initialize(path: PATH)
@@ -51,6 +55,21 @@ class Settings
   # Is a beta feature on? A missing map, an unlisted feature, or any falsey value
   # all read as off, so a fresh (or pre-feature) settings.yaml has every beta off.
   def beta_feature?(name) = truthy?(beta_features[name.to_s])
+
+  # "always" / "ask" / "never", or nil when ButterCut hasn't asked the user yet.
+  # An unrecognized value also reads as nil: a typo should send us back to the
+  # question, never quietly upload something the user didn't agree to.
+  def error_reporting
+    value = @data['error_reporting'].to_s.strip.downcase
+    value if ERROR_REPORTING_CHOICES.include?(value)
+  end
+
+  # Address to attach to reports so we can follow up, or nil. Separate from the
+  # send/don't-send choice — the user answers the two questions independently.
+  def error_report_email
+    email = @data['error_report_email'].to_s.strip
+    email unless email.empty?
+  end
 
   private
 

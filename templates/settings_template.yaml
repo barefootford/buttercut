@@ -26,6 +26,19 @@ save_to_desktop_after_export: true
 # Set to a different absolute path (or one starting with ~) to redirect.
 # backups_dir: ~/Documents/buttercut-video-editor-backups
 
+# Send error reports to help fix ButterCut? One of:
+#   always — send automatically in the background
+#   ask    — ask before sending each one
+#   never  — never send
+# Reports never include your footage, transcripts, contact sheets, or your
+# library and clip names — just the error and which step it happened in.
+# A missing or blank value means ButterCut hasn't asked yet.
+error_reporting:
+
+# Email to attach to those reports, so a ButterCut engineer can follow up
+# about your bug. Blank means reports go in without one.
+error_report_email:
+
 # Beta features — opt-in flags for features still in testing. Off unless set to
 # true here (a missing key or feature reads as off). Uncomment the block and
 # name the feature to try it.
