@@ -27,6 +27,10 @@ Always run this — it's a no-op if the working tree is clean. `libraries/` is g
 git checkout main
 GIT_TERMINAL_PROMPT=0 git pull origin main
 ```
+Once the pull succeeds, restart the daily update-check clock so ButterCut doesn't ask about updates again right after this one:
+```bash
+ruby lib/buttercut/library.rb update_checked
+```
 **If the pull (or the daily gate's `git fetch origin main`) fails:** on a Pro install (`edition` printed `pro`), follow the failure guidance in @pro-update.md instead of this paragraph. Open-source updates come from the public GitHub repo and need no credentials, so a failure means network trouble or GitHub being unreachable. Tell the user and suggest trying again later — don't retry in a loop.
 
 **4. Reinstall dependencies:**

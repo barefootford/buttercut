@@ -237,13 +237,16 @@ class Library
 
     return if (Time.now - File.mtime(stamp)) < UPDATE_CHECK_INTERVAL
 
+    # Stamp before raising so the nudge fires at most once per interval, even
+    # if the agent never follows through on the check.
+    record_update_check!(repo_root: repo_root)
+
     raise UpdateCheckNeeded,
       "it's been over a day since ButterCut last checked for updates. " \
       'Call `GIT_TERMINAL_PROMPT=0 git fetch origin main` then `git log --oneline HEAD..origin/main`. ' \
       'If `main` is ahead, use the update-buttercut skill; if the fetch fails, ' \
       'follow the failure guidance in that skill. ' \
-      'Then run `ruby lib/buttercut/library.rb update_checked` to record the check ' \
-      'and re-run your command.'
+      'Then re-run your command — this check is already recorded, so it won\'t nudge again today.'
   end
 
   def self.record_update_check!(repo_root: REPO_ROOT)
@@ -777,7 +780,7 @@ if __FILE__ == $PROGRAM_NAME
       ruby library.rb list                            — every library, newest first (library.yaml mtime)
       ruby library.rb recent [N]                      — N most recent libraries by deepest file mtime (default 10)
       ruby library.rb migrate                         — run all migrations across every library
-      ruby library.rb update_checked                  — record that you just checked for a newer ButterCut
+      ruby library.rb update_checked                  — restart the daily update-check clock (run after updating ButterCut)
       ruby library.rb edition                         — print which ButterCut edition this is (core or pro)
       ruby library.rb <library_name> <action> [args]
 
@@ -821,8 +824,10 @@ if __FILE__ == $PROGRAM_NAME
 
   USAGE = BASE_USAGE + EXTENSION_USAGE + REST_USAGE
 
-  # Agent records that it just checked for updates (see check_for_update!). Kept
-  # ahead of the daily gate below so recording a check is never itself gated.
+  # Restarts the daily update-check clock (see check_for_update!, which also
+  # stamps itself when it nudges). The update-buttercut skill runs this after
+  # a real update so the gate doesn't nudge again right after. Kept ahead of
+  # the daily gate below so recording a check is never itself gated.
   if ARGV.first == 'update_checked'
     Library.record_update_check!
     exit 0

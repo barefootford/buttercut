@@ -74,13 +74,14 @@ ruby lib/buttercut/library.rb <name> incomplete_media
 ruby lib/buttercut/library.rb <name> unsupported_media   # JSON: entries whose extension no editor imports natively
 ruby lib/buttercut/library.rb <name> verify_media        # JSON: do the source files still resolve? On missing/phantom, read skills/cut/missing_footage.md
 ruby lib/buttercut/library.rb <name> ready        # exit 0 if every clip is ready for a cut, 1 if not
-ruby lib/buttercut/library.rb update_checked      # record that you just checked for a newer ButterCut
+ruby lib/buttercut/library.rb update_checked      # restart the daily update-check clock (run after updating ButterCut)
 ruby lib/buttercut/library.rb edition             # print which ButterCut edition this is (core or pro)
 ```
 
 **Daily update-check gate.** The Library class has a once-a-day gate to check
 for updates to ButterCut. If in Auto mode, check for updates. Otherwise ask the
-user.
+user. The nudge records itself when it fires, so it can't trip more than once a
+day — never fetch for updates unless the gate just nudged you.
 
 `recent` is the right tool for "which library was the user most recently working on?" — it sees activity across `transcripts/`, `contact_sheets/`, `summaries/`, and `cuts/`, not just `library.yaml`. `list` is fine when you want the full set.
 

@@ -1120,6 +1120,12 @@ RSpec.describe Library do
       expect { Library.check_for_update!(repo_root: @repo_root) }.to raise_error(Library::UpdateCheckNeeded)
     end
 
+    it 'records the check when it nudges, so it fires at most once a day' do
+      age_stamp(Library::UPDATE_CHECK_INTERVAL + 60)
+      expect { Library.check_for_update!(repo_root: @repo_root) }.to raise_error(Library::UpdateCheckNeeded)
+      expect { Library.check_for_update!(repo_root: @repo_root) }.not_to raise_error
+    end
+
     it 'does not raise when a check was recorded within the last day' do
       age_stamp(60)
       expect { Library.check_for_update!(repo_root: @repo_root) }.not_to raise_error
