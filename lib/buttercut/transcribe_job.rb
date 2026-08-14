@@ -39,9 +39,13 @@ class TranscribeJob < Job
   private
 
   NO_SPEECH_MARKER = 'No active speech found in audio'
+  PYTHON_TRACEBACK_MARKER = 'Traceback (most recent call last)'
 
-  # Returns true if whisperx produced a real transcript, false if it rescued a
+  # Returns true if whisperx produced a transcript file, false if it rescued a
   # silent clip by writing an empty one. Raises on any other failure.
+  # whisperx 3.8+ handles silent clips itself: it prints NO_SPEECH_MARKER but
+  # exits 0 with a valid empty-segments JSON, so the rescue below only fires on
+  # older whisperx versions that exit non-zero.
   def run_whisperx
     # WhisperX decodes audio by running a bare `ffmpeg` from PATH (see
     # whisperx/audio.py load_audio), so the subprocess gets MediaTools'
@@ -68,7 +72,28 @@ class TranscribeJob < Job
       return false
     end
 
+    raise stale_install_message(output, status) if output.include?(PYTHON_TRACEBACK_MARKER)
+
     raise "whisperx failed for #{clip} (exit #{status.exitstatus})"
+  end
+
+  # A Python traceback means whisperx itself crashed rather than choking on the
+  # footage. Every known breakage of this kind is a stale venv — packages that
+  # drifted from the pinned set (torchaudio 2.9 removed AudioMetaData; torch
+  # 2.6 flipped torch.load to weights_only, breaking the VAD checkpoint) — and
+  # the fix is the same either way: resync the venv to requirements.txt. This
+  # matters most right after an update that changed the pins, since older
+  # update flows didn't sync the venv.
+  def stale_install_message(output, status)
+    tail = output.lines.last(15).join
+    <<~MSG
+      whisperx crashed with a Python error for #{clip} (exit #{status.exitstatus}). This usually means the WhisperX install is stale or broken, not that the footage is bad.
+      Fix: from the ButterCut directory, sync the WhisperX packages to ButterCut's pinned versions:
+        ~/.buttercut/venv/bin/pip install --only-binary :all: --no-binary antlr4-python3-runtime,docopt -r requirements.txt
+      then retry this clip. If that doesn't fix it, run the setup skill.
+      Last output from whisperx:
+      #{tail}
+    MSG
   end
 
   def rescue_silent_clip
