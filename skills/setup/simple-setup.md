@@ -199,11 +199,13 @@ fi
 
 source ~/.buttercut/venv/bin/activate
 pip install --upgrade pip
-pip install 'whisperx==3.4.2' 'pyannote-audio==3.4.0'
+pip install -r requirements.txt
 deactivate
 ```
 
-(The versions are pinned to the combination ButterCut is tested against — `pyannote-audio` 4.x breaks whisperx 3.4.2, so don't install newer versions even if pip suggests them.)
+Run the `pip install` from the buttercut directory so `requirements.txt` resolves.
+
+(requirements.txt pins the exact combination ButterCut is tested against — don't install different versions even if pip suggests them.)
 
 ## Step 7: WhisperX Wrapper Script
 
@@ -287,3 +289,4 @@ running ButterCut in:
 - **Wrong Ruby/Python**: Run `mise trust && mise install` from buttercut directory
 - **WhisperX not found**: Ensure `~/.buttercut` is in PATH, open new terminal
 - **WhisperX import errors**: The wrapper script handles venv activation automatically; ensure you're using `~/.buttercut/whisperx` not calling whisperx directly
+- **`torchcodec` / `libavutil` warning when WhisperX starts**: Harmless — torchcodec's native FFmpeg bindings may fail to load, but WhisperX decodes audio through the ffmpeg binary, so transcription still works. Ignore it.

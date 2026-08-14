@@ -7,7 +7,7 @@
 | Ruby | 3.3.6 | XML generation and scripts |
 | Python | 3.12.8 | WhisperX transcription |
 | FFmpeg | latest | Video/audio processing |
-| WhisperX | latest | Speech-to-text with word timing |
+| WhisperX | 3.8.6 (pinned, with pyannote-audio 4.0.7) | Speech-to-text with word timing |
 
 Version files (`.ruby-version`, `.python-version`) are included for compatibility with most version managers (rbenv, pyenv, asdf, mise, etc.).
 

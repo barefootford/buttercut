@@ -20,6 +20,6 @@ python.compile = false
 python.github_attestations = false
 
 # Notes on dependencies:
-# - whisperx 3.4.2 requires pyannote-audio <4.0.0
-# - pyannote-audio 4.x removed the 'use_auth_token' parameter
-# - We use pyannote-audio 3.4.0 for compatibility
+# - whisperx 3.8.x requires pyannote-audio >=4.0.0 (see requirements.txt)
+# - The tested combination is pinned in requirements.txt and the setup skill —
+#   keep those two files in sync when upgrading either package

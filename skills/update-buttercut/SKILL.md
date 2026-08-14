@@ -34,6 +34,12 @@ GIT_TERMINAL_PROMPT=0 git pull origin main
 bundle install
 ```
 
+Also sync the WhisperX install to the repo's pinned versions — updates sometimes move them, and `git pull` alone never touches the venv:
+```bash
+~/.buttercut/venv/bin/pip install -r requirements.txt
+```
+This is fast and a no-op when the pins haven't changed. If `~/.buttercut/venv` doesn't exist, the install predates the standard venv layout — skip this command (that Mac's transcription setup lives wherever `.buttercut_env` points). If it fails because the network dropped, continue the update but tell the user transcription may misbehave until it's re-run.
+
 **5. Tell the user what they got — in their language:**
 ```bash
 git diff <sha-from-step-1>..HEAD -- CHANGELOG.md
