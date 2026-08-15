@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Fixed an issue with some vertical footage not embedding correctly.
 - **Transcription is sturdier.** ButterCut now runs the current WhisperX release (3.8.6, with pyannote-audio 4.0.7). This fixes the transcription failures some users hit on the old pinned version, and improves word-level timing accuracy so cuts land on cleaner points.
 
 ## [0.9.0] - 2026-08-09

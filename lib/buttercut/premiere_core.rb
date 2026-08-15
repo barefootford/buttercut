@@ -6,22 +6,7 @@ class ButterCut
   # rotation flags and maps frame sizes 1:1 — so rotation and scale-to-fit
   # are baked into the timeline as a Basic Motion filter.
   class Premiere < FCP7
-    # The sequence follows the first video clip's *display* orientation, so a
-    # quarter-turn source gives a portrait timeline; an explicit `timeline:`
-    # block still wins.
-    def source_format_width
-      first_video_path && quarter_turn?(first_video_path) ? video_height(first_video_path) : super
-    end
-
-    def source_format_height
-      first_video_path && quarter_turn?(first_video_path) ? video_width(first_video_path) : super
-    end
-
     private
-
-    def quarter_turn?(video_path)
-      [90, 270].include?(video_rotation(video_path))
-    end
 
     # One Basic Motion effect carries both corrections; an upright clip at
     # sequence size gets no filter at all.

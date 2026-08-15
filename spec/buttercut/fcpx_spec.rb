@@ -6,7 +6,8 @@ RSpec.describe ButterCut::FCPX do
   let(:gh5_video_path) { File.expand_path('../fixtures/media/P1044376_timecode_fixture.mov', __dir__) }
 
   def build_metadata(frame_rate:, duration_seconds:, width: 1280, height: 720, sample_rate: '48000',
-                     timecode: nil, color_primaries: 'bt709', color_transfer: 'bt709', audio_streams: nil)
+                     timecode: nil, color_primaries: 'bt709', color_transfer: 'bt709', rotation: nil,
+                     audio_streams: nil)
     video_stream = {
       'codec_type' => 'video',
       'width' => width,
@@ -17,6 +18,9 @@ RSpec.describe ButterCut::FCPX do
       'color_transfer' => color_transfer
     }
     video_stream['tags'] = { 'timecode' => timecode } if timecode
+    if rotation
+      video_stream['side_data_list'] = [{ 'side_data_type' => 'Display Matrix', 'rotation' => rotation }]
+    end
 
     audio_streams ||= [{ 'codec_type' => 'audio', 'sample_rate' => sample_rate }]
 
@@ -779,6 +783,85 @@ RSpec.describe ButterCut::FCPX do
         xml = generator.to_xml
 
         expect(xml.scan(/<format /).length).to eq(1)
+      end
+    end
+
+    # Vertical phone footage is stored as a LANDSCAPE frame (e.g. 3840x2160)
+    # with a display-matrix rotation flag. Final Cut and Resolve rotate the
+    # pixels upright from that flag, but the <format> elements must declare
+    # DISPLAY dimensions — a raw landscape declaration squeezes the upright
+    # clip into a landscape sequence with a landscape-declared asset format.
+    describe 'rotated-portrait sources' do
+      let(:rotated_path)    { '/tmp/fcpx_rotated.mov' }
+      let(:cw_rotated_path) { '/tmp/fcpx_cw_rotated.mov' }
+      let(:upright_path)    { '/tmp/fcpx_upright.mov' }
+      let(:metadata_by_path) do
+        {
+          # Vertical footage stored landscape with a -90 display-matrix flag.
+          rotated_path => build_metadata(frame_rate: '30/1', duration_seconds: 4.0,
+                                         width: 3840, height: 2160, rotation: -90),
+          # The other quarter-turn: +90 normalizes to 270 clockwise.
+          cw_rotated_path => build_metadata(frame_rate: '30/1', duration_seconds: 4.0,
+                                            width: 3840, height: 2160, rotation: 90),
+          # Ordinary landscape footage of the same stored frame, no rotation.
+          upright_path => build_metadata(frame_rate: '30/1', duration_seconds: 3.0,
+                                         width: 3840, height: 2160)
+        }
+      end
+
+      before { stub_ffprobe(metadata_by_path) }
+
+      def doc_for(clips)
+        Nokogiri::XML(ButterCut::FCPX.new(clips).to_xml)
+      end
+
+      it 'declares a portrait timeline format when the first clip is a quarter turn' do
+        format = doc_for([{ path: rotated_path }]).at_xpath('//format[@id="r1"]')
+
+        expect(format['width']).to eq('2160')
+        expect(format['height']).to eq('3840')
+      end
+
+      it 'treats a +90 source the same as a -90 source' do
+        format = doc_for([{ path: cw_rotated_path }]).at_xpath('//format[@id="r1"]')
+
+        expect(format['width']).to eq('2160')
+        expect(format['height']).to eq('3840')
+      end
+
+      it 'keeps a lone quarter-turn clip on the timeline format' do
+        doc = doc_for([{ path: rotated_path }])
+
+        expect(doc.xpath('//format').length).to eq(1)
+        expect(doc.at_xpath('//asset')['format']).to eq('r1')
+      end
+
+      it 'declares display dimensions in a rotated asset format id and element' do
+        # Upright first clip -> landscape timeline; the rotated clip differs
+        # and gets its own format, declared portrait.
+        doc = doc_for([{ path: upright_path }, { path: rotated_path }])
+        format = doc.at_xpath('//format[@id="r_fmt_2160x3840_1_30_1-1-1"]')
+
+        expect(format).not_to be_nil
+        expect(format['width']).to eq('2160')
+        expect(format['height']).to eq('3840')
+      end
+
+      it 'keeps upright and quarter-turn variants of the same stored frame distinct' do
+        # Rotated first clip -> portrait timeline (r1); the upright clip of the
+        # same stored 3840x2160 must land on its own landscape format, not r1.
+        doc = doc_for([{ path: rotated_path }, { path: upright_path }])
+        formats = doc.xpath('//format').to_h { |f| [f['id'], [f['width'], f['height']]] }
+
+        expect(formats['r1']).to eq(%w[2160 3840])
+        expect(formats['r_fmt_3840x2160_1_30_1-1-1']).to eq(%w[3840 2160])
+      end
+
+      it 'leaves upright sources on raw landscape dimensions' do
+        format = doc_for([{ path: upright_path }]).at_xpath('//format[@id="r1"]')
+
+        expect(format['width']).to eq('3840')
+        expect(format['height']).to eq('2160')
       end
     end
   end

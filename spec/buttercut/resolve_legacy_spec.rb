@@ -42,4 +42,36 @@ RSpec.describe ButterCut::ResolveLegacy do
     expect(xml).to include('<effectid>audiolevels</effectid>')
     expect(xml).to match(%r{<parameterid>level</parameterid>\s*<name>Level</name>.*?<value>0</value>}m)
   end
+
+  # Resolve auto-corrects the pixels from the source rotation flag, but the
+  # sequence frame follows what the XML declares — a quarter-turn first clip
+  # needs a portrait sequence. No baked rotation filter: that's Premiere-only.
+  context 'with rotated-portrait footage stored as a landscape frame' do
+    let(:metadata) do
+      {
+        'streams' => [
+          { 'codec_type' => 'video', 'codec_name' => 'h264',
+            'width' => 3840, 'height' => 2160, 'r_frame_rate' => '30/1',
+            'color_space' => 'bt709', 'color_primaries' => 'bt709', 'color_transfer' => 'bt709',
+            'side_data_list' => [{ 'side_data_type' => 'Display Matrix', 'rotation' => -90 }] },
+          { 'codec_type' => 'audio', 'sample_rate' => '48000' }
+        ],
+        'format' => { 'duration' => '4.0', 'tags' => {} }
+      }
+    end
+
+    it 'swaps the sequence dimensions to portrait' do
+      xml = described_class.new([{ path: video_path }]).to_xml
+      format = xml[%r{<format>.*?</format>}m]
+
+      expect(format).to include('<width>2160</width>')
+      expect(format).to include('<height>3840</height>')
+    end
+
+    it 'does not bake a rotation filter into the clip' do
+      xml = described_class.new([{ path: video_path }]).to_xml
+
+      expect(xml).not_to include('<name>Basic Motion</name>')
+    end
+  end
 end

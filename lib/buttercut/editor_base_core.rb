@@ -115,6 +115,16 @@ class ButterCut
       self.class.extract_rotation(video_stream(video_path))
     end
 
+    def quarter_turn?(video_path)
+      [90, 270].include?(video_rotation(video_path))
+    end
+
+    def display_dimensions(asset)
+      return [asset[:height], asset[:width]] if [90, 270].include?(asset[:rotation].to_i)
+
+      [asset[:width], asset[:height]]
+    end
+
     def video_duration(video_path)
       metadata = extract_metadata(video_path)
       metadata['format']['duration'].to_f
@@ -369,12 +379,19 @@ class ButterCut
       @timeline[:height] || source_format_height
     end
 
+    # The sequence follows the first video clip's *display* orientation, so a
+    # quarter-turn source gives a portrait timeline; an explicit `timeline:`
+    # block still wins.
     def source_format_width
-      first_video_path ? video_width(first_video_path) : 1920
+      return 1920 unless first_video_path
+
+      quarter_turn?(first_video_path) ? video_height(first_video_path) : video_width(first_video_path)
     end
 
     def source_format_height
-      first_video_path ? video_height(first_video_path) : 1080
+      return 1080 unless first_video_path
+
+      quarter_turn?(first_video_path) ? video_width(first_video_path) : video_height(first_video_path)
     end
 
     def format_frame_rate
