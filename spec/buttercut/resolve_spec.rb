@@ -44,6 +44,35 @@ RSpec.describe ButterCut::Resolve do
     expect(xml).not_to include('db"')
   end
 
+  # Resolve reads the source rotation flag to display the pixels upright, but
+  # it trusts the declared <format> dimensions — vertical phone footage stored
+  # landscape needs a portrait declaration or it lands in a landscape timeline.
+  context 'with rotated-portrait footage stored as a landscape frame' do
+    let(:rotated_path) { '/tmp/resolve_rotated.mov' }
+
+    let(:metadata) do
+      {
+        'streams' => [
+          { 'codec_type' => 'video', 'codec_name' => 'h264',
+            'width' => 3840, 'height' => 2160, 'r_frame_rate' => '30/1',
+            'color_space' => 'bt709', 'color_primaries' => 'bt709', 'color_transfer' => 'bt709',
+            'side_data_list' => [{ 'side_data_type' => 'Display Matrix', 'rotation' => -90 }] },
+          { 'codec_type' => 'audio', 'sample_rate' => '48000' }
+        ],
+        'format' => { 'duration' => '4.0', 'tags' => {} }
+      }
+    end
+
+    it 'declares portrait dimensions in the timeline and asset format' do
+      doc = Nokogiri::XML(described_class.new([{ path: rotated_path }]).to_xml)
+      format = doc.at_xpath('//format[@id="r1"]')
+
+      expect(format['width']).to eq('2160')
+      expect(format['height']).to eq('3840')
+      expect(doc.at_xpath('//asset')['format']).to eq('r1')
+    end
+  end
+
   # Sony XAVC hangs start timecode off an `rtmd` stream with no timecode track.
   # Final Cut can't read it and needs zero; Resolve reads it and needs the match.
   context 'with timecode on a Sony rtmd metadata stream and no timecode track' do

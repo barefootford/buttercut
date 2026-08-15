@@ -191,15 +191,21 @@ class ButterCut
       end
     end
 
+    # The key and id use DISPLAY dimensions — a quarter-turn source swaps its
+    # stored frame. Final Cut and Resolve rotate the pixels upright from the
+    # source flag themselves, but they trust the declared format, so upright
+    # and rotated sources of the same stored frame stay distinct formats.
     def video_format_key(asset)
-      [asset[:width], asset[:height], asset[:frame_duration], asset[:color_space]]
+      width, height = display_dimensions(asset)
+      [width, height, asset[:frame_duration], asset[:color_space]]
     end
 
     # Deterministic, human-readable id: "r_fmt_3840x2160_1000_30000_9-1-9".
     def video_format_id(asset)
+      width, height = display_dimensions(asset)
       rate = asset[:frame_duration].delete_suffix('s').tr('/', '_')
       color = asset[:color_space][/[\d-]+/]
-      "r_fmt_#{asset[:width]}x#{asset[:height]}_#{rate}_#{color}"
+      "r_fmt_#{width}x#{height}_#{rate}_#{color}"
     end
 
     # One rate-undefined format resource per unique still dimensions, keyed
