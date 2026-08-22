@@ -208,6 +208,20 @@ class Library
     raise ArgumentError, "ffprobe returned non-numeric duration for #{path}: #{e.message}"
   end
 
+  # One video's [resolution, fps] via ffprobe, e.g. ["1920x1080", 29.97].
+  # NTSC fractions are rounded (30000/1001 → 29.97); whole rates stay whole (25).
+  def self.probe_format(path)
+    output = `#{Shellwords.escape(MediaTools.ffprobe)} -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate -of csv=p=0 #{Shellwords.escape(path)} 2>&1`
+    raise ArgumentError, "ffprobe failed for #{path}: #{output.strip}" unless $CHILD_STATUS.success?
+
+    width, height, rate = output.strip.split(',')
+    numerator, denominator = rate.to_s.split('/').map(&:to_f)
+    raise ArgumentError, "ffprobe returned no frame rate for #{path}" unless denominator&.positive?
+
+    fps = (numerator / denominator).round(2)
+    ["#{width}x#{height}", fps == fps.to_i ? fps.to_i : fps]
+  end
+
   # Raised by check_for_update! to hand the actual update check to the agent.
   class UpdateCheckNeeded < StandardError; end
 
@@ -329,6 +343,31 @@ class Library
   # Read-only report on whether every source file still resolves. See MediaVerifier.
   def verify_media
     MediaVerifier.new(media.map { |m| m['path'] }).report
+  end
+
+  # Every video's resolution and frame rate, one ffprobe per clip:
+  # [{ 'filename', 'resolution', 'fps' }]. Images are skipped.
+  def clip_formats
+    media.filter_map do |m|
+      next unless m['type'] == 'video'
+
+      resolution, fps = self.class.probe_format(m['path'])
+      { 'filename' => m['filename'], 'resolution' => resolution, 'fps' => fps }
+    end
+  end
+
+  # Friendly one-liner over clip_formats: all clips share one format, or
+  # mixed formats detected (listing the formats found).
+  def format_message
+    formats = clip_formats
+    return 'No video clips to check.' if formats.empty?
+
+    labels = formats.map { |f| "#{f['resolution']} at #{f['fps']} fps" }.uniq
+    if labels.size == 1
+      return formats.size == 1 ? "The clip is #{labels.first}." : "All #{formats.size} clips are #{labels.first}."
+    end
+
+    "Mixed formats detected: #{labels.join('; ')}."
   end
 
   # Rewrite media paths whose drive prefix moved. Never automatic (the user
@@ -787,6 +826,7 @@ if __FILE__ == $PROGRAM_NAME
       <name> incomplete_media                         — JSON array of incomplete clips
       <name> unsupported_media                        — JSON array of entries whose extension no editor imports natively
       <name> verify_media                             — JSON report: media paths still resolve? On missing/phantom, read skills/cut/missing_footage.md
+      <name> format_message                           — one line: all clips share a resolution/frame rate, or mixed formats detected
       <name> pending <field>                          — JSON array of clips still missing one field (only types the field applies to)
       <name> ready                                    — exits 0 if every clip is ready for roughcut, 1 otherwise
       <name> field_path <field> <clip>                — canonical path for a clip's artifact (e.g. summary → summaries/summary_<clip>.md)
@@ -890,6 +930,8 @@ if __FILE__ == $PROGRAM_NAME
       puts JSON.pretty_generate(library.unsupported_media)
     when 'verify_media'
       puts JSON.pretty_generate(library.verify_media)
+    when 'format_message'
+      puts library.format_message
     when 'pending'
       field, = rest
       raise ArgumentError, 'pending requires <field>' if field.nil?

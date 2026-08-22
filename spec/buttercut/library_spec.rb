@@ -334,6 +334,44 @@ RSpec.describe Library do
     end
   end
 
+  describe '#clip_formats / #format_message' do
+    before do
+      write_library(media: [video_entry('a.mov'), video_entry('b.mov'), image_entry('c.jpg')])
+    end
+
+    it 'probes resolution and frame rate for videos only' do
+      allow(Library).to receive(:probe_format).and_return(['1920x1080', 29.97])
+
+      expect(Library.find(library_name).clip_formats).to eq([
+        { 'filename' => 'a.mov', 'resolution' => '1920x1080', 'fps' => 29.97 },
+        { 'filename' => 'b.mov', 'resolution' => '1920x1080', 'fps' => 29.97 }
+      ])
+    end
+
+    it 'reports uniform footage in one friendly line' do
+      allow(Library).to receive(:probe_format).and_return(['1920x1080', 29.97])
+
+      expect(Library.find(library_name).format_message).to eq('All 2 clips are 1920x1080 at 29.97 fps.')
+    end
+
+    it 'flags mixed formats' do
+      allow(Library).to receive(:probe_format).and_return(['1920x1080', 29.97], ['1280x720', 25])
+
+      expect(Library.find(library_name).format_message)
+        .to eq('Mixed formats detected: 1920x1080 at 29.97 fps; 1280x720 at 25 fps.')
+    end
+
+    it 'says so when there are no videos to check' do
+      write_library(media: [image_entry('c.jpg')])
+
+      expect(Library.find(library_name).format_message).to eq('No video clips to check.')
+    end
+
+    it 'probes real media' do
+      expect(Library.probe_format(fixture_media('MVI_0309_720p.mov'))).to eq(['1280x720', 23.98])
+    end
+  end
+
   describe '#relink!' do
     # Stand in for a drive mounted at <root>/<vol>, holding clips under CAC/.
     def make_drive(vol, *names)

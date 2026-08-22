@@ -80,6 +80,8 @@ ruby lib/buttercut/library.rb <name> ready
 
 If it exits non-zero, run `ruby lib/buttercut/library.rb <name> summary` to list the incomplete clips, finish the missing artifacts (loop back into whichever analyze-video step owns them), and re-run `ready` until it passes. Don't claim analysis is done while `Library.ready?` is false.
 
+Once ready, run `ruby lib/buttercut/library.rb <name> format_message` and pass its one-liner along to the user — it says whether all clips share one resolution and frame rate or the library mixes formats.
+
 ## Step 5 — Backup
 
 After all analysis completes, automatically create a backup using the `backup-library` skill, scoped to just the library you processed: `ruby lib/buttercut/backup_libraries.rb --library <library-name>`. This writes a single archive under `~/Documents/buttercut-video-editor-backups/<library-name>/` (or wherever `backups_dir` in `libraries/settings.yaml` points). If `backups_dir` isn't set yet, the script silently uses the default — don't prompt during process-library.
