@@ -672,7 +672,7 @@ class ButterCut
     end
 
     def extract_metadata_from_ffprobe(video_path)
-      json_output = `#{Shellwords.escape(MediaTools.ffprobe)} -v quiet -print_format json -show_format -show_streams "#{video_path}" 2>&1`
+      json_output = `#{Shellwords.escape(MediaTools.ffprobe)} -v quiet -print_format json -show_format -show_streams #{Shellwords.escape(video_path)} 2>&1`
 
       if $?.exitstatus != 0
         raise "Failed to extract metadata from #{video_path}: #{json_output}"
