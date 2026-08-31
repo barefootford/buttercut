@@ -29,6 +29,11 @@ class ButterCut
       clip_payloads = build_clip_payloads(timeline_clips, timeline_frame_duration, sequence_rate)
       sequence_audio_rate = format_audio_rate || '48000'
 
+      # xmeml defines each <file> once, in the first clipitem that uses it;
+      # later clipitems reference it with an empty <file id="..."/> stub —
+      # the convention FCP7's own exports follow.
+      @emitted_file_ids = {}
+
       builder = Nokogiri::XML::Builder.new(encoding: 'UTF-8') do |xml|
         xml.doc.create_internal_subset('xmeml', nil, nil)
         xml.xmeml(version: '5') do
@@ -72,7 +77,7 @@ class ButterCut
                 xml.format do
                   xml.samplecharacteristics do
                     xml.samplerate sequence_audio_rate
-                    xml.sampledepth 16
+                    xml.depth 16
                   end
                 end
                 emit_audio_tracks(xml, clip_payloads)
@@ -209,7 +214,7 @@ class ButterCut
         # files, or other still images imported into Final Cut have
         # stillframe set to TRUE."
         xml.stillframe 'TRUE' if still
-        xml.file(id: payload[:file_id]) do
+        emit_file_definition(xml, payload) do
           xml.name asset[:filename]
           xml.pathurl asset[:file_url]
           xml.rate do
@@ -245,8 +250,9 @@ class ButterCut
               xml.audio do
                 xml.samplecharacteristics do
                   xml.samplerate asset_audio_rate(asset)
-                  xml.sampledepth 16
+                  xml.depth 16
                 end
+                xml.channelcount asset_audio_channels(asset)
               end
             end
           end
@@ -282,7 +288,7 @@ class ButterCut
         xml.in_ payload[:source_in]
         xml.out payload[:source_out]
         emit_clipitem_rate(xml, payload)
-        xml.file(id: payload[:file_id]) do
+        emit_file_definition(xml, payload) do
           xml.name asset[:filename]
           xml.pathurl asset[:file_url]
           xml.rate do
@@ -294,8 +300,9 @@ class ButterCut
             xml.audio do
               xml.samplecharacteristics do
                 xml.samplerate asset_audio_rate(asset)
-                xml.sampledepth 16
+                xml.depth 16
               end
+              xml.channelcount asset_audio_channels(asset)
             end
           end
         end
@@ -306,9 +313,28 @@ class ButterCut
           xml.mediatype 'audio'
           xml.trackindex 1
         end
-        xml.channelcount 2
         build_link_entries(xml, payload)
       end
+    end
+
+    # First use of a file id gets the full <file> definition; every later
+    # clipitem referencing the same source gets an empty <file id="..."/>
+    # stub, matching FCP7's own exports (xmeml resolves stubs by id).
+    def emit_file_definition(xml, payload)
+      file_id = payload[:file_id]
+      if @emitted_file_ids[file_id]
+        xml.file(id: file_id)
+        return
+      end
+      @emitted_file_ids[file_id] = true
+      xml.file(id: file_id) { yield }
+    end
+
+    # Channel count from the probe, defaulting to stereo. Never 0 or blank —
+    # <channelcount>0</channelcount> is a documented Premiere import breaker.
+    def asset_audio_channels(asset)
+      channels = asset[:audio_channels].to_i
+      channels.positive? ? channels : 2
     end
 
     def emit_clipitem_rate(xml, payload)

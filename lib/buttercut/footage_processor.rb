@@ -85,10 +85,16 @@ class FootageProcessor
   end
 
   # Clips to (re)process for one field. Default: only those still missing the
-  # artifact. With --force: every clip, so existing artifacts get rebuilt.
+  # artifact. With --force: every clip the field applies to, so existing
+  # artifacts get rebuilt — the type filter still holds, or --force would hand
+  # stills to WhisperX and audio to the contact-sheet builder.
   # --clips narrows either set to the named clips.
   def candidates(field)
-    records = @force ? @library.clip_records : @library.pending(field)
+    records = if @force
+                @library.clip_records.select { |r| Library.fields_for(r['type']).include?(field.to_s) }
+              else
+                @library.pending(field)
+              end
     return records unless @clips
 
     records.select { |r| @clips.include?(r['filename']) }
