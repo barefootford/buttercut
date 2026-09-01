@@ -3,16 +3,27 @@
 # ffprobe-shaped metadata for generator specs without touching real media:
 # build_metadata fabricates the probe hash, stub_ffprobe serves a path→metadata
 # map to every generator instance. Specs needing extra stream fields (rotation,
-# timecode) define their own build_metadata, which shadows this one.
+# say) define their own build_metadata, which shadows this one.
 module ProbeMetadata
-  def build_metadata(duration_seconds:, frame_rate: '25/1', width: 1280, height: 720, sample_rate: '48000')
+  def build_metadata(duration_seconds:, frame_rate: '25/1', width: 1280, height: 720, sample_rate: '48000',
+                     timecode: nil)
+    video_stream = { 'codec_type' => 'video', 'width' => width, 'height' => height,
+                     'r_frame_rate' => frame_rate, 'color_space' => 'bt709' }
+    video_stream['tags'] = { 'timecode' => timecode } if timecode
+
+    streams = [video_stream, { 'codec_type' => 'audio', 'sample_rate' => sample_rate }]
+    # A camera reporting timecode has a real 'tmcd' track behind it — the
+    # carrier the exporter gates on — and ffprobe copies the value onto that
+    # track, the video stream, and the format tags alike.
+    if timecode
+      streams << { 'codec_type' => 'data', 'codec_tag_string' => 'tmcd', 'index' => streams.size,
+                   'tags' => { 'timecode' => timecode } }
+    end
+
     {
-      'streams' => [
-        { 'codec_type' => 'video', 'width' => width, 'height' => height,
-          'r_frame_rate' => frame_rate, 'color_space' => 'bt709' },
-        { 'codec_type' => 'audio', 'sample_rate' => sample_rate }
-      ],
-      'format' => { 'duration' => duration_seconds.to_s, 'tags' => {} }
+      'streams' => streams,
+      'format' => { 'duration' => duration_seconds.to_s,
+                    'tags' => timecode ? { 'timecode' => timecode } : {} }
     }
   end
 

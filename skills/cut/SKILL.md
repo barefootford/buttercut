@@ -85,13 +85,16 @@ ruby lib/buttercut/export.rb --editor premiere libraries/[library-name]/cuts/[sl
 ruby lib/buttercut/export.rb --editor resolve libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp]_resolve.fcpxml
 ```
 
-**DaVinci Resolve fallback (temporary).** `resolve` above is the default and what every new cut should use. If the editor tells you a previous Resolve export failed to import, offer to re-export with `--editor resolve_legacy` instead — it writes the older FCP7 XML format Resolve exports used before FCPXML, as a compatibility fallback:
+**DaVinci Resolve fallback (temporary).** `resolve` above is the default and what every new cut should use. Two things send you to the fallback, `--editor resolve_legacy` — the older FCP7 XML format Resolve used before FCPXML:
+
+1. **The export itself warns you.** When a cut mixes frame rates (say, 23.976 footage on a 24p timeline), the `resolve` export prints a warning naming the mismatched clips: Resolve can't link those from FCPXML and imports them offline. Don't hand the editor that file. Re-export straight away with `resolve_legacy` and give them the `.xml` instead, mentioning why in a sentence. (A cut with multicam clips can't use the fallback — the warning says what the options are; relay them.)
+2. **The editor reports an import problem** with a Resolve FCPXML export — offer to re-export with `resolve_legacy`.
 
 ```bash
 ruby lib/buttercut/export.rb --editor resolve_legacy libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp]_resolve.xml
 ```
 
-Don't offer this proactively or use it by default — only reach for it after the editor reports an import problem with the FCPXML export.
+Otherwise leave it alone: don't offer it proactively or use it by default.
 
 ## 7. Copy File to Desktop (if enabled)
 Check `libraries/settings.yaml` for `save_to_desktop_after_export`:

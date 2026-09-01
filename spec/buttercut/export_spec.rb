@@ -124,6 +124,67 @@ RSpec.describe Export do
       end
     end
 
+    # Neither way of writing a backwards clip shows up in the export: out == in
+    # wrote duration="0s" (a clip the editors import as nothing), and out < in
+    # lost its sign in the unsigned fraction parsing downstream and came back
+    # POSITIVE — a clip quietly playing footage nobody asked for.
+    it 'refuses a zero-length clip instead of exporting duration="0s"' do
+      cut = { 'clips' => [
+        { 'source_file' => 'MVI_0309_720p.mov', 'in_point' => '00:00:02', 'out_point' => '00:00:02' }
+      ] }
+      within_export_sandbox(cut: cut, media: [clip_a]) do |cut_path, out|
+        expect { perform(cut_path, out) }.to raise_error(
+          /Clip 'MVI_0309_720p\.mov' has out_point "00:00:02" at or before in_point "00:00:02"/
+        )
+        expect(File.exist?(out)).to be(false)
+      end
+    end
+
+    it 'refuses a backwards clip instead of exporting it as positive-length' do
+      cut = { 'clips' => [
+        { 'source_file' => 'MVI_0323_720p.mov', 'in_point' => 3, 'out_point' => 1 }
+      ] }
+      within_export_sandbox(cut: cut, media: [clip_b]) do |cut_path, out|
+        expect { perform(cut_path, out) }.to raise_error(
+          /Clip 'MVI_0323_720p\.mov' has out_point 1 at or before in_point 3.*end after it starts/m
+        )
+        expect(File.exist?(out)).to be(false)
+      end
+    end
+
+    # One clip per spelling, in order, so a whole vocabulary costs one export.
+    def mute_volumes(spellings)
+      cut = { 'clips' => spellings.map do |written|
+        { 'source_file' => 'MVI_0309_720p.mov', 'in_point' => 0, 'out_point' => 2, 'mute' => written }
+      end }
+      within_export_sandbox(cut: cut, media: [clip_a]) do |cut_path, out|
+        perform(cut_path, out)
+        amounts = parse(out).xpath('//spine/asset-clip/adjust-volume').map { |volume| volume['amount'] }
+        expect(amounts.length).to eq(spellings.length)
+        amounts
+      end
+    end
+
+    # `mute: "false"` is what a hand-written cut YAML produces when the word is
+    # quoted, and every string is truthy in Ruby — the clip used to come back
+    # silent because its author wrote down that it shouldn't be.
+    it 'reads a false mute as not muted, however the cut YAML spells it' do
+      spellings = [false, 'false', 'False', 'no', 'NO', 'off', 'Off', '0', 0, '']
+
+      mute_volumes(spellings).each_with_index do |amount, index|
+        expect(amount).to eq('-13.1'), "mute: #{spellings[index].inspect} silenced the clip"
+      end
+    end
+
+    # The same vocabulary settings.yaml flags use (Settings.truthy?).
+    it 'mutes for every spelling of true' do
+      spellings = [true, 'true', 'True', 'yes', 'on', 1, '1']
+
+      mute_volumes(spellings).each_with_index do |amount, index|
+        expect(amount).to eq('-96'), "mute: #{spellings[index].inspect} left the clip audible"
+      end
+    end
+
     it 'skips a clip whose source_file is not in the library, with a warning' do
       cut = { 'clips' => [
         { 'source_file' => 'MVI_0309_720p.mov', 'in_point' => 0, 'out_point' => 2 },
@@ -156,6 +217,19 @@ RSpec.describe Export do
       within_export_sandbox(cut: cut, media: [@still_path]) do |cut_path, out|
         expect { perform(cut_path, out) }
           .to raise_error(/missing a required 'duration:'/)
+      end
+    end
+
+    # A negative hold would lose its sign downstream and export as a positive
+    # one, exactly like a backwards video clip.
+    it 'refuses a still held for zero or negative time' do
+      [0, -2].each do |held|
+        cut = { 'clips' => [{ 'source_file' => 'title card.png', 'duration' => held }] }
+        within_export_sandbox(cut: cut, media: [@still_path]) do |cut_path, out|
+          expect { perform(cut_path, out) }
+            .to raise_error(/Image clip 'title card\.png' has duration #{held}.*positive length/m)
+          expect(File.exist?(out)).to be(false)
+        end
       end
     end
 

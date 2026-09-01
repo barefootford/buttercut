@@ -13,7 +13,6 @@ class ButterCut
     def to_xml
       raise ArgumentError, "No clips provided" if clips.empty?
 
-      asset_map = build_asset_map
       timeline_frame_duration = format_frame_duration
       timeline_clips, sequence_duration = build_timeline_clips(asset_map, timeline_frame_duration)
 
@@ -117,6 +116,52 @@ class ButterCut
       end
 
       builder.to_xml
+    end
+
+    # Final Cut measures every value inside a sequence against the SEQUENCE's
+    # frame grid, never the source's. A clip whose rate differs from the
+    # timeline's — 23.976 footage on a 24p sequence, the rate the first clip
+    # set — lands its source-anchored start between sequence frames, and Final
+    # Cut answers with "The item is not on an edit frame boundary" on import
+    # and leaves 1-frame crumbs at the tail of the timeline (a 32s cut arrives
+    # 32:03 long). Snap the start to the nearest sequence frame, but never
+    # earlier than the media's own first frame: half a frame before the head
+    # still points at footage that doesn't exist.
+    #
+    # That snap can only move a start LATER, and the duration was measured from
+    # the unsnapped one — an untrimmed conformed clip would read a whole
+    # sequence frame past its own media (and even unsnapped, rounding the
+    # media's length to the grid can overrun it by a fraction of a frame). So
+    # the duration is capped at what the media has left after the start.
+    #
+    # Same-rate media is already on the grid, so every same-rate export comes
+    # through untouched.
+    def build_standard_clip_data(clip_def, asset_map, current_offset, timeline_frame_duration)
+      data = super
+      asset = data[:asset]
+      return data unless asset[:asset_duration]
+
+      start = [fraction_to_rational(round_to_frame_boundary(data[:start], timeline_frame_duration)),
+               fraction_to_rational(media_head(asset, timeline_frame_duration))].max
+      remaining = media_end(asset) - start
+
+      duration = data[:duration]
+      duration = floor_to_frame_boundary(rational_to_fraction(remaining), timeline_frame_duration) if
+        remaining.positive? && fraction_to_rational(duration) > remaining
+
+      data.merge(start: rational_to_fraction(start), duration: duration)
+    end
+
+    # The media's own first frame, on the sequence's grid: the first whole
+    # sequence frame AT OR AFTER its source timecode. Rounding down would open
+    # a clip on a frame the media doesn't have.
+    def media_head(asset, timeline_frame_duration)
+      ceil_to_frame_boundary(asset[:timecode] || '0s', timeline_frame_duration)
+    end
+
+    # ...and where that media runs out, at wire precision.
+    def media_end(asset)
+      fraction_to_rational(asset[:timecode] || '0s') + fraction_to_rational(asset[:asset_duration])
     end
 
     private

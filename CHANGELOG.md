@@ -7,10 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### ButterCut Pro & Core
+### ButterCut Pro
+
+#### New & Improved
+- **Standalone audio.** Bring music beds, voiceover, and podcast audio into a library like any other footage — ButterCut transcribes and summarizes each file — then lay them under the picture in a cut: placed where you want, at the level you want, on their own layers. Final Cut and Resolve get connected clips under the primary storyline; Premiere gets dedicated audio tracks.
+- **Connected audio (beta).** Dual-system sound, synced for you: pair a separately recorded audio file with a video — ButterCut finds the sync offset by listening to both — and every cut lays the good audio under the picture automatically, scratch mic muted. Final Cut gets native Synchronized Clips, Premiere gets the audio linked to its picture like a merged clip, and Resolve gets a synced track beneath the clip. Switch it on under Beta Features in ButterCut Pro's Preview settings.
+- **Per-clip volume.** Any clip in a cut can carry a volume in decibels, exported to all three editors.
 
 #### Fixed
 - **Fixed the update reminder nagging repeatedly** — it now fires once a day, as intended.
+- **Improved clip player performance and fixed freezing under rapid clicking**
+
+#### Changed
+- **We've improved the cut view in ButterCut Preview.** Clip segments can now be played back, unwanted clips can be deleted, and both pictures and the dialogue can be resized.
+- **The clip player shows timecode and seconds together** — the readout now displays SMPTE timecode with plain seconds (to the millisecond) beside it, replacing the click-to-toggle readout.
+
+### ButterCut Pro & Core
+
+#### Fixed
+- **Cuts that mix cameras import cleanly.** When footage shot at different frame rates lands on one timeline, Final Cut no longer complains on import or leaves stray one-frame slivers at the end of the cut. In DaVinci Resolve, the export now tells you when to use the older XML format instead, so your clips arrive connected to your footage rather than offline.
+- Fixed an issue with some vertical phone footage being laid out on a horizontal timeline and not inferring vertical layout correctly.
+- **Transcription is sturdier.** ButterCut now runs the current WhisperX release (3.8.6, with pyannote-audio 4.0.7). This fixes the transcription failures some users hit on the old pinned version, and improves word-level timing accuracy so cuts land on cleaner points.
 
 ## [0.9.0] - 2026-08-09
 

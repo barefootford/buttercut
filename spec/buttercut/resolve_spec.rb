@@ -44,6 +44,57 @@ RSpec.describe ButterCut::Resolve do
     expect(xml).not_to include('db"')
   end
 
+  # Resolve usually can't link a clip whose media frame rate differs from the
+  # sequence's out of an FCPXML: the clip imports permanently offline ("clips
+  # were not yet found"), and nothing in the XML changes it (reproduced in
+  # Resolve 21 against value-precision, frame-grid and declared-rate variants
+  # of the same cut). The xmeml export links the identical cut, so the notice
+  # sends the editor there instead of into an offline timeline.
+  describe 'clips conformed to a different timeline rate' do
+    let(:conformed_path) { '/tmp/resolve_2398.mov' }
+
+    before do
+      stub_ffprobe(video_path => build_metadata(duration_seconds: 4.0, frame_rate: '24/1'),
+                   conformed_path => build_metadata(duration_seconds: 4.0, frame_rate: '24000/1001'))
+    end
+
+    # The first clip sets the sequence rate, so clip 2 is the conformed one.
+    def export(generator, second_path)
+      capture_stderr do
+        generator.new([{ path: video_path, start_at: 0.0, duration: 2.0 },
+                       { path: second_path, start_at: 0.0, duration: 2.0 }]).to_xml
+      end
+    end
+
+    it 'names the conformed clip and points at the legacy flavor' do
+      stderr = export(described_class, conformed_path)
+
+      expect(stderr).to include('resolve_2398.mov runs at a different frame rate than the timeline')
+      expect(stderr).to include('offline')
+      # The flag as every documented export command spells it.
+      expect(stderr).to include('--editor resolve_legacy')
+    end
+
+    it 'names each conformed file once, however many clips use it' do
+      stderr = capture_stderr do
+        described_class.new([{ path: video_path, start_at: 0.0, duration: 2.0 },
+                             { path: conformed_path, start_at: 0.0, duration: 1.0 },
+                             { path: conformed_path, start_at: 2.0, duration: 1.0 }]).to_xml
+      end
+
+      expect(stderr.scan('resolve_2398.mov').length).to eq(1)
+    end
+
+    it 'stays quiet when every clip matches the timeline rate' do
+      expect(export(described_class, video_path)).to eq('')
+    end
+
+    # Final Cut conforms these clips itself — the limitation is Resolve's alone.
+    it 'stays quiet for Final Cut on the same mixed-rate cut' do
+      expect(export(ButterCut::FCPX, conformed_path)).to eq('')
+    end
+  end
+
   # Resolve reads the source rotation flag to display the pixels upright, but
   # it trusts the declared <format> dimensions — vertical phone footage stored
   # landscape needs a portrait declaration or it lands in a landscape timeline.

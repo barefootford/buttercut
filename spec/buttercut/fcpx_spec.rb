@@ -720,7 +720,11 @@ RSpec.describe ButterCut::FCPX do
         end
       end
 
-      it 'rounds trims using each asset frame duration before timeline placement' do
+      # The trim still counts whole SOURCE frames — one 29.97 frame here — but
+      # what Final Cut reads has to land on the SEQUENCE's grid, which clip_a
+      # set to 23.976. 1001/30000s is 0.8 of a sequence frame, so it emits as
+      # the one frame it rounds to.
+      it 'rounds a trim on the source grid, then emits it on the sequence grid' do
         generator = ButterCut::FCPX.new([
           { path: clip_a_path },
           { path: clip_b_path, start_at: '1001/30000s' }
@@ -728,7 +732,73 @@ RSpec.describe ButterCut::FCPX do
 
         xml = generator.to_xml
         asset_id = asset_id_for(generator, clip_b_path)
-        expect(xml).to match(/ref="#{Regexp.escape(asset_id)}"[^>]*start="1001\/30000s"/)
+        expect(xml).to match(/ref="#{Regexp.escape(asset_id)}"[^>]*start="1001\/24000s"/)
+      end
+    end
+
+    # 23.976 footage in a 24p sequence — the rate the first clip set — is the
+    # mixed-rate case real cuts hit constantly (any NTSC-rate camera clip
+    # alongside a 24p one). Every source-anchored value then lands BETWEEN
+    # sequence frames, and Final Cut answers on import with "The item is not on
+    # an edit frame boundary", then pads the timeline with 1-frame crumbs: a
+    # 32-second cut arrives 32:03 long (reproduced in Final Cut Pro 11).
+    describe 'a 23.976 source conformed onto a 24p timeline' do
+      let(:timeline_path) { '/tmp/fcpx_24p.mov' }
+      let(:conformed_path) { '/tmp/fcpx_2398.mov' }
+      let(:metadata_by_path) do
+        {
+          timeline_path => build_metadata(frame_rate: '24/1', duration_seconds: 10.0),
+          # 01:00:00:00 at 23.976 is 3603.6s — 86486.4 frames of a 24p
+          # sequence, four tenths of a frame past a boundary.
+          conformed_path => build_metadata(frame_rate: '24000/1001', duration_seconds: 25.025,
+                                           timecode: '01:00:00:00')
+        }
+      end
+
+      before { stub_ffprobe(metadata_by_path) }
+
+      def conformed_clip(**clip)
+        doc = Nokogiri::XML(ButterCut::FCPX.new([{ path: timeline_path }, clip]).to_xml)
+        doc.xpath('//spine/asset-clip').last
+      end
+
+      it 'lands a trimmed conformed clip on the nearest whole sequence frame' do
+        clip = conformed_clip(path: conformed_path, start_at: 2.0, duration: 4.0)
+
+        # 3603.6s of timecode plus a 48-source-frame trim (2.002s) is 86534.448
+        # sequence frames, well inside the media — the nearest frame wins.
+        expect(sequence_frames(clip['start'])).to eq(86_534)
+        expect(sequence_frames(clip['duration'])).to eq(96)
+      end
+
+      it 'never starts an untrimmed conformed clip before its own first frame' do
+        clip = conformed_clip(path: conformed_path, duration: 4.0)
+
+        # The media starts at 86486.4. The nearest frame, 86486, is four tenths
+        # of a frame BEFORE it — footage that doesn't exist — so the start
+        # snaps forward to the first frame the media actually covers.
+        expect(sequence_frames(clip['start'])).to eq(86_487)
+      end
+
+      it 'stops an untrimmed conformed clip at its own last frame' do
+        clip = conformed_clip(path: conformed_path)
+
+        # The media covers 86486.4 to 87087.0. Its 600.6-frame length rounds
+        # to 601 on the sequence grid, and the head snap moved the start a
+        # further 0.6 frame later — read from the snapped head, the media has
+        # exactly 600 whole frames left, so the clip stops at 87087.
+        expect(sequence_frames(clip['start'])).to eq(86_487)
+        expect(sequence_frames(clip['duration'])).to eq(600)
+      end
+
+      it 'leaves the clip that set the sequence rate untouched' do
+        doc = Nokogiri::XML(ButterCut::FCPX.new([
+          { path: timeline_path }, { path: conformed_path, duration: 4.0 }
+        ]).to_xml)
+
+        expect(doc.at_xpath('//sequence')['format']).to eq('r1')
+        expect(doc.at_xpath('//format[@id="r1"]')['frameDuration']).to eq('1/24s')
+        expect(doc.xpath('//spine/asset-clip').first['start']).to eq('0s')
       end
     end
 

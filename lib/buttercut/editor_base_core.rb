@@ -489,22 +489,30 @@ class ButterCut
       end
     end
 
-    def round_to_frame_boundary(time_value, frame_duration)
-      return "0s" if time_value == "0s" || time_value == 0
-      time_value = seconds_to_fraction(time_value) if time_value.is_a?(Numeric)
+    # Snap a time value onto a frame grid. The nearest frame is right for a
+    # position inside a clip; the head of the media itself wants the first
+    # frame AT OR AFTER it (half a frame early points an edit at footage that
+    # doesn't exist yet — see FCPX#timeline_clip_start), and what's left of the
+    # media after that head wants the last frame AT OR BEFORE its end.
+    def snap_to_frame_boundary(time_value, frame_duration, mode: :round)
+      return "0s" if time_value_zero?(time_value)
 
-      time_num, time_denom = fraction_parts(time_value)
+      frame = fraction_to_rational(frame_duration)
+      rational_to_fraction((fraction_to_rational(time_value) / frame).public_send(mode) * frame)
+    end
 
-      frame_num, frame_denom = frame_duration.match(/(\d+)\/(\d+)/).captures.map(&:to_i)
+    def round_to_frame_boundary(time_value, frame_duration) = snap_to_frame_boundary(time_value, frame_duration)
+    def ceil_to_frame_boundary(time_value, frame_duration) = snap_to_frame_boundary(time_value, frame_duration, mode: :ceil)
+    def floor_to_frame_boundary(time_value, frame_duration) = snap_to_frame_boundary(time_value, frame_duration, mode: :floor)
 
-      frames_exact = (time_num * frame_denom).to_f / (time_denom * frame_num)
-      frames_rounded = frames_exact.round
+    # fraction_to_rational's inverse: "N/Ds" in lowest terms, "0s" for zero.
+    # Negative values have no place on a timeline, so they're refused rather
+    # than emitted with a sign the fraction parsers would drop.
+    def rational_to_fraction(value)
+      raise ArgumentError, "negative time value: #{value}" if value.negative?
+      return "0s" if value.zero?
 
-      result_num = frames_rounded * frame_num
-      result_denom = frame_denom
-
-      divisor = gcd(result_num, result_denom)
-      "#{result_num / divisor}/#{result_denom / divisor}s"
+      "#{value.numerator}/#{value.denominator}s"
     end
 
     def subtract_fractions(frac1, frac2)
@@ -555,6 +563,11 @@ class ButterCut
       return "" if str.nil?
       CGI.escapeHTML(str).gsub("&#39;", "&apos;")
     end
+
+    # The asset records this export is built from. Memoized: the clip list is
+    # fixed at construction, and a post-emit pass (Resolve's conformed-clip
+    # notice) reads the same records the emit used.
+    def asset_map = @asset_map ||= build_asset_map
 
     # One asset record per unique source file. Stills are timeless: only
     # dimensions are probed — no duration, audio rate, timecode, frame rate,
@@ -620,21 +633,28 @@ class ButterCut
       start_at = round_to_frame_boundary(start_at_raw, asset_frame_duration)
 
       base_timecode = asset_info[:timecode] || "0s"
-      clip_start = add_fractions(base_timecode, start_at)
-
       duration_info = compute_clip_duration(clip_def, asset_info, start_at, asset_frame_duration, timeline_frame_duration)
 
       {
         asset: asset_info,
         asset_id: asset_info[:asset_id],
         filename: asset_info[:filename],
-        start: clip_start,
+        start: add_fractions(base_timecode, start_at),
         duration: duration_info[:timeline],
         source_duration: duration_info[:asset],
         timeline_offset: current_offset,
         source_in: start_at,
         clip_definition: clip_def
       }
+    end
+
+    # Seconds — possibly negative — on the same 1/10000 grid every other
+    # seconds-to-time conversion lands on. fraction_to_rational's parsing is
+    # unsigned, so the sign rides outside it.
+    def seconds_to_rational(seconds)
+      magnitude = fraction_to_rational(seconds_to_fraction(seconds.abs))
+
+      seconds.negative? ? -magnitude : magnitude
     end
 
     def fraction_to_rational(value)

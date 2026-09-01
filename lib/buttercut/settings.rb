@@ -73,9 +73,14 @@ class Settings
 
   private
 
-  def truthy?(value)
+  # A hand-written flag: on for any spelling of "on"; "off", "0", a blank, or a
+  # word it doesn't know all read as off. The one vocabulary for settings.yaml
+  # and the cut YAML alike (Export#truthy_flag?).
+  def self.truthy?(value)
     return value if [true, false].include?(value)
 
     %w[true yes 1 on].include?(value.to_s.strip.downcase)
   end
+
+  def truthy?(value) = Settings.truthy?(value)
 end

@@ -110,17 +110,42 @@ class Export
       raise "Image clip '#{source}' is missing a required 'duration:' field." unless clip['duration']
 
       duration = timecode_to_seconds(clip['duration'])
+      unless duration.positive?
+        raise "Image clip '#{source}' has duration #{clip['duration'].inspect} — a still has to be held for " \
+              'a positive length. Fix the value in the cut YAML (or drop the clip).'
+      end
+
       { path: path, type: :image, duration: duration.to_f }
     else
       start_at = timecode_to_seconds(clip['in_point'])
       duration = timecode_to_seconds(clip['out_point']) - start_at
+      check_clip_bounds!(clip, duration, "Clip '#{source}'")
 
       result = { path: path, type: :video, start_at: start_at.to_f, duration: duration.to_f }
       # Silence this clip's audio entirely instead of playing it.
-      result[:mute] = true if clip['mute']
+      result[:mute] = true if truthy_flag?(clip['mute'])
       result
     end
   end
+
+  # A clip has to end after it starts. Neither way of getting this wrong shows
+  # up in the export: out == in writes duration="0s", a clip the editors import
+  # as nothing at all, and out < in loses its sign in the unsigned fraction
+  # parsing downstream and comes back POSITIVE — a clip that quietly plays
+  # footage nobody asked for. Refuse the pair while it can still be named.
+  def check_clip_bounds!(clip, duration, label)
+    return if duration.positive?
+
+    raise "#{label} has out_point #{clip['out_point'].inspect} at or before in_point " \
+          "#{(clip['in_point'] || 0).inspect} — a clip has to end after it starts. Fix the pair in the cut YAML " \
+          '(or drop the clip).'
+  end
+
+  # A hand-written flag from the cut YAML. Psych folds a bare true/false into
+  # a boolean, but quote either word — `mute: "false"` — and it arrives as a
+  # string, which is truthy in Ruby: the clip would come back silent because
+  # its author wrote down that it shouldn't be.
+  def truthy_flag?(value) = Settings.truthy?(value)
 
   # Accepts HH:MM:SS(.s) or bare numeric seconds.
   def timecode_to_seconds(timecode)
