@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 - **Cuts that mix cameras import cleanly.** When footage shot at different frame rates lands on one timeline, Final Cut no longer complains on import or leaves stray one-frame slivers at the end of the cut. In DaVinci Resolve, the export now tells you when to use the older XML format instead, so your clips arrive connected to your footage rather than offline.
 - Fixed an issue with some vertical phone footage being laid out on a horizontal timeline and not inferring vertical layout correctly.
+- Improved how transcription handles footage with no audio stream or no spoken words, which now gets an empty transcript instead of an error.
+- Improved how transcription detects a WhisperX crash, which could previously be reported as a missing transcript.
 - **Transcription is sturdier.** ButterCut now runs the current WhisperX release (3.8.6, with pyannote-audio 4.0.7). This fixes the transcription failures some users hit on the old pinned version, and improves word-level timing accuracy so cuts land on cleaner points.
 
 ## [0.9.0] - 2026-08-09

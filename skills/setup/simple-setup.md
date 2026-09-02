@@ -212,9 +212,9 @@ Run the `pip install` from the buttercut directory so `requirements.txt` resolve
 ```bash
 cat > ~/.buttercut/whisperx << 'EOF'
 #!/bin/bash
-source ~/.buttercut/venv/bin/activate
-whisperx "$@"
-deactivate
+# exec so whisperx's own exit status is the wrapper's. ButterCut reads it to
+# tell a crash from a clean run — a trailing command here would hide crashes.
+exec "$HOME/.buttercut/venv/bin/whisperx" "$@"
 EOF
 chmod +x ~/.buttercut/whisperx
 ```
@@ -288,5 +288,5 @@ running ButterCut in:
 - **Mise not activating**: Open new terminal, run `mise doctor`
 - **Wrong Ruby/Python**: Run `mise trust && mise install` from buttercut directory
 - **WhisperX not found**: Ensure `~/.buttercut` is in PATH, open new terminal
-- **WhisperX import errors**: The wrapper script handles venv activation automatically; ensure you're using `~/.buttercut/whisperx` not calling whisperx directly
+- **WhisperX import errors**: `~/.buttercut/whisperx` runs the venv's own whisperx; if it's a wrapper from an older setup that ends in `deactivate`, rewrite it with Step 7 — that shape reported exit 0 even when whisperx crashed
 - **`torchcodec` / `libavutil` warning when WhisperX starts**: Harmless — torchcodec's native FFmpeg bindings may fail to load, but WhisperX decodes audio through the ffmpeg binary, so transcription still works. Ignore it.

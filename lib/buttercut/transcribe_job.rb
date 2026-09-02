@@ -5,6 +5,7 @@ require 'English'
 require 'fileutils'
 require 'json'
 require 'open3'
+require 'tmpdir'
 require_relative 'job'
 require_relative 'media_tools'
 
@@ -21,13 +22,22 @@ class TranscribeJob < Job
 
   PREPARE_SCRIPT = File.expand_path('prepare_audio_script.rb', __dir__)
 
-  def initialize(library_name:, clip:, video_path:, output_dir:, language_code:, whisper_model:)
+  # `transcript_name:` is the JSON filename to produce in `output_dir`.
+  # WhisperX names its own output `<source-basename>.json`; for video clips the
+  # library's canonical name (clip_key + .json) is the same thing, but audio
+  # clips flatten the extension into the key (vo.wav → vo_wav.json), so the
+  # caller passes the canonical name and we move WhisperX's output onto it.
+  # Defaults to WhisperX's convention for standalone (outside-a-library) runs.
+  def initialize(library_name:, clip:, video_path:, output_dir:, language_code:, whisper_model:, transcript_name: nil)
     super(library_name: library_name, clip: clip)
     @video_path = video_path
     @output_dir = output_dir
     @language_code = language_code
     @whisper_model = whisper_model
+    @transcript_name = transcript_name || "#{File.basename(video_path, '.*')}.json"
   end
+
+  def transcript_path = File.join(@output_dir, @transcript_name)
 
   def perform
     if run_whisperx
@@ -39,14 +49,40 @@ class TranscribeJob < Job
   private
 
   NO_SPEECH_MARKER = 'No active speech found in audio'
+  LOAD_AUDIO_MARKER = 'Failed to load audio'
   PYTHON_TRACEBACK_MARKER = 'Traceback (most recent call last)'
 
-  # Returns true if whisperx produced a transcript file, false if it rescued a
-  # silent clip by writing an empty one. Raises on any other failure.
-  # whisperx 3.8+ handles silent clips itself: it prints NO_SPEECH_MARKER but
-  # exits 0 with a valid empty-segments JSON, so the rescue below only fires on
-  # older whisperx versions that exit non-zero.
+  # The outcome is read from the evidence — the output file and whisperx's
+  # own messages — before the exit status. The wrapper script older installs
+  # run whisperx through reports 0 for everything (see MediaTools.whisperx),
+  # so a status of 0 proves nothing on its own.
+  #
+  # Returns true if whisperx produced a transcript with dialogue in it, false
+  # if the clip is silent and got the empty no-dialogue transcript instead.
+  # Raises on any other failure.
+  #
+  # Silence comes in two shapes, and both end up as the same file on disk:
+  #   * no audio stream at all — picture-only drone and action-cam bodies,
+  #     screen captures. Caught up front with ffprobe so whisperx never runs;
+  #     the ffmpeg decode inside it would only fail.
+  #   * an audio stream with no speech — B-roll, ambient, a drone with a mic.
+  #     whisperx 3.8+ logs NO_SPEECH_MARKER and exits 0 with an empty-segments
+  #     JSON; older versions logged it and exited non-zero without writing
+  #     anything. Both are rescued here.
+  #
+  # WhisperX writes into a per-job temp dir, and the JSON is then moved onto
+  # `transcript_path`. Two reasons: it maps WhisperX's fixed `<basename>.json`
+  # naming onto the library's canonical clip-key name, and it keeps two
+  # concurrent jobs whose sources share a basename (interview.mov alongside
+  # interview.wav — both would be `interview.json` to WhisperX) from clobbering
+  # each other's intermediate output.
   def run_whisperx
+    FileUtils.mkdir_p(@output_dir)
+    unless MediaTools.audio_stream?(@video_path)
+      rescue_silent_clip
+      return false
+    end
+
     # WhisperX decodes audio by running a bare `ffmpeg` from PATH (see
     # whisperx/audio.py load_audio), so the subprocess gets MediaTools'
     # dependencies-first precedence via PATH — without this, installs whose
@@ -55,26 +91,75 @@ class TranscribeJob < Job
     # clear error here instead of a cryptic decode failure inside whisperx.
     MediaTools.ffmpeg
     env = { 'PATH' => [MediaTools::DEPENDENCIES_DIR, ENV.fetch('PATH', '')].join(':') }
-    output, status = Open3.capture2e(
-      env,
-      'whisperx', @video_path,
-      '--language', @language_code,
-      '--model', @whisper_model,
-      '--compute_type', 'float32',
-      '--device', 'cpu',
-      '--output_format', 'json',
-      '--output_dir', @output_dir
-    )
-    return true if status.success?
+    Dir.mktmpdir('.whisperx_', @output_dir) do |tmp_dir|
+      output, status = Open3.capture2e(
+        env,
+        MediaTools.whisperx, @video_path,
+        '--language', @language_code,
+        '--model', @whisper_model,
+        '--compute_type', 'float32',
+        '--device', 'cpu',
+        '--output_format', 'json',
+        '--output_dir', tmp_dir
+      )
+      produced = File.join(tmp_dir, "#{File.basename(@video_path, '.*')}.json")
 
-    if output.include?(NO_SPEECH_MARKER)
-      rescue_silent_clip
-      return false
+      if status.success? && File.exist?(produced)
+        if empty_transcript?(produced)
+          rescue_silent_clip
+          return false
+        end
+
+        FileUtils.mv(produced, transcript_path)
+        return true
+      end
+
+      if output.include?(NO_SPEECH_MARKER)
+        rescue_silent_clip
+        return false
+      end
+
+      raise undecodable_audio_message(output) if output.include?(LOAD_AUDIO_MARKER)
+      raise stale_install_message(output, status) if output.include?(PYTHON_TRACEBACK_MARKER)
+      raise "whisperx failed for #{clip} (exit #{status.exitstatus})" unless status.success?
+
+      raise no_output_message(output, produced)
     end
+  end
 
-    raise stale_install_message(output, status) if output.include?(PYTHON_TRACEBACK_MARKER)
+  # whisperx 3.8+ answers a silent audio stream with {"segments": []}. Treat
+  # that as the rescue case so every silent clip carries the same no-dialogue
+  # note, whether or not its file had an audio stream to begin with.
+  def empty_transcript?(path)
+    Array(JSON.parse(File.read(path))['segments']).empty?
+  rescue JSON::ParserError
+    false
+  end
 
-    raise "whisperx failed for #{clip} (exit #{status.exitstatus})"
+  # ffprobe saw an audio stream but ffmpeg couldn't decode it (a codec it
+  # doesn't handle, a damaged track). That's the footage, not the install, so
+  # don't send the user off to reinstall WhisperX.
+  def undecodable_audio_message(output)
+    tail = output.lines.last(15).join
+    <<~MSG
+      whisperx couldn't decode the audio in #{clip} — ffmpeg can't read its audio stream. This is the footage, not the WhisperX install.
+      Fix: convert the clip with ffmpeg to a supported container and codec, add the converted file to the library, and remove the original entry (see unsupported_media in AGENTS.md for the detect-tell-convert-swap path).
+      Last output from ffmpeg:
+      #{tail}
+    MSG
+  end
+
+  # whisperx exited 0 without writing a transcript and without saying it found
+  # no speech. This has been reported from the field and not reproduced, so
+  # carry whisperx's own output along — it's the only diagnostic a bug report
+  # will have.
+  def no_output_message(output, produced)
+    tail = output.lines.last(15).join
+    <<~MSG
+      whisperx exited 0 but produced no transcript at #{produced} for #{clip}.
+      Last output from whisperx:
+      #{tail}
+    MSG
   end
 
   # A Python traceback means whisperx itself crashed rather than choking on the
@@ -86,8 +171,11 @@ class TranscribeJob < Job
   # update flows didn't sync the venv.
   def stale_install_message(output, status)
     tail = output.lines.last(15).join
+    # A wrapper script can report 0 for a crash (see MediaTools.whisperx), so
+    # only quote the exit status when it says something.
+    exit_note = status.success? ? '' : " (exit #{status.exitstatus})"
     <<~MSG
-      whisperx crashed with a Python error for #{clip} (exit #{status.exitstatus}). This usually means the WhisperX install is stale or broken, not that the footage is bad.
+      whisperx crashed with a Python error for #{clip}#{exit_note}. This usually means the WhisperX install is stale or broken, not that the footage is bad.
       Fix: from the ButterCut directory, sync the WhisperX packages to ButterCut's pinned versions:
         ~/.buttercut/venv/bin/pip install --only-binary :all: --no-binary antlr4-python3-runtime,docopt -r requirements.txt
       then retry this clip. If that doesn't fix it, run the setup skill.
@@ -97,9 +185,7 @@ class TranscribeJob < Job
   end
 
   def rescue_silent_clip
-    path = File.join(@output_dir, "#{File.basename(@video_path, '.*')}.json")
-    FileUtils.mkdir_p(@output_dir)
-    File.write(path, JSON.pretty_generate(
+    File.write(transcript_path, JSON.pretty_generate(
       '_note'        => 'no dialogue',
       'segments'     => [],
       'word_segments' => [],
@@ -108,10 +194,7 @@ class TranscribeJob < Job
   end
 
   def prepare_transcript
-    json = File.join(@output_dir, "#{File.basename(@video_path, '.*')}.json")
-    raise "whisperx produced no transcript at #{json}" unless File.exist?(json)
-
-    ok = system('ruby', PREPARE_SCRIPT, json, @video_path)
+    ok = system('ruby', PREPARE_SCRIPT, transcript_path, @video_path)
     raise "prepare_audio_script failed for #{clip}" unless ok
   end
 end
@@ -127,12 +210,13 @@ if __FILE__ == $PROGRAM_NAME
   end
 
   begin
-    TranscribeJob.new(
+    job = TranscribeJob.new(
       library_name: 'standalone', clip: File.basename(video_path),
       video_path: video_path, output_dir: output_dir,
       language_code: language_code, whisper_model: whisper_model
-    ).perform
-    puts "✓ #{File.basename(video_path)} transcribed → #{File.join(output_dir, "#{File.basename(video_path, '.*')}.json")}"
+    )
+    job.perform
+    puts "✓ #{File.basename(video_path)} transcribed → #{job.transcript_path}"
   rescue StandardError => e
     warn "transcribe_job: #{e.message}"
     exit 1

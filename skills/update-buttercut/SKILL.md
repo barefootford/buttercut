@@ -40,11 +40,34 @@ bundle install
 
 Also sync the WhisperX install to the repo's pinned versions — updates sometimes move them, and `git pull` alone never touches the venv:
 ```bash
-~/.buttercut/venv/bin/pip install -r requirements.txt
+~/.buttercut/venv/bin/pip install --only-binary :all: --no-binary antlr4-python3-runtime,docopt -r requirements.txt
 ```
 This is fast and a no-op when the pins haven't changed. If `~/.buttercut/venv` doesn't exist, the install predates the standard venv layout — skip this command (that Mac's transcription setup lives wherever `.buttercut_env` points). If it fails because the network dropped, continue the update but tell the user transcription may misbehave until it's re-run.
 
-**5. Tell the user what they got — in their language:**
+While you're there, if `~/.buttercut/whisperx` exists and contains the line `deactivate`, rewrite it — that older wrapper reported exit 0 even when whisperx crashed:
+
+```bash
+grep -q '^deactivate' ~/.buttercut/whisperx 2>/dev/null && printf '%s\n' '#!/bin/bash' 'exec "$HOME/.buttercut/venv/bin/whisperx" "$@"' > ~/.buttercut/whisperx
+```
+
+**5. Check that agent shells still resolve the right Ruby — and repair if not:**
+```bash
+"$SHELL" -lc 'ruby --version'
+"$SHELL" -c 'ruby --version'
+```
+Both must print Ruby 3.3.x. Installs set up before mid-2026 are missing a
+`~/.zprofile` activation line, so in login shells (`zsh -lc` — how some agentic
+clients run commands) macOS's `path_helper` demotes the mise shims and `ruby`
+falls back to system Ruby 2.6, which can't parse ButterCut's scripts. If either
+command prints 2.6.x (or "command not found"), re-run the mise activation block
+from Step 2 of `skills/setup/simple-setup.md` — it's grep-guarded and
+idempotent, so it only appends whichever activation lines are missing — then
+re-run both checks to confirm 3.3.x. If both printed 3.3.x on the first try,
+say nothing about this step. If you repaired it, mention it once in plain terms
+("I also patched up a small install issue from an older ButterCut version") —
+no shell or PATH talk.
+
+**6. Tell the user what they got — in their language:**
 ```bash
 git diff <sha-from-step-1>..HEAD -- CHANGELOG.md
 ```
