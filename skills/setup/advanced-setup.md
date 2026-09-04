@@ -113,9 +113,9 @@ deactivate
 # Create wrapper script
 cat > ~/.buttercut/whisperx << 'EOF'
 #!/bin/bash
-source ~/.buttercut/venv/bin/activate
-whisperx "$@"
-deactivate
+# exec so whisperx's own exit status is the wrapper's. ButterCut reads it to
+# tell a crash from a clean run — a trailing command here would hide crashes.
+exec "$HOME/.buttercut/venv/bin/whisperx" "$@"
 EOF
 chmod +x ~/.buttercut/whisperx
 

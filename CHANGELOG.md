@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Silent clips no longer break transcription.** Some WhisperX versions handle a clip with no dialogue — common for B-roll — by exiting cleanly without writing a transcript, which made processing stop with an error. ButterCut now recognizes that case and records the clip as having no dialogue, the same as it always has for other WhisperX versions.
 - Fixed an issue with some vertical footage not embedding correctly.
+- Improved how transcription handles footage with no audio stream or no spoken words, which now gets an empty transcript instead of an error.
+- Improved how transcription detects a WhisperX crash, which could previously be reported as a missing transcript.
 - **Transcription is sturdier.** ButterCut now runs the current WhisperX release (3.8.6, with pyannote-audio 4.0.7). This fixes the transcription failures some users hit on the old pinned version, and improves word-level timing accuracy so cuts land on cleaner points.
 
 ## [0.9.0] - 2026-08-09

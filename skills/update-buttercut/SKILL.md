@@ -40,6 +40,12 @@ Also sync the WhisperX install to the repo's pinned versions — updates sometim
 ```
 This is fast and a no-op when the pins haven't changed. If `~/.buttercut/venv` doesn't exist, the install predates the standard venv layout — skip this command (that Mac's transcription setup lives wherever `.buttercut_env` points). If it fails because the network dropped, continue the update but tell the user transcription may misbehave until it's re-run.
 
+While you're there, if `~/.buttercut/whisperx` exists and contains the line `deactivate`, rewrite it — that older wrapper reported exit 0 even when whisperx crashed:
+
+```bash
+grep -q '^deactivate' ~/.buttercut/whisperx 2>/dev/null && printf '%s\n' '#!/bin/bash' 'exec "$HOME/.buttercut/venv/bin/whisperx" "$@"' > ~/.buttercut/whisperx
+```
+
 **5. Tell the user what they got — in their language:**
 ```bash
 git diff <sha-from-step-1>..HEAD -- CHANGELOG.md
