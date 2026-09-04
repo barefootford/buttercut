@@ -43,9 +43,10 @@ class TranscribeJob < Job
 
   # Returns true if whisperx produced a transcript file, false if it rescued a
   # silent clip by writing an empty one. Raises on any other failure.
-  # whisperx 3.8+ handles silent clips itself: it prints NO_SPEECH_MARKER but
-  # exits 0 with a valid empty-segments JSON, so the rescue below only fires on
-  # older whisperx versions that exit non-zero.
+  # Silent clips (common for B-roll) vary by whisperx version: some exit
+  # non-zero, some exit 0 after writing a valid empty-segments JSON, and some
+  # exit 0 having written nothing at all — so the rescue keys on NO_SPEECH_MARKER
+  # plus a missing transcript, not on the exit status.
   def run_whisperx
     # WhisperX decodes audio by running a bare `ffmpeg` from PATH (see
     # whisperx/audio.py load_audio), so the subprocess gets MediaTools'
@@ -65,7 +66,7 @@ class TranscribeJob < Job
       '--output_format', 'json',
       '--output_dir', @output_dir
     )
-    return true if status.success?
+    return true if status.success? && File.exist?(transcript_path)
 
     if output.include?(NO_SPEECH_MARKER)
       rescue_silent_clip
@@ -73,8 +74,9 @@ class TranscribeJob < Job
     end
 
     raise stale_install_message(output, status) if output.include?(PYTHON_TRACEBACK_MARKER)
+    raise "whisperx failed for #{clip} (exit #{status.exitstatus})" unless status.success?
 
-    raise "whisperx failed for #{clip} (exit #{status.exitstatus})"
+    raise "whisperx produced no transcript at #{transcript_path}"
   end
 
   # A Python traceback means whisperx itself crashed rather than choking on the
@@ -96,10 +98,13 @@ class TranscribeJob < Job
     MSG
   end
 
+  def transcript_path
+    File.join(@output_dir, "#{File.basename(@video_path, '.*')}.json")
+  end
+
   def rescue_silent_clip
-    path = File.join(@output_dir, "#{File.basename(@video_path, '.*')}.json")
     FileUtils.mkdir_p(@output_dir)
-    File.write(path, JSON.pretty_generate(
+    File.write(transcript_path, JSON.pretty_generate(
       '_note'        => 'no dialogue',
       'segments'     => [],
       'word_segments' => [],
@@ -108,10 +113,7 @@ class TranscribeJob < Job
   end
 
   def prepare_transcript
-    json = File.join(@output_dir, "#{File.basename(@video_path, '.*')}.json")
-    raise "whisperx produced no transcript at #{json}" unless File.exist?(json)
-
-    ok = system('ruby', PREPARE_SCRIPT, json, @video_path)
+    ok = system('ruby', PREPARE_SCRIPT, transcript_path, @video_path)
     raise "prepare_audio_script failed for #{clip}" unless ok
   end
 end
