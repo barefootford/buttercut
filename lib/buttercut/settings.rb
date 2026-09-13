@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 require 'yaml'
+require_relative 'platform'
 
 # Read-only accessor for libraries/settings.yaml — the user's global ButterCut
 # preferences (editor, whisper model, parallelism, …). Centralizes the path so

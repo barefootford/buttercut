@@ -96,8 +96,8 @@ RSpec.describe ButterCut::FCP7 do
 
     it 'includes source file metadata and file:// URLs' do
       xml = generator.to_xml
-      expect(xml).to include("file:///tmp/fcp7_clip_a.mov")
-      expect(xml).to include("file:///tmp/fcp7_clip_b.mov")
+      expect(xml).to include(file_url_for(clip_a_path))
+      expect(xml).to include(file_url_for(clip_b_path))
       expect(xml).to include('<width>1920</width>')
       expect(xml).to include('<height>1080</height>')
     end

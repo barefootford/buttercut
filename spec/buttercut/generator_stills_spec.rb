@@ -124,7 +124,7 @@ RSpec.describe 'Generator still handling' do
     it 'percent-encodes spaces and non-ASCII in the still asset src' do
       clips = [{ path: unicode_image_path, type: :image, duration: 3.0 }]
       xml = described_class.new(clips, timeline: timeline_block).to_xml
-      expect(xml).to include('src="file:///tmp/blue%20caf%C3%A9%20%28test%29.jpg"')
+      expect(xml).to include(%(src="#{file_url_for(unicode_image_path)}"))
     end
 
     it 'validates against the FCPXML 1.12 DTD' do
@@ -189,7 +189,7 @@ RSpec.describe 'Generator still handling' do
     it 'percent-encodes spaces and non-ASCII in the still pathurl' do
       clips = [{ path: unicode_image_path, type: :image, duration: 3.0 }]
       xml = described_class.new(clips, timeline: timeline_block).to_xml
-      expect(xml).to include('<pathurl>file:///tmp/blue%20caf%C3%A9%20%28test%29.jpg</pathurl>')
+      expect(xml).to include("<pathurl>#{file_url_for(unicode_image_path)}</pathurl>")
     end
   end
 

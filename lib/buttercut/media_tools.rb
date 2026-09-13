@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require %q(open3)
+require_relative 'platform'
 
 # Resolves the ffmpeg/ffprobe binaries ButterCut shells out to. Static builds
 # may be installed into the gitignored dependencies/ directory at the repo
@@ -10,6 +11,8 @@ require %q(open3)
 # via the bare-name fallback. When a binary is in neither place, resolution
 # raises MissingBinary up front — a clear "run the setup skill" instead of a
 # cryptic command-not-found buried in subprocess output.
+#
+# Both checks go through Platform so Windows resolves the .exe variants.
 module MediaTools
   class MissingBinary < StandardError; end
 
@@ -23,8 +26,11 @@ module MediaTools
   # shell reported *its* exit status — 0 — no matter how whisperx died, and a
   # crash looked like a clean run that wrote no transcript. Calling the venv
   # binary directly sidesteps every wrapper ever installed; the bare name is
-  # the fallback for installs that keep whisperx somewhere else.
-  WHISPERX_VENV_BIN = File.expand_path('~/.buttercut/venv/bin/whisperx')
+  # the fallback for installs that keep whisperx somewhere else. Windows venvs
+  # keep their entry points under Scripts/ instead of bin/.
+  WHISPERX_VENV_BIN = File.expand_path(
+    Platform.windows? ? '~/.buttercut/venv/Scripts/whisperx.exe' : '~/.buttercut/venv/bin/whisperx'
+  )
 
   def self.whisperx
     return WHISPERX_VENV_BIN if File.executable?(WHISPERX_VENV_BIN)
@@ -33,18 +39,12 @@ module MediaTools
   end
 
   def self.resolve(name)
-    local = File.join(DEPENDENCIES_DIR, name)
-    return local if File.executable?(local)
-    return name if on_path?(name)
+    local = Platform.find_executable(name, DEPENDENCIES_DIR)
+    return local if local
+    return name if Platform.command_available?(name)
 
     raise MissingBinary,
           "#{name} not found in ButterCut's dependencies/ directory or on PATH — run the setup skill to install it"
-  end
-
-  def self.on_path?(name)
-    ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).any? do |dir|
-      !dir.empty? && File.executable?(File.join(dir, name))
-    end
   end
 
   # True when ffprobe finds at least one audio stream in the file. Picture-only

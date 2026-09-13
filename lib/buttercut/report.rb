@@ -10,6 +10,7 @@ require 'uri'
 
 require_relative 'distribution'
 require_relative 'library'
+require_relative 'platform'
 require_relative 'settings'
 require_relative 'version'
 
@@ -18,7 +19,7 @@ require_relative 'version'
 # scrubs: the agent owns both, because it's the one holding the failure.
 # See skills/report-bug/SKILL.md.
 class Report
-  SCHEMA_VERSION = 1
+  SCHEMA_VERSION = 2 # 2: added the platform section
   KINDS = %w[bug feature].freeze
   FINGERPRINT_LENGTH = 12 # the server accepts 8–64 hex chars
   HTTP_TIMEOUT = 5 # seconds; a report is never worth stalling the user over
@@ -66,6 +67,7 @@ class Report
       'source' => @kind == 'feature' ? 'user' : 'agent',
       'title' => @title,
       'buttercut' => { 'version' => ButterCut::VERSION, 'edition' => ButterCut::EDITION.to_s },
+      'platform' => platform_section,
       'error' => error_section,
       'narrative' => @narrative,
       'contact_email' => @settings.error_report_email
@@ -107,6 +109,14 @@ class Report
 
     { 'class' => @error_class, 'message' => @message, 'action' => @action,
       'backtrace' => [@frame].compact }
+  end
+
+  # OS, release, architecture, Ruby. Best-effort: a machine that can't describe
+  # itself still gets to report, and the server treats the section as optional.
+  def platform_section
+    Platform.facts
+  rescue StandardError
+    nil
   end
 
   def post

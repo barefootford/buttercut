@@ -5,10 +5,9 @@
 # this directory for the Ruby and shell API reference and usage rules.
 
 require 'date'
-require 'English'
 require 'fileutils'
 require 'json'
-require 'shellwords'
+require 'open3'
 require 'yaml'
 
 require_relative 'media_tools'
@@ -29,8 +28,6 @@ class Library
 
   # CLI file arguments, comma- and/or space-separated. A class method (not a
   # CLI-block local) so registered extension commands parse file lists the same way.
-  def self.split_file_args(args) = args.flat_map { |a| a.split(',').map(&:strip).reject(&:empty?) }
-
   # Per-field on-disk layout. `namer` builds the filename from a clip key
   # (see `clip_key`); `keep` is an optional regex of filenames the
   # orphan-sweep must not delete (transcripts/ is shared with legacy
@@ -200,8 +197,13 @@ class Library
   end
 
   def self.probe_duration(path)
-    output = `#{Shellwords.escape(MediaTools.ffprobe)} -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 #{Shellwords.escape(path)} 2>&1`
-    raise ArgumentError, "ffprobe failed for #{path}: #{output.strip}" unless $CHILD_STATUS.success?
+    # argv form (no shell) so paths never meet sh/cmd.exe quoting rules.
+    output, status = Open3.capture2e(
+      MediaTools.ffprobe, '-v', 'error',
+      '-show_entries', 'format=duration',
+      '-of', 'default=noprint_wrappers=1:nokey=1', path
+    )
+    raise ArgumentError, "ffprobe failed for #{path}: #{output.strip}" unless status.success?
 
     Time.at(Float(output.strip).to_i).utc.strftime('%H:%M:%S')
   rescue ArgumentError, TypeError => e
@@ -337,8 +339,10 @@ class Library
   # Rewrite media paths whose drive prefix moved. Never automatic (the user
   # confirms a verify_media suggestion first) and all-or-nothing.
   def relink!(old_prefix, new_prefix)
-    old = old_prefix.to_s.chomp('/')
-    new = new_prefix.to_s.chomp('/')
+    # Stored media paths are always forward-slash (File.expand_path), so a
+    # pasted Windows C:\ prefix must be normalized before it can ever match.
+    old = old_prefix.to_s.tr('\\', '/').chomp('/')
+    new = new_prefix.to_s.tr('\\', '/').chomp('/')
     raise ArgumentError, 'relink requires <old_prefix> <new_prefix>' if old.empty? || new.empty?
 
     meds = media
@@ -812,7 +816,7 @@ if __FILE__ == $PROGRAM_NAME
       <name> remove_visual_transcripts                — sweep legacy visual_*.json + clear field
 
     <field>: transcript | contact_sheet | summary
-    <files>: space- and/or comma-separated
+    <files>: one filename per argument (quote names containing spaces or commas)
     <key>:   footage_summary | user_context | language | editor | transcript_refinement
              (editor: fcpx|premiere|resolve; transcript_refinement: true|false)
 
@@ -914,7 +918,7 @@ if __FILE__ == $PROGRAM_NAME
     when 'remove_media'
       raise ArgumentError, 'remove_media requires <files>' if rest.empty?
 
-      library.remove_media!(Library.split_file_args(rest))
+      library.remove_media!(rest)
     when 'relink'
       # Volume names contain spaces ("Andrew SSD") — an unquoted call must fail
       # here, not downstream with a misleading "no media paths under /Volumes/Andrew".
@@ -947,7 +951,7 @@ if __FILE__ == $PROGRAM_NAME
       field, *files = rest
       raise ArgumentError, 'complete requires <field> <files>' if field.nil? || files.empty?
 
-      library.complete!(field, Library.split_file_args(files))
+      library.complete!(field, files)
     when 'reset'
       raise ArgumentError, 'reset requires <field> [<field>...]' if rest.empty?
 

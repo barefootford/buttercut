@@ -90,7 +90,7 @@ class TranscribeJob < Job
     # resolve call is a preflight: no ffmpeg anywhere raises MediaTools'
     # clear error here instead of a cryptic decode failure inside whisperx.
     MediaTools.ffmpeg
-    env = { 'PATH' => [MediaTools::DEPENDENCIES_DIR, ENV.fetch('PATH', '')].join(':') }
+    env = { 'PATH' => [MediaTools::DEPENDENCIES_DIR, ENV.fetch('PATH', '')].join(File::PATH_SEPARATOR) }
     Dir.mktmpdir('.whisperx_', @output_dir) do |tmp_dir|
       output, status = Open3.capture2e(
         env,

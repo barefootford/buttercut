@@ -18,7 +18,7 @@ cp templates/settings_template.yaml libraries/settings.yaml
 If no previous `settings.yaml` was present, use `AskUserQuestion` to ask the user to confirm or change their defaults (editor and `whisper_model`).
 
 Editor options (label shown to user → value to save):
-- Final Cut Pro X → `fcpx`
+- Final Cut Pro X → `fcpx` (macOS only — don't offer this option on Windows)
 - Adobe Premiere Pro → `premiere`
 - DaVinci Resolve → `resolve`
 

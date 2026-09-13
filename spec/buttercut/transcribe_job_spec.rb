@@ -55,7 +55,7 @@ RSpec.describe TranscribeJob do
 
     job.perform
 
-    expect(@captured_env['PATH'].split(':').first).to eq(MediaTools::DEPENDENCIES_DIR)
+    expect(@captured_env['PATH'].split(File::PATH_SEPARATOR).first).to eq(MediaTools::DEPENDENCIES_DIR)
     expect(@captured_env['PATH']).to include(ENV.fetch('PATH'))
   end
 

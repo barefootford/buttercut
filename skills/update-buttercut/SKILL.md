@@ -33,6 +33,12 @@ ruby lib/buttercut/library.rb update_checked
 ```
 **If the pull (or the daily gate's `git fetch origin main`) fails:** on a Pro install (`edition` printed `pro`), follow the failure guidance in @pro-update.md instead of this paragraph. Open-source updates come from the public GitHub repo and need no credentials, so a failure means network trouble or GitHub being unreachable. Tell the user and suggest trying again later — don't retry in a loop.
 
+On Windows, a pull can turn the skills link back into a plain text file (a checkout without Developer Mode can't write symlinks), after which Claude stops seeing ButterCut's skills. After the pull, check it:
+```bash
+test -d .claude/skills && echo "link OK" || echo "link BROKEN"
+```
+If it's broken, repair it with Step 7 of `skills/setup/windows-setup.md` before going on.
+
 **4. Reinstall dependencies:**
 ```bash
 bundle install
@@ -42,15 +48,15 @@ Also sync the WhisperX install to the repo's pinned versions — updates sometim
 ```bash
 ~/.buttercut/venv/bin/pip install --only-binary :all: --no-binary antlr4-python3-runtime,docopt -r requirements.txt
 ```
-This is fast and a no-op when the pins haven't changed. If `~/.buttercut/venv` doesn't exist, the install predates the standard venv layout — skip this command (that Mac's transcription setup lives wherever `.buttercut_env` points). If it fails because the network dropped, continue the update but tell the user transcription may misbehave until it's re-run.
+On Windows (Git Bash) the venv keeps its tools under `Scripts/` instead of `bin/` — use `~/.buttercut/venv/Scripts/pip.exe` with the same arguments. This is fast and a no-op when the pins haven't changed. If `~/.buttercut/venv` doesn't exist, the install predates the standard venv layout — skip this command (that machine's transcription setup lives wherever `.buttercut_env` points). If it fails because the network dropped, continue the update but tell the user transcription may misbehave until it's re-run.
 
-While you're there, if `~/.buttercut/whisperx` exists and contains the line `deactivate`, rewrite it — that older wrapper reported exit 0 even when whisperx crashed:
+While you're there (macOS only — Windows installs have no wrapper), if `~/.buttercut/whisperx` exists and contains the line `deactivate`, rewrite it — that older wrapper reported exit 0 even when whisperx crashed:
 
 ```bash
 grep -q '^deactivate' ~/.buttercut/whisperx 2>/dev/null && printf '%s\n' '#!/bin/bash' 'exec "$HOME/.buttercut/venv/bin/whisperx" "$@"' > ~/.buttercut/whisperx
 ```
 
-**5. Check that agent shells still resolve the right Ruby — and repair if not:**
+**5. (macOS only) Check that agent shells still resolve the right Ruby — and repair if not.** On Windows, Ruby comes from RubyInstaller on PATH and there's nothing to repair here — skip to step 6.
 ```bash
 "$SHELL" -lc 'ruby --version'
 "$SHELL" -c 'ruby --version'

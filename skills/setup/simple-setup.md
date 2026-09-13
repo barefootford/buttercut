@@ -1,4 +1,6 @@
-# Simple Setup (Non-Technical Users)
+# Simple Setup (Non-Technical Users, macOS)
+
+This is the **macOS** path — on Windows follow `skills/setup/windows-setup.md` instead.
 
 Fully automatic installation. Run each step in order, waiting for each to complete. Don't move forward until each step is successful. This may be a non-technical user so adjust your explanations accordingly.
 

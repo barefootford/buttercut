@@ -1,11 +1,11 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require 'English'
 require 'json'
+require 'open3'
 require 'optparse'
-require 'shellwords'
 require_relative 'media_tools'
+require_relative 'platform'
 require_relative 'rotation_metadata'
 
 class ContactSheet
@@ -76,7 +76,9 @@ class ContactSheet
     resolve_layout(@end_time - @start_time)
     @output_path = @output_override ? File.expand_path(@output_override) : default_output_path
     @strategy = pick_strategy
-    @hwaccel = true
+    # The decoder to try first (videotoolbox / d3d11va / nil), not a boolean;
+    # run_with_fallback clears it when hardware decode fails.
+    @hwaccel = Platform.ffmpeg_hwaccel
 
     run_with_fallback(sample_timestamps)
     report(@end_time - @start_time)
@@ -118,9 +120,13 @@ class ContactSheet
   # codec/pix_fmt for #clip_class, frame-rate fields for VFR detection, and rotation
   # (legacy `tags.rotate` or modern displaymatrix side_data) for orientation correction.
   def probe
-    cmd = "#{Shellwords.escape(MediaTools.ffprobe)} -v error -select_streams v:0 -show_format -show_streams -of json " \
-          "#{Shellwords.escape(@video_path)}"
-    data = JSON.parse(`#{cmd}`)
+    stdout, stderr, status = Open3.capture3(
+      MediaTools.ffprobe, '-v', 'error', '-select_streams', 'v:0',
+      '-show_format', '-show_streams', '-of', 'json', @video_path
+    )
+    raise "ffprobe failed for #{@video_path}: #{stderr.strip}" unless status.success?
+
+    data = JSON.parse(stdout)
     stream = (data['streams'] || []).first || {}
     @source_duration = data.dig('format', 'duration').to_f
     raise "ffprobe failed for #{@video_path}" if @source_duration.zero?
@@ -179,17 +185,15 @@ class ContactSheet
     num / den
   end
 
-  # videotoolbox accelerates H.264/HEVC at 4:2:0 (any bit depth) on Apple Silicon — a real
-  # 2-3x win on HEVC 10-bit drone clips. It refuses 4:2:2/4:4:4 chroma (Lumix High 4:2:2)
-  # and we don't try to predict that; we just attempt with hwaccel and fall back on the
-  # ffmpeg error.
+  # Hardware decode is a real 2-3x win on H.264/HEVC 4:2:0, but decoders refuse
+  # some inputs (4:2:2 chroma, GPU-less boxes) — attempt, fall back to software.
   def run_with_fallback(timestamps)
     run_ffmpeg(args_for_strategy(timestamps))
-  rescue RuntimeError => e
+  rescue RuntimeError
     raise unless @hwaccel
 
-    warn "contact-sheet: hardware decode failed for #{File.basename(@video_path)}, retrying without videotoolbox"
-    @hwaccel = false
+    warn "contact-sheet: hardware decode failed for #{File.basename(@video_path)}, retrying without #{@hwaccel}"
+    @hwaccel = nil
     run_ffmpeg(args_for_strategy(timestamps))
   end
 
@@ -234,7 +238,7 @@ class ContactSheet
     fps_value = @frames.to_f / range
 
     args = []
-    args += ['-hwaccel', 'videotoolbox'] if @hwaccel
+    args += ['-hwaccel', @hwaccel] if @hwaccel
     args += ['-noautorotate']
     args += ['-ss', format('%.3f', @start_time)] if @start_time.positive?
     args += ['-to', format('%.3f', @end_time)] if @end_time < @source_duration - 0.5
@@ -279,7 +283,9 @@ class ContactSheet
     fontsize = (@thumb_width / 17.0).round
     pad = (@thumb_width / 40.0).round
     border = [(@thumb_width / 60.0).round, 1].max
-    parts = ["drawtext=fontfile=#{FONT_PATH}", "text='#{text}'"]
+    # Filter-escape the font path — a Windows drive colon would otherwise read
+    # as a drawtext option separator.
+    parts = ["drawtext=fontfile=#{Platform.ffmpeg_filter_path(FONT_PATH)}", "text='#{text}'"]
     parts << "enable='eq(n\\,#{enable_index})'" if enable_index
     parts += ["x=#{pad}:y=h-th-#{pad}", "fontsize=#{fontsize}:fontcolor=white", "box=1:boxcolor=black@0.65:boxborderw=#{border}"]
     parts.join(':')
@@ -288,7 +294,7 @@ class ContactSheet
   def seek_and_grab_args(timestamps)
     seek_inputs = timestamps.flat_map do |t|
       per_input = []
-      per_input += ['-hwaccel', 'videotoolbox'] if @hwaccel
+      per_input += ['-hwaccel', @hwaccel] if @hwaccel
       per_input += ['-noautorotate', '-noaccurate_seek', '-ss', format('%.3f', t), '-t', '0.1', '-i', @video_path]
       per_input
     end
@@ -326,8 +332,9 @@ class ContactSheet
 
   def run_ffmpeg(args)
     full = [MediaTools.ffmpeg, '-hide_banner', '-loglevel', 'error', '-nostdin', '-y'] + args
-    stderr = `#{full.map { |a| Shellwords.escape(a) }.join(' ')} 2>&1 >/dev/null`
-    raise "ffmpeg failed:\n  cmd: #{full.join(' ')}\n  stderr: #{stderr.strip}" unless $CHILD_STATUS.success?
+    # argv form (no shell) so filter graphs and media paths never meet sh/cmd.exe quoting.
+    _stdout, stderr, status = Open3.capture3(*full)
+    raise "ffmpeg failed:\n  cmd: #{full.join(' ')}\n  stderr: #{stderr.strip}" unless status.success?
 
     stderr
   end
@@ -361,7 +368,7 @@ class ContactSheet
     puts "Contact sheet written to #{@output_path}"
     puts "  #{@frames} frames (#{@cols}x#{@rows}) covering #{format_hms(@start_time)}-#{format_hms(@end_time)} (#{format_hms(range)})"
     detail = "codec=#{@codec} pix_fmt=#{@pix_fmt} class=#{clip_class} strategy=#{@strategy.to_s.tr('_', '-')}"
-    detail += ' hwaccel=videotoolbox' if @hwaccel
+    detail += " hwaccel=#{@hwaccel}" if @hwaccel
     detail += " rotation=#{@rotation}" if @rotation.positive?
     detail += ' vfr=true' if @vfr
     puts "  #{detail}"

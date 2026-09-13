@@ -4,7 +4,7 @@ require 'cgi'
 require 'erb'
 require 'json'
 require 'digest'
-require 'shellwords'
+require 'open3'
 require_relative 'rotation_metadata'
 require_relative 'media_tools'
 require_relative 'library'
@@ -216,11 +216,12 @@ class ButterCut
     def timecode_track_frames(video_path)
       stream = timecode_track(video_path) or return nil
 
-      command = "#{Shellwords.escape(MediaTools.ffprobe)} -v error " \
-                "-select_streams #{stream['index'].to_i} -show_packets -of json " \
-                "#{Shellwords.escape(video_path)} 2>/dev/null"
-      output = `#{command}`
-      return nil unless $?.exitstatus.zero?
+      output, status = Open3.capture2(
+        MediaTools.ffprobe, '-v', 'error',
+        '-select_streams', stream['index'].to_i.to_s, '-show_packets', '-of', 'json',
+        video_path, err: File::NULL
+      )
+      return nil unless status.success?
 
       packet = JSON.parse(output)['packets']&.first or return nil
       position = packet['pos']&.to_i
@@ -553,10 +554,23 @@ class ButterCut
     # spaces, parens, #, &, …), slashes preserved. Editors resolve `src` /
     # `pathurl` strictly — a single unescaped reserved character imports as
     # offline ("missing") media.
+    #
+    # Windows shapes: drive-letter paths get the form Premiere itself writes
+    # (file://localhost/C%3a/…), and UNC paths put the server in the authority.
     def path_to_file_url(path)
       abs_path = get_absolute_path(path)
-      encoded = abs_path.split('/', -1).map { |segment| ERB::Util.url_encode(segment) }.join('/')
-      "file://#{encoded}"
+
+      if (drive = abs_path[%r{\A([A-Za-z]):(?=/)}, 1])
+        "file://localhost/#{drive}%3a/#{encode_url_path(abs_path[3..])}"
+      elsif abs_path.start_with?('//')
+        "file:#{encode_url_path(abs_path)}"
+      else
+        "file://#{encode_url_path(abs_path)}"
+      end
+    end
+
+    def encode_url_path(path)
+      path.split('/', -1).map { |segment| ERB::Util.url_encode(segment) }.join('/')
     end
 
     def escape_xml(str)
@@ -692,9 +706,13 @@ class ButterCut
     end
 
     def extract_metadata_from_ffprobe(video_path)
-      json_output = `#{Shellwords.escape(MediaTools.ffprobe)} -v quiet -print_format json -show_format -show_streams "#{video_path}" 2>&1`
+      # argv form (no shell) so paths never meet sh/cmd.exe quoting rules.
+      json_output, status = Open3.capture2e(
+        MediaTools.ffprobe, '-v', 'quiet', '-print_format', 'json',
+        '-show_format', '-show_streams', video_path
+      )
 
-      if $?.exitstatus != 0
+      unless status.success?
         raise "Failed to extract metadata from #{video_path}: #{json_output}"
       end
 

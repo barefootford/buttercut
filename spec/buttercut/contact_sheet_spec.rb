@@ -70,11 +70,13 @@ RSpec.describe ContactSheet, 'codec coverage', :fixtures do
       expect(sheet.strategy).to eq(:single_pass)
     end
 
-    it 'routes light clips to seek-and-grab with hwaccel on' do
+    it 'routes light clips to seek-and-grab with the platform hardware decoder' do
       sheet = build_sheet('h264_yuv420p.mp4', :light)
       sheet.extract
       expect(sheet.strategy).to eq(:seek_and_grab)
-      expect(sheet.hwaccel).to be(true)
+      # A successful run keeps the platform decoder (videotoolbox / d3d11va / nil);
+      # only a mid-run hardware failure would clear it.
+      expect(sheet.hwaccel).to eq(Platform.ffmpeg_hwaccel)
     end
 
     it 'routes all-intra clips to seek-and-grab' do
@@ -166,5 +168,47 @@ RSpec.describe ContactSheet, '.compute_vfr' do
   it 'returns false for malformed or missing rates' do
     expect(ContactSheet.compute_vfr('0/0', '30/1')).to be(false)
     expect(ContactSheet.compute_vfr('', '')).to be(false)
+  end
+end
+
+# Default-suite counterpart to the :fixtures block above. Two tiny lavfi clips
+# go through the real ContactSheet pipeline, so the drawtext burn-in — the one
+# filter that needs a freetype-enabled ffmpeg, handed a filter-escaped font
+# path — runs against the installed binaries on every platform CI covers, not
+# only where the fixture clips are. A build without drawtext fails the render
+# outright. So does a font path ffmpeg can't open on Windows, whose build has no
+# fontconfig; the macOS build quietly falls back to a system font there.
+RSpec.describe ContactSheet, 'timestamp burn-in' do
+  around do |example|
+    Dir.mktmpdir('contact-sheet-lavfi-') do |dir|
+      @tmp_dir = dir
+      silence_stdout { example.run }
+    end
+  end
+
+  def lavfi_clip(name, pix_fmt)
+    path = File.join(@tmp_dir, name)
+    system(MediaTools.ffmpeg, '-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc=duration=3:size=160x90:rate=10',
+           '-an', '-c:v', 'libx264', '-pix_fmt', pix_fmt, path, exception: true)
+    path
+  end
+
+  def render(clip)
+    sheet = ContactSheet.new(clip, nil, nil, library_dir: nil, output_path: File.join(@tmp_dir, 'sheet.jpg'))
+    output = sheet.extract
+    expect(File.binread(output, 3).bytes).to eq([0xFF, 0xD8, 0xFF])
+    sheet
+  end
+
+  it 'burns timestamps onto a seek-and-grab sheet' do
+    sheet = render(lavfi_clip('light.mp4', 'yuv420p'))
+    expect(sheet.strategy).to eq(:seek_and_grab)
+  end
+
+  # 4:2:2 on a short range takes the single-pass route, whose drawtext chain
+  # adds the enable='eq(n\,i)' clause — the other escaping the filter relies on.
+  it 'burns timestamps onto a single-pass sheet' do
+    sheet = render(lavfi_clip('heavy.mp4', 'yuv422p'))
+    expect(sheet.strategy).to eq(:single_pass)
   end
 end

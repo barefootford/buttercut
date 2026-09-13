@@ -35,7 +35,7 @@ ruby lib/buttercut/backup_libraries.rb
 
 The script reads `backups_dir` from `libraries/settings.yaml` (falling back to the default). Pass `--backups-dir <path>` to override for one run.
 
-Apple Archive (`.aar`) is used when the macOS `aa` CLI is available — hardware-accelerated on Apple Silicon, Finder handles double-click extract. Falls back to `.zip` otherwise.
+Apple Archive (`.aar`) is used when the macOS `aa` CLI is available — hardware-accelerated on Apple Silicon, Finder handles double-click extract. Falls back to `.zip` otherwise — on Windows the zip is written with the built-in System32 `tar.exe` (or PowerShell) since there's no `zip` CLI; the output is a normal double-clickable .zip either way.
 
 After a successful `backup_all` run, the script removes the legacy in-project `backups/` directory (the old single-archive layout) if it still exists and the resolved `backups_dir` is somewhere else. Per-library runs leave it alone.
 
@@ -44,9 +44,12 @@ After a successful `backup_all` run, the script removes the legacy in-project `b
 Extract the per-library archive back into `libraries/`:
 
 ```bash
-# Apple Archive — restores into libraries/<library-name>/
+# Apple Archive (macOS) — restores into libraries/<library-name>/
 aa extract -i ~/Documents/buttercut-video-editor-backups/<library>/<library>_<timestamp>.aar -d libraries/<library>
 
-# Zip — already contains the <library>/ folder
+# Zip on macOS/Linux — already contains the <library>/ folder
 unzip ~/Documents/buttercut-video-editor-backups/<library>/<library>_<timestamp>.zip -d libraries/
+
+# Zip on Windows (Git Bash) — System32's bsdtar reads zip; plain `tar` (GNU) can't
+/c/Windows/System32/tar.exe -xf ~/Documents/buttercut-video-editor-backups/<library>/<library>_<timestamp>.zip -C libraries/
 ```

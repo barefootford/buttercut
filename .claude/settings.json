@@ -18,6 +18,9 @@
       "Read(templates/**)",
       "Read(.claude/**)",
       "Bash(bundle:*)",
+      "Bash(cmd:*)",
+      "Bash(cygpath:*)",
+      "Bash(explorer:*)",
       "Bash(cp:libraries/**)",
       "Bash(ffmpeg:*)",
       "Bash(ffprobe:*)",
@@ -28,12 +31,17 @@
       "Bash(mkdir:tmp/**)",
       "Bash(mv:libraries/**)",
       "Bash(open:*)",
+      "Bash(powershell:*)",
+      "Bash(py:*)",
       "Bash(rg:*)",
       "Bash(rm:tmp/**)",
       "Bash(ruby:*)",
+      "Bash(uname:*)",
       "Bash(unzip:backups/**)",
       "Bash(whisperx:*)",
-      "Bash(zip:*)"
+      "Bash(winget:*)",
+      "Bash(zip:*)",
+      "Bash(/c/Windows/System32/tar.exe:*)"
     ],
     "deny": [],
     "ask": []

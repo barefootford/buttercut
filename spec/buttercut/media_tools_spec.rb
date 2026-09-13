@@ -21,7 +21,10 @@ RSpec.describe MediaTools do
     FileUtils.remove_entry(@root)
   end
 
+  # Windows only treats files with an executable extension as executable, so
+  # a bare-name fake gets .exe there — resolution then finds it the same way.
   def install(dir, name)
+    name += '.exe' if windows_host? && File.extname(name).empty?
     path = File.join(dir, name)
     File.write(path, "#!/bin/sh\n")
     File.chmod(0o755, path)
@@ -51,6 +54,22 @@ RSpec.describe MediaTools do
     install(@path_dir, 'ffmpeg')
 
     expect(MediaTools.ffmpeg).to eq('ffmpeg')
+  end
+
+  context 'on Windows' do
+    before { allow(Platform).to receive(:host_os).and_return('mingw32') }
+
+    it 'resolves the .exe variant from dependencies/' do
+      exe = install(@deps_dir, 'ffmpeg.exe')
+
+      expect(MediaTools.ffmpeg).to eq(exe)
+    end
+
+    it 'falls back to the bare name when only ffprobe.exe is on PATH' do
+      install(@path_dir, 'ffprobe.exe')
+
+      expect(MediaTools.ffprobe).to eq('ffprobe')
+    end
   end
 end
 
@@ -87,7 +106,7 @@ RSpec.describe MediaTools, '.whisperx' do
   # The venv binary is preferred over anything on PATH so the job never runs
   # through a wrapper script — older ones reported exit 0 for every crash.
   it 'prefers the venv binary when it exists' do
-    bin = File.join(tmp, 'whisperx')
+    bin = File.join(tmp, windows_host? ? 'whisperx.exe' : 'whisperx')
     File.write(bin, "#!/bin/sh\n")
     File.chmod(0o755, bin)
     stub_const('MediaTools::WHISPERX_VENV_BIN', bin)

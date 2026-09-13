@@ -49,6 +49,8 @@ ruby lib/buttercut/report.rb send \
 - `--frame` — the topmost `lib/buttercut/…` line in the trace, if there is one. Skip it rather than inventing one; it's part of how reports get grouped.
 - `--narrative` — two sentences at most: what you were doing, what happened. Mention a workaround here if you found one.
 
+The report fills in ButterCut's version and edition and the machine's OS version, processor type, and Ruby version on its own — nothing to pass for those, and nothing else about the machine goes.
+
 The command prints `sent bug report <uuid>` or a one-line reason it didn't. **Either way, that's the end of it.** Never retry, never send twice, never let a failed report become its own topic.
 
 ## Step 5 — Say one sentence and get back to work

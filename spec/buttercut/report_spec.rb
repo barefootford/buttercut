@@ -43,6 +43,28 @@ RSpec.describe Report do
     end
   end
 
+  describe '#payload' do
+    it 'carries the machine facts under platform' do
+      allow(Platform).to receive(:facts).and_return('os' => 'windows', 'release' => '10.0.26100',
+                                                   'arch' => 'x86_64', 'ruby' => '3.3.11')
+
+      payload = bug("error_reporting: always\n").payload
+
+      expect(payload['schema_version']).to eq(2)
+      expect(payload['platform']).to eq('os' => 'windows', 'release' => '10.0.26100', 'arch' => 'x86_64',
+                                        'ruby' => '3.3.11')
+    end
+
+    it 'still builds when the machine facts are unavailable' do
+      allow(Platform).to receive(:facts).and_raise(Errno::ENOENT)
+
+      payload = bug("error_reporting: always\n").payload
+
+      expect(payload['platform']).to be_nil
+      expect(payload['buttercut']).to include('version' => ButterCut::VERSION)
+    end
+  end
+
   describe '#fingerprint' do
     it 'ignores the message, so one bug seen on two files stays one bug' do
       seen = ['a.mov', 'b.mov'].map do |file|

@@ -72,6 +72,12 @@ RSpec.describe Export do
       end
     end
 
+    it 'extracts the library name from a Windows backslash cut path' do
+      export = Export.new(roughcut_path: 'x.yaml', output_path: 'x.xml', editor: 'fcpx')
+      name = export.send(:library_name, 'C:\\Users\\andrew\\buttercut\\libraries\\my-lib\\cuts\\cut.yaml')
+      expect(name).to eq('my-lib')
+    end
+
     it 'raises when the library.yaml is missing' do
       cut = { 'clips' => [] }
       within_export_sandbox(cut: cut, media: [clip_a]) do |cut_path, out|

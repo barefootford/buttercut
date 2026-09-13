@@ -50,8 +50,14 @@ RSpec.describe Library do
       write_library(media: [], name: 'a')
       write_library(media: [], name: 'b')
 
+      # Age everything Library.recent reads, so the only fresh mtime is the one
+      # the transcript write creates. (Windows file times advance in scheduler
+      # ticks, so two "now"s from the same tick would tie.)
       old = Time.now - 1000
-      [%w[a library.yaml], %w[b library.yaml]].each { |parts| File.utime(old, old, File.join(libraries_root, *parts)) }
+      %w[a b].each do |name|
+        dir = File.join(libraries_root, name)
+        Dir.each_child(dir) { |entry| File.utime(old, old, File.join(dir, entry)) }
+      end
 
       transcript = File.join(libraries_root, 'b', 'transcripts', 'foo.json')
       File.write(transcript, '{}')
@@ -252,7 +258,7 @@ RSpec.describe Library do
         Library.find(library_name).add_media(['./a.mov'])
         load_yaml['media'].last['path']
       end
-      expect(stored).to start_with('/')
+      expect(File.absolute_path?(stored)).to be(true)
       expect(stored).to end_with('/src/a.mov')
       expect(File.identical?(stored, video_a)).to be(true)
     end
@@ -359,6 +365,17 @@ RSpec.describe Library do
 
       expect(load_yaml['media'].map { |m| m['path'] })
         .to eq([clip_path('drive 1', 'a.mov'), clip_path('drive 1', 'b.mov')])
+    end
+
+    it 'matches prefixes pasted with Windows backslashes against forward-slash stored paths' do
+      make_drive('drive 1', 'a.mov')
+      old = File.join(@libraries_root, 'drive').tr('/', '\\')
+      new = File.join(@libraries_root, 'drive 1').tr('/', '\\')
+      write_library(media: [video_entry('a.mov', path: clip_path('drive', 'a.mov'))])
+
+      Library.find(library_name).relink!(old, new)
+
+      expect(load_yaml['media'].map { |m| m['path'] }).to eq([clip_path('drive 1', 'a.mov')])
     end
 
     it 'does not match a longer sibling prefix (segment boundary)' do
