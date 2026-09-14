@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-09-13
+
+**ButterCut comes to Windows, and Pro adds music and voiceover.**
+
+ButterCut now runs on Windows 10 and 11 as a beta. ButterCut Pro adds standalone audio, so music and voiceover tracks can be used as another layer inside cuts. ButterCut Pro also adds beta support for connected audio clips. Both editions get sturdier transcription and cleaner exports when footage and timeline frame rates don't match.
+
 ### ButterCut Pro
 
 #### New & Improved
@@ -24,8 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### ButterCut Pro & Core
 
+#### New & Improved
+- **ButterCut now runs on Windows.** Beta support for 64-bit Windows 10 and 11.
+- Error reports now say which operating system and Ruby version the install runs, so a Windows-only problem is easier to reproduce. They still never include footage, transcripts, or names.
+
 #### Fixed
-- **Cuts that mix cameras import cleanly.** When footage shot at different frame rates lands on one timeline, Final Cut no longer complains on import or leaves stray one-frame slivers at the end of the cut. In DaVinci Resolve, the export now tells you when to use the older XML format instead, so your clips arrive connected to your footage rather than offline.
+- Fixed an issue with footage shot at a different frame rate than the timeline causing an import warning and a stray one-frame sliver in Final Cut.
+- Improved mixed frame rate exports for Resolve, which now name the affected clips and point you at the older XML format that imports them online.
 - Fixed an issue with some vertical phone footage being laid out on a horizontal timeline and not inferring vertical layout correctly.
 - Improved how transcription handles footage with no audio stream or no spoken words, which now gets an empty transcript instead of an error.
 - Improved how transcription detects a WhisperX crash, which could previously be reported as a missing transcript.

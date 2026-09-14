@@ -1,5 +1,5 @@
 class ButterCut
-  VERSION = "0.9.0"
+  VERSION = "0.9.1"
   EDITION = :core # :core for open-source ButterCut, :pro for ButterCut Pro
 
   def self.pro?
