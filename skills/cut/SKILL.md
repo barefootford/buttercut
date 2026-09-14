@@ -63,6 +63,12 @@ ruby lib/buttercut/library.rb <name> verify_media
 ```
 Every clip `ok`? Continue. If any come back `missing` or `phantom`, don't export — read `skills/cut/missing_footage.md` and follow it to reconnect the footage first.
 
+Also run a quick format check:
+```bash
+ruby lib/buttercut/library.rb <name> format_message
+```
+If it reports mixed formats, still export — but tell the user their clips mix resolutions or frame rates, so some shots may look soft, letterboxed, or stuttery on the timeline, and to let you know if they'd like help making the footage uniform.
+
 Planning and building a cut don't need the drive plugged in — only the export does. So this check lives here, right before export, not at the start: the user can play with cuts on an unplugged drive and only reconnect when they're ready to hand a timeline to their editor.
 
 ## 5. Determine the Editing Application
