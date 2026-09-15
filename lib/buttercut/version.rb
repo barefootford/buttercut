@@ -1,3 +1,9 @@
+require_relative 'utf8'
+
+# Every entry point loads this file, so this is where the process turns
+# UTF-8 no matter what locale the shell that launched it had — see utf8.rb.
+ButterCut::UTF8.setup!
+
 class ButterCut
   VERSION = "0.9.1"
   EDITION = :core # :core for open-source ButterCut, :pro for ButterCut Pro

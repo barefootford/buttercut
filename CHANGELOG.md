@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Clip names with accents, em dashes, or curly quotes no longer vanish from exports or break transcription** when ButterCut is started from a shell with no language setting.
+
 ## [0.9.1] - 2026-09-13
 
 **ButterCut comes to Windows, and Pro adds music and voiceover.**

@@ -1,5 +1,10 @@
 #!/usr/bin/env ruby
 require 'json'
+require_relative 'utf8'
+
+# The video path arrives on ARGV tagged with the shell's locale; under a
+# profile-less shell that is US-ASCII, and JSON then refuses a non-ASCII name.
+ButterCut::UTF8.setup!
 
 if ARGV.length < 2
   puts "Usage: ruby lib/buttercut/prepare_audio_script.rb <json_file> <video_filepath>"
@@ -39,7 +44,7 @@ begin
     end
   end
 
-  File.write(input_file, JSON.pretty_generate(json_data))
+  File.write(input_file, JSON.pretty_generate(json_data), encoding: 'UTF-8')
   puts "Prettified: #{input_file} (video path added, scores removed)"
 rescue JSON::ParserError => e
   puts "Error: Invalid JSON in #{input_file}"

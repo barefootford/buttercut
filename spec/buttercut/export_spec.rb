@@ -105,6 +105,25 @@ RSpec.describe Export do
       end
     end
 
+    # library.yaml written under an ASCII locale stores a non-ASCII path as
+    # `!binary`; the cut names the same clip in UTF-8. Same bytes must match.
+    it 'matches a cut against a library path stored as !binary' do
+      Dir.mktmpdir do |dir|
+        clip = File.join(dir, 'clip—one.mov')
+        FileUtils.cp(clip_a, clip)
+        cut = { 'clips' => [{ 'source_file' => 'clip—one.mov', 'in_point' => 0, 'out_point' => 2 }] }
+
+        within_export_sandbox(cut: cut, media: [clip.b]) do |cut_path, out|
+          expect(File.read('libraries/export-sandbox/library.yaml')).to include('!binary')
+
+          stderr = capture_stderr { perform(cut_path, out) }
+
+          expect(stderr).not_to include('Source file not found')
+          expect(parse(out).xpath('//spine/asset-clip').length).to eq(1)
+        end
+      end
+    end
+
     it 'accepts bare numeric and decimal-second in/out points' do
       cut = { 'clips' => [
         { 'source_file' => 'MVI_0323_720p.mov', 'in_point' => '00:00:01.5', 'out_point' => 4 }

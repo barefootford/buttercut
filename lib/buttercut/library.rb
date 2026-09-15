@@ -8,6 +8,7 @@ require 'date'
 require 'fileutils'
 require 'json'
 require 'open3'
+require 'rbconfig'
 require 'yaml'
 
 require_relative 'media_tools'
@@ -718,6 +719,7 @@ class Library
   # key-rename) migration has run, same pattern as the roughcuts/ check.
   def load_library
     data = YAML.safe_load_file(@library_yaml_path, permitted_classes: [Date, Time])
+    ButterCut::UTF8.heal_media_paths!(data)
     if data.key?('videos') && !data.key?('media')
       raise "Library '#{@name}' uses the legacy `videos:` key. " \
             'Run `ruby lib/buttercut/library.rb migrate` to rename it to `media:` ' \
@@ -867,7 +869,7 @@ if __FILE__ == $PROGRAM_NAME
   if ARGV.first == 'migrate' && ARGV.size == 1
     migrate_script = File.expand_path('../../scripts/migrate_all.rb', __dir__)
     repo_root = Library::REPO_ROOT
-    exec('ruby', migrate_script, chdir: repo_root)
+    exec(RbConfig.ruby, migrate_script, chdir: repo_root)
   end
 
   library_name, action, *rest = ARGV

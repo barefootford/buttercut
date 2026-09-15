@@ -604,6 +604,19 @@ RSpec.describe Library do
       expect(media.map { |v| v['path'] }).to eq(['/tmp/a.mov', '/tmp/b.mov'])
     end
 
+    # A library written under an ASCII locale stores non-ASCII paths as
+    # `!binary`, which Psych loads back as ASCII-8BIT. Those must compare
+    # equal to the UTF-8 names in cuts and on the command line.
+    it 'reads paths stored as !binary back as UTF-8' do
+      write_library(media: [video_entry('clip—one.mov'.b)])
+      expect(File.read(library_yaml_path)).to include('!binary')
+
+      path = Library.find(library_name).media.first['path']
+
+      expect(path.encoding).to eq(Encoding::UTF_8)
+      expect(path).to eq('/tmp/clip—one.mov')
+    end
+
     it 'exposes derived filename and type without persisting them to library.yaml' do
       write_library(media: [video_entry('a.mov'), image_entry('b.jpg')])
       library = Library.find(library_name)

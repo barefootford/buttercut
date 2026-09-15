@@ -79,6 +79,18 @@ RSpec.describe TranscribeJob do
     expect(Dir.glob(File.join(output_dir, '.whisperx_*'))).to be_empty
   end
 
+  # A bare `ruby` resolves through PATH, and a shell that never activated mise
+  # hands the prep script to Apple's Ruby 2.6 (ButterCut report 20). The child
+  # must run on the same interpreter as the parent.
+  it 'runs the prepare script with the same Ruby that is running the job' do
+    stub_whisperx
+    expect(job).to receive(:system)
+      .with(RbConfig.ruby, TranscribeJob::PREPARE_SCRIPT, File.join(output_dir, 'clip.json'), '/footage/clip.mov')
+      .and_return(true)
+
+    job.perform
+  end
+
   it 'honours a custom transcript_name (audio clips flatten their extension)' do
     named = described_class.new(
       library_name: 'test-lib', clip: 'clip.wav',

@@ -54,7 +54,7 @@ class Export
     library_yaml = "libraries/#{library_name(roughcut_path)}/library.yaml"
     raise "Library file not found: #{library_yaml}" unless File.exist?(library_yaml)
 
-    load_yaml(library_yaml)
+    ButterCut::UTF8.heal_media_paths!(load_yaml(library_yaml))
   end
 
   def library_name(roughcut_path)

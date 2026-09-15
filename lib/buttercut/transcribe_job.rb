@@ -5,6 +5,7 @@ require 'English'
 require 'fileutils'
 require 'json'
 require 'open3'
+require 'rbconfig'
 require 'tmpdir'
 require_relative 'job'
 require_relative 'media_tools'
@@ -193,8 +194,10 @@ class TranscribeJob < Job
     ))
   end
 
+  # RbConfig.ruby, not a bare `ruby`: PATH in a shell that never activated
+  # mise resolves to Apple's Ruby 2.6, which can't run the script.
   def prepare_transcript
-    ok = system('ruby', PREPARE_SCRIPT, transcript_path, @video_path)
+    ok = system(RbConfig.ruby, PREPARE_SCRIPT, transcript_path, @video_path)
     raise "prepare_audio_script failed for #{clip}" unless ok
   end
 end
