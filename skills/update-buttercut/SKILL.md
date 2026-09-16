@@ -5,46 +5,32 @@ description: A skill to automatically download and install the latest ButterCut 
 
 # Skill: Update ButterCut
 
-Updates ButterCut to the latest version via `git pull`, then recaps what's new in plain video-editor language. Users of this project are video editors — Claude sometimes edits code on its own and may even leave the repo on a side branch. This skill resets that state cleanly: stash anything dirty, switch to `main`, pull, restore deps.
+Updates ButterCut to the latest version, then recaps what's new in plain video-editor language. Users of this project are video editors — Claude sometimes edits code on its own and may even leave the repo on a side branch. The updater resets that state cleanly on its own: it stashes anything dirty, switches to `main`, pulls, and reports back. The rest of this skill restores dependencies and tells the user what arrived.
 
-**ButterCut Pro:** first check which edition this is — `ruby lib/buttercut/library.rb edition` prints `core` or `pro` (never gated). If it prints `pro`, this install updates over an authenticated connection — read @pro-update.md in this skill's directory before starting; it adds a license step before the pull and replaces the pull-failure guidance in step 3. `core` means open-source ButterCut: nothing extra to do.
+**ButterCut Pro:** on a Pro install (`ruby lib/buttercut/library.rb edition` prints `pro`; `core` is open-source ButterCut) the updater signs in to the update server with the license the installer saved. There's nothing extra for you to run — read @pro-update.md in this skill's directory only to interpret its failure messages.
 
 ## Workflow
 
-**1. Note the starting point** — remember this sha; after the pull you'll diff the changelog against it to see what arrived:
+**1. Run the updater — one command, nothing else:**
 ```bash
-git rev-parse HEAD
+ruby lib/buttercut/update.rb
 ```
+Never assemble the git steps yourself (`git stash`, `git checkout`, `git pull`, `git config`): the updater already does them, and on Pro it is the only thing that knows how to sign in. `libraries/` is gitignored and untouched by any of this. The command prints one JSON object:
 
-**2. Stash any local changes (tracked + untracked), tagged so the user can find them later:**
-```bash
-git stash push --include-untracked -m "update-buttercut auto-stash $(date +%Y-%m-%d-%H%M%S)"
-```
-Always run this — it's a no-op if the working tree is clean. `libraries/` is gitignored and is not touched by stash, pull, or checkout.
+- `updated` — whether anything new arrived. `before`/`after` are the shas (developer mode only cares).
+- `changelog` — the lines the update added to CHANGELOG.md, already written for users. Step 4 recaps them; you don't need to run git to see them.
+- `stashed` — the stash name when local edits were set aside, otherwise `null`.
+- `skills_link_ok` — `false` means a Windows checkout turned the `.claude/skills` link back into a plain text file (a checkout without Developer Mode can't write symlinks), after which Claude stops seeing ButterCut's skills. Repair it with Step 7 of `skills/setup/windows-setup.md` before going on.
+- `error` + `message` — the pull failed and nothing was changed. `network`: open-source updates come from the public GitHub repo and need no credentials, so this means network trouble or GitHub being unreachable — tell the user and suggest trying again later; don't retry in a loop. `license_missing` / `license_declined` (Pro only): follow @pro-update.md.
 
-**3. Switch to main and pull:**
-```bash
-git checkout main
-GIT_TERMINAL_PROMPT=0 git pull origin main
-```
-Once the pull succeeds, restart the daily update-check clock so ButterCut doesn't ask about updates again right after this one:
-```bash
-ruby lib/buttercut/library.rb update_checked
-```
-**If the pull (or the daily gate's `git fetch origin main`) fails:** on a Pro install (`edition` printed `pro`), follow the failure guidance in @pro-update.md instead of this paragraph. Open-source updates come from the public GitHub repo and need no credentials, so a failure means network trouble or GitHub being unreachable. Tell the user and suggest trying again later — don't retry in a loop.
+The updater also restarts the daily update-check clock, so ButterCut won't ask about updates again right after this one.
 
-On Windows, a pull can turn the skills link back into a plain text file (a checkout without Developer Mode can't write symlinks), after which Claude stops seeing ButterCut's skills. After the pull, check it:
-```bash
-test -d .claude/skills && echo "link OK" || echo "link BROKEN"
-```
-If it's broken, repair it with Step 7 of `skills/setup/windows-setup.md` before going on.
-
-**4. Reinstall dependencies:**
+**2. Reinstall dependencies:**
 ```bash
 bundle install
 ```
 
-Also sync the WhisperX install to the repo's pinned versions — updates sometimes move them, and `git pull` alone never touches the venv:
+Also sync the WhisperX install to the repo's pinned versions — updates sometimes move them, and the pull alone never touches the venv:
 ```bash
 ~/.buttercut/venv/bin/pip install --only-binary :all: --no-binary antlr4-python3-runtime,docopt -r requirements.txt
 ```
@@ -56,7 +42,7 @@ While you're there (macOS only — Windows installs have no wrapper), if `~/.but
 grep -q '^deactivate' ~/.buttercut/whisperx 2>/dev/null && printf '%s\n' '#!/bin/bash' 'exec "$HOME/.buttercut/venv/bin/whisperx" "$@"' > ~/.buttercut/whisperx
 ```
 
-**5. (macOS only) Check that agent shells still resolve the right Ruby — and repair if not.** On Windows, Ruby comes from RubyInstaller on PATH and there's nothing to repair here — skip to step 6.
+**3. (macOS only) Check that agent shells still resolve the right Ruby — and repair if not.** On Windows, Ruby comes from RubyInstaller on PATH and there's nothing to repair here — skip to step 4.
 ```bash
 "$SHELL" -lc 'ruby --version'
 "$SHELL" -c 'ruby --version'
@@ -73,19 +59,15 @@ say nothing about this step. If you repaired it, mention it once in plain terms
 ("I also patched up a small install issue from an older ButterCut version") —
 no shell or PATH talk.
 
-**6. Tell the user what they got — in their language:**
-```bash
-git diff <sha-from-step-1>..HEAD -- CHANGELOG.md
-```
-The added changelog lines are already written for users — recap them in a sentence or two, the way release notes read, leading with what they can do now ("ButterCut now handles photos — drop stills into a library and use them in cuts"). Then:
+**4. Tell the user what they got — in their language.** The `changelog` lines from step 1 are already written for users — recap them in a sentence or two, the way release notes read, leading with what they can do now ("ButterCut now handles photos — drop stills into a library and use them in cuts"). Then:
 
 - **Mind the edition split.** A release section may group changes under `### ButterCut (free)` and `### ButterCut Pro`. How you recap the Pro lines depends on the edition you found at the top of this skill (`ruby lib/buttercut/library.rb edition`):
   - On a **Pro** install (`pro`), the user has both — recap free and Pro changes together as things they can now do.
-  - On a **core** install (`core`), the user only received the free changes. Recap those as "you can now…", then add the Pro ones as a light, optional heads-up — not as something they have — e.g. "Also new in ButterCut Pro: multi-track timelines and a live preview panel, more at buttercut.io." Keep it to one sentence, never pushy, and skip it entirely if the diff brought no `### ButterCut Pro` lines.
-- If the changelog didn't change, say they're up to date with the latest behind-the-scenes improvements — don't enumerate what those were.
+  - On a **core** install (`core`), the user only received the free changes. Recap those as "you can now…", then add the Pro ones as a light, optional heads-up — not as something they have — e.g. "Also new in ButterCut Pro: multi-track timelines and a live preview panel, more at buttercut.io." Keep it to one sentence, never pushy, and skip it entirely if the update brought no `### ButterCut Pro` lines.
+- If `changelog` is empty but `updated` is true, say they're up to date with the latest behind-the-scenes improvements — don't enumerate what those were. If `updated` is false, they were already current.
 - Never mention branches, commits, shas, tests, version files, migrations, or `main` in the recap.
-- Don't quote version numbers unless the pull brought in a new numbered release section in the changelog. Numbered releases only happen when a batch of changes is publicized as one; between releases the version file lags behind `main` by design, so "still on 0.7.2" is meaningless to the user.
+- Don't quote version numbers unless the update brought in a new numbered release section in the changelog. Numbered releases only happen when a batch of changes is publicized as one; between releases the version file lags behind `main` by design, so "still on 0.7.2" is meaningless to the user.
 - **Don't run the test suite after updating.** A wall of test output reads as something being wrong, and "the tests pass" answers a question no video editor asked.
-- If anything was stashed in step 2, mention it once in plain terms ("I set aside a few local file edits before updating; they're saved if you ever want them back") — don't try to reapply it automatically.
+- If `stashed` was set, mention it once in plain terms ("I set aside a few local file edits before updating; they're saved if you ever want them back") — don't try to reapply it automatically.
 
 (In developer mode — `.buttercut_mode` present — skip the persona rules above and report technically: versions, shas, and running the suite are all fine.)

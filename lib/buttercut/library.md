@@ -81,7 +81,13 @@ ruby lib/buttercut/library.rb edition             # print which ButterCut editio
 **Daily update-check gate.** The Library class has a once-a-day gate to check
 for updates to ButterCut. If in Auto mode, check for updates. Otherwise ask the
 user. The nudge records itself when it fires, so it can't trip more than once a
-day — never fetch for updates unless the gate just nudged you.
+day — never fetch for updates unless the gate just nudged you. The check and
+the update itself both live in `lib/buttercut/update.rb`:
+
+```bash
+ruby lib/buttercut/update.rb check    # JSON: update_available + commits_behind (fetches origin/main)
+ruby lib/buttercut/update.rb          # stash, checkout main, pull, restart the clock; JSON report (see the update-buttercut skill)
+```
 
 `recent` is the right tool for "which library was the user most recently working on?" — it sees activity across `transcripts/`, `contact_sheets/`, `summaries/`, and `cuts/`, not just `library.yaml`. `list` is fine when you want the full set.
 
