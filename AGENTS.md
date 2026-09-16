@@ -95,7 +95,7 @@ Writes (`add_media`, `remove_media`, `complete`, `update_metadata`), destructive
 
 **Daily update-check gate.** Once a day, the first real-work `library.rb` command exits with `library: it's been over a day since ButterCut last checked for updates…` — follow that message's instructions (it names `ruby lib/buttercut/update.rb check`), asking the user before updating unless you're in auto mode. The nudge records itself and stays quiet for the next day, so never check for updates unless it just fired.
 
-**Updating is one command.** `ruby lib/buttercut/update.rb` (the `update-buttercut` skill) stashes, switches to `main`, pulls, and reports — never assemble those git steps by hand.
+**Updating is one command.** `ruby lib/buttercut/update.rb` (the `update-buttercut` skill) fetches, stashes, switches to `main`, fast-forwards, syncs dependencies, and reports — never assemble those git, bundler, or pip steps by hand.
 
 **When ButterCut breaks, report it.** If a ButterCut command fails in a way that looks like ButterCut's own fault — a crash, a stack trace, an export that produced nothing, a step that failed on footage the library says is ready — run the `report-bug` skill after you've dealt with the user's immediate problem. It handles consent, strips the user's work out of the report, and sends it.
 
@@ -177,7 +177,7 @@ skills/user-my-skill/
 
 **Always write paths in skill prompts as `skills/<name>/...`, never `.claude/skills/<name>/...`.** Both resolve to the same files thanks to the symlink, but `skills/` is the canonical, agent-neutral form — non-Claude tools (Codex, etc.) read top-level `skills/` natively and may not look under `.claude/`. The only place `.claude/skills` should appear is in documentation about the symlink itself (like this section).
 
-**If skills aren't showing up in Claude Code:** check that `.claude/skills` is a symlink to `../skills` (`ls -la .claude/skills` should show `.claude/skills -> ../skills`). If it's a regular directory or missing entirely (common after the rsync path of `update-buttercut`), talk to the user and ask if they want you to repair it. On Windows the link can instead be a small text file containing `../skills` (a checkout without symlink support); the repair is the link step in `skills/setup/windows-setup.md`.
+**If skills aren't showing up in Claude Code:** check that `.claude/skills` is a symlink to `../skills` (`ls -la .claude/skills` should show `.claude/skills -> ../skills`). If it's a regular directory or missing entirely (the updater reports this as `skills_link_ok: false`), talk to the user and ask if they want you to repair it. On Windows the link can instead be a small text file containing `../skills` (a checkout without symlink support); the repair is the link step in `skills/setup/windows-setup.md`.
 
 ### What's tracked vs. ignored
 

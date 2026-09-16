@@ -86,7 +86,7 @@ the update itself both live in `lib/buttercut/update.rb`:
 
 ```bash
 ruby lib/buttercut/update.rb check    # JSON: update_available + commits_behind (fetches origin/main)
-ruby lib/buttercut/update.rb          # stash, checkout main, pull, restart the clock; JSON report (see the update-buttercut skill)
+ruby lib/buttercut/update.rb          # fetch; if behind: stash, checkout main, fast-forward; sync deps, restart the clock; JSON report (see the update-buttercut skill)
 ```
 
 `recent` is the right tool for "which library was the user most recently working on?" — it sees activity across `transcripts/`, `contact_sheets/`, `summaries/`, and `cuts/`, not just `library.yaml`. `list` is fine when you want the full set.
