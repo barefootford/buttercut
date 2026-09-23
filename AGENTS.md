@@ -95,6 +95,8 @@ Writes (`add_media`, `remove_media`, `complete`, `update_metadata`), destructive
 
 **Daily update-check gate.** Once a day, the first real-work `library.rb` command exits with `library: it's been over a day since ButterCut last checked for updates…` — follow that message's instructions, asking the user before updating unless you're in auto mode. The nudge records itself and stays quiet for the next day, so never check for updates unless it just fired.
 
+**Updating is one command:** `ruby lib/buttercut/update.rb` (the `update-buttercut` skill). Never run the git, bundler, or pip steps by hand.
+
 **When ButterCut breaks, report it.** If a ButterCut command fails in a way that looks like ButterCut's own fault — a crash, a stack trace, an export that produced nothing, a step that failed on footage the library says is ready — run the `report-bug` skill after you've dealt with the user's immediate problem. It handles consent, strips the user's work out of the report, and sends it.
 
 **Single-track timelines only.** ButterCut produces one sequential video track. Each clip's own audio plays during that clip — there is no second video track for cutaways layered over a continuing voiceover, and no separate audio track. When planning or pitching cuts, never propose "B-roll over VO," "story under meetup footage," picture-in-picture, or any structure that assumes a clip's audio continues while different visuals play on top. Cutaways are fine, but they're hard cuts: when you cut to the wide shot, you cut to that shot's audio too. Plan every cut as a strictly linear sequence of clips.
@@ -175,7 +177,7 @@ skills/user-my-skill/
 
 **Always write paths in skill prompts as `skills/<name>/...`, never `.claude/skills/<name>/...`.** Both resolve to the same files thanks to the symlink, but `skills/` is the canonical, agent-neutral form — non-Claude tools (Codex, etc.) read top-level `skills/` natively and may not look under `.claude/`. The only place `.claude/skills` should appear is in documentation about the symlink itself (like this section).
 
-**If skills aren't showing up in Claude Code:** check that `.claude/skills` is a symlink to `../skills` (`ls -la .claude/skills` should show `.claude/skills -> ../skills`). If it's a regular directory or missing entirely (common after the rsync path of `update-buttercut`), talk to the user and ask if they want you to repair it. On Windows the link can instead be a small text file containing `../skills` (a checkout without symlink support); the repair is the link step in `skills/setup/windows-setup.md`.
+**If skills aren't showing up in Claude Code:** check that `.claude/skills` is a symlink to `../skills` (`ls -la .claude/skills` should show `.claude/skills -> ../skills`). If it's a regular directory or missing entirely (the updater reports this as `skills_link_ok: false`), talk to the user and ask if they want you to repair it. On Windows the link can instead be a small text file containing `../skills` (a checkout without symlink support); the repair is the link step in `skills/setup/windows-setup.md`.
 
 ### What's tracked vs. ignored
 

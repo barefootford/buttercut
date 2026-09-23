@@ -246,9 +246,8 @@ class Library
 
     raise UpdateCheckNeeded,
       "it's been over a day since ButterCut last checked for updates. " \
-      'Call `GIT_TERMINAL_PROMPT=0 git fetch origin main` then `git log --oneline HEAD..origin/main`. ' \
-      'If `main` is ahead, use the update-buttercut skill; if the fetch fails, ' \
-      'follow the failure guidance in that skill. ' \
+      'Run `ruby lib/buttercut/update.rb check`. If it reports update_available, use the ' \
+      'update-buttercut skill; if it reports an error, follow the failure guidance in that skill. ' \
       'Then re-run your command — this check is already recorded, so it won\'t nudge again today.'
   end
 
