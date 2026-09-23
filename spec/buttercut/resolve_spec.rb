@@ -33,7 +33,7 @@ RSpec.describe ButterCut::Resolve do
 
     expect(xml).to match(/<asset-clip name="resolve_spec\.mov"[^>]*audioRole="dialogue"/)
     expect(xml).to include('<adjust-volume amount="-96"/>')
-    expect(xml).not_to include('db"')
+    expect(xml).not_to match(/adjust-volume amount="[^"]*dB"/i)
   end
 
   it 'gives unmuted clips the bare standard mix level' do
@@ -41,7 +41,7 @@ RSpec.describe ButterCut::Resolve do
 
     expect(xml).to match(/<asset-clip name="resolve_spec\.mov"[^>]*audioRole="dialogue"/)
     expect(xml).to include('<adjust-volume amount="-13.1"/>')
-    expect(xml).not_to include('db"')
+    expect(xml).not_to match(/adjust-volume amount="[^"]*dB"/i)
   end
 
   # Resolve usually can't link a clip whose media frame rate differs from the
