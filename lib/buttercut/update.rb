@@ -13,11 +13,13 @@
 #
 #   ruby lib/buttercut/update.rb          # update: fetch, stash, checkout main, fast-forward, sync deps, report
 #   ruby lib/buttercut/update.rb check    # fetch only: is an update available?
+#   ruby lib/buttercut/update.rb finish   # internal: the dependency sync, re-run by the freshly pulled code
 #
-# Both print one JSON object. Exit 0 on success; 1 when git failed (the JSON
-# carries `error` + `message` for the user: `network` when the fetch failed,
-# `local` when the install's own git state blocked the update). Pro adds its
-# own exit code for a declined license.
+# Each prints one JSON object. Exit 0 on success; 1 when the update failed
+# (the JSON carries `error` + `message` for the user: `network` when the fetch
+# failed, `local` when the install's own git state blocked the update,
+# `unexpected` when the updater itself broke). Pro adds its own exit code for
+# a declined license.
 
 require 'json'
 require 'open3'
@@ -36,7 +38,7 @@ class Updater
 
   # Exit code per `error` value; Pro adds its license codes. Unfrozen so the
   # extension can merge into it.
-  EXIT_CODES = { 'network' => 1, 'local' => 1 }
+  EXIT_CODES = { 'network' => 1, 'local' => 1, 'unexpected' => 1 }
 
   # A git command that exited non-zero. Carries stderr so the edition seam can
   # tell an auth refusal from a dropped connection.
@@ -65,13 +67,16 @@ class Updater
     { 'update_available' => behind.positive?, 'commits_behind' => behind }
   rescue GitFailed => e
     network_failure(e)
+  rescue StandardError => e
+    unexpected_failure(e)
   end
 
   # The whole update. The fetch is the only network step, so only its failure
   # is reported as `network`; anything after it is the install's own git state
   # (`local`). Local edits are stashed (tagged, never reapplied — the skill
   # tells the user they're saved) and the branch switched only when there is
-  # something to apply, so a current install is left exactly as found.
+  # something to apply, so a current install is left exactly as found — a
+  # local main that is merely ahead of origin has nothing to apply.
   # libraries/ is gitignored, so nothing here touches the user's work.
   def run(sync_dependencies: true)
     begin
@@ -82,8 +87,7 @@ class Updater
 
     stash = nil
     before = git!('rev-parse', @branch).strip
-    target = git!('rev-parse', "#{@remote}/#{@branch}").strip
-    if before != target || !on_branch?
+    if commits_behind.positive? || !on_branch?
       stash = stash!
       git!('checkout', @branch)
       git!('merge', '--ff-only', "#{@remote}/#{@branch}")
@@ -98,10 +102,12 @@ class Updater
       'changelog' => changelog_additions(before, after),
       'skills_link_ok' => skills_link_ok?
     }
-    result.merge!(finish_install) if sync_dependencies
+    result.merge!(finish_install_from(before, after)) if sync_dependencies
     result
   rescue GitFailed => e
     local_failure(e).merge('stashed' => stash)
+  rescue StandardError => e
+    unexpected_failure(e).merge('stashed' => stash)
   end
 
   # The post-pull housekeeping the skill used to run by hand: bundler, the
@@ -119,8 +125,9 @@ class Updater
     }
   end
 
-  # Edition seam: extra `git -c key=value` pairs every network command carries.
-  # Core pulls from public GitHub and needs none; Pro attaches its license.
+  # Edition seam: extra git config `[key, value]` pairs every network command
+  # carries. Core pulls from public GitHub and needs none; Pro attaches its
+  # license.
   def network_config = []
 
   # Edition seam: what to tell the user when the fetch fails. Core updates
@@ -142,11 +149,21 @@ class Updater
     }
   end
 
+  # Anything that isn't git refusing a step is a bug in the updater itself.
+  # The JSON still comes out, so the skill can tell the user and offer a bug
+  # report instead of showing a stack trace.
+  def unexpected_failure(error)
+    {
+      'error' => 'unexpected',
+      'message' => "The updater hit an internal error (#{error.class}: #{error.message})."
+    }
+  end
+
   private
 
   def head = git!('rev-parse', 'HEAD').strip
 
-  def fetch! = git!(*network_config, 'fetch', @remote, @branch)
+  def fetch! = git!('fetch', @remote, @branch, config: network_config)
 
   def commits_behind = git!('rev-list', '--count', "#{@branch}..#{@remote}/#{@branch}").strip.to_i
 
@@ -186,6 +203,20 @@ class Updater
   # Last line of git's stderr that says something, for the user's message.
   def reason(error)
     error.stderr.lines.map(&:strip).reject(&:empty?).last.to_s
+  end
+
+  # This process loaded update.rb before the merge, so once HEAD has moved its
+  # copy of the dependency steps is the old release's. Hand them to the
+  # freshly pulled script instead; fall back to the in-memory steps when that
+  # can't run (a crash, output that isn't JSON).
+  def finish_install_from(before, after)
+    return finish_install if before == after
+
+    script = File.join(@repo_root, 'lib', 'buttercut', 'update.rb')
+    out, _err, status = Open3.capture3(RbConfig.ruby, script, 'finish', chdir: @repo_root)
+    status.success? ? JSON.parse(out) : finish_install
+  rescue JSON::ParserError, SystemCallError
+    finish_install
   end
 
   def sync_bundle
@@ -232,24 +263,38 @@ class Updater
     shell = ENV.fetch('SHELL', '/bin/zsh')
     return nil unless File.executable?(shell)
 
+    series = Regexp.escape(pinned_ruby[/\d+\.\d+/])
     %w[-lc -c].all? do |flag|
       out, _err, status = Open3.capture3(shell, flag, 'ruby --version', chdir: @repo_root)
-      status.success? && out.match?(/\bruby #{Regexp.escape(RUBY_VERSION[/\d+\.\d+/])}\./)
+      status.success? && out.match?(/\bruby #{series}\./)
     end
   end
 
-  # The `-c key=value` pairs carry Pro's license; keep them out of anything
-  # that might be printed.
-  def without_config(args)
-    shown = []
-    skip = false
-    args.each do |arg|
-      if skip then skip = false
-      elsif arg == '-c' then skip = true
-      else shown << arg
-      end
+  # The Ruby the checkout pins in .mise.toml — what agent shells should
+  # resolve. Not RUBY_VERSION: an update that bumps the pin leaves this
+  # process on the old Ruby while the shells already see the new one.
+  def pinned_ruby
+    toml = File.join(@repo_root, '.mise.toml')
+    pin = File.read(toml)[/^\s*ruby\s*=\s*"([^"]+)"/, 1] if File.file?(toml)
+    pin || RUBY_VERSION
+  end
+
+  # Config pairs as git's GIT_CONFIG_COUNT / GIT_CONFIG_KEY_n /
+  # GIT_CONFIG_VALUE_n environment rather than `-c` arguments: Pro's pairs
+  # carry the license key, and arguments show up in any process listing.
+  # Numbered after pairs the parent environment already set, so those still
+  # apply. Git older than 2.31 ignores these and falls back to the headers the
+  # installer persisted in .git/config.
+  def config_env(pairs)
+    return {} if pairs.empty?
+
+    base = ENV.fetch('GIT_CONFIG_COUNT', '0').to_i
+    env = { 'GIT_CONFIG_COUNT' => (base + pairs.size).to_s }
+    pairs.each_with_index do |(key, value), i|
+      env["GIT_CONFIG_KEY_#{base + i}"] = key
+      env["GIT_CONFIG_VALUE_#{base + i}"] = value
     end
-    shown
+    env
   end
 
   def run_quietly(*argv)
@@ -262,11 +307,11 @@ class Updater
   # Runs git in the repo with terminal prompts disabled, so a declined
   # credential fails fast instead of hanging on a password prompt no one can
   # see, and with messages pinned to English so the edition seam can read them.
-  def git!(*args)
+  def git!(*args, config: [])
     argv = ['git', '-C', @repo_root, *args]
-    env = { 'GIT_TERMINAL_PROMPT' => '0', 'LC_ALL' => 'C', 'LANGUAGE' => '' }
+    env = { 'GIT_TERMINAL_PROMPT' => '0', 'LC_ALL' => 'C', 'LANGUAGE' => '' }.merge(config_env(config))
     out, err, status = Open3.capture3(env, *argv)
-    raise GitFailed.new(without_config(args), err) unless status.success?
+    raise GitFailed.new(args, err) unless status.success?
 
     out
   end
@@ -277,12 +322,18 @@ ButterCut.load_extension('update')
 
 if __FILE__ == $PROGRAM_NAME
   action = ARGV.first || 'run'
-  unless %w[run check].include?(action)
+  unless %w[run check finish].include?(action)
     warn 'Usage: ruby lib/buttercut/update.rb [run|check]'
     exit 1
   end
 
-  result = Updater.new.public_send(action)
+  updater = Updater.new
+  result =
+    begin
+      action == 'finish' ? updater.finish_install : updater.public_send(action)
+    rescue StandardError => e
+      updater.unexpected_failure(e)
+    end
   puts JSON.pretty_generate(result)
   exit(result.key?('error') ? Updater::EXIT_CODES.fetch(result['error'], 1) : 0)
 end

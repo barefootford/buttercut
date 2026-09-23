@@ -26,6 +26,7 @@ Never assemble the steps yourself (`git stash`, `git checkout`, `git pull`, `git
 - `error` + `message` — the update didn't complete. Tell the user what the message says, in plain terms, and don't retry in a loop.
   - `network` — the fetch failed before anything was touched. Open-source updates come from the public GitHub repo and need no credentials, so this means network trouble or GitHub being unreachable — suggest trying again later.
   - `local` — the update was downloaded but the install's own state blocked applying it (a local commit that diverged from `main`, a merge that isn't a fast-forward). Waiting won't help. If `stashed` is set, the user's edits are already saved in that stash and the repo may be on `main` — say so. Show the message, and offer to untangle it (in video-editor mode, ask before touching git).
+  - `unexpected` — the updater itself broke (the message names the error). If `stashed` is set, the user's edits are saved in that stash. Tell the user the update didn't finish, then run the `report-bug` skill.
   - `license_missing` / `license_declined` (Pro only): follow @pro-update.md.
 
 The updater also restarts the daily update-check clock, so ButterCut won't ask about updates again right after this one.

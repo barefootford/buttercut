@@ -30,6 +30,7 @@ RSpec.describe Updater do
   end
 
   def commit(repo, file, content, message)
+    FileUtils.mkdir_p(File.dirname(File.join(repo, file)))
     File.write(File.join(repo, file), content)
     sh('git', '-C', repo, 'add', file)
     sh('git', '-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', message)
@@ -91,6 +92,16 @@ RSpec.describe Updater do
       expect(File.read(File.join(@install, 'notes.txt'))).to eq('in progress')
     end
 
+    it 'leaves local edits alone when main is ahead of origin but not behind' do
+      commit(@install, 'notes.txt', 'local fix', 'local commit')
+      File.write(File.join(@install, 'CHANGELOG.md'), 'scribbles')
+
+      expect(result['updated']).to be(false)
+      expect(result['stashed']).to be_nil
+      expect(File.read(File.join(@install, 'CHANGELOG.md'))).to eq('scribbles')
+      expect(sh('git', '-C', @install, 'stash', 'list')).to be_empty
+    end
+
     it 'stashes local edits (tracked and untracked) and gets off a side branch' do
       sh('git', '-C', @install, 'checkout', '-q', '-b', 'claude-experiment')
       File.write(File.join(@install, 'CHANGELOG.md'), 'scribbles')
@@ -127,12 +138,46 @@ RSpec.describe Updater do
 
     it 'reports a local failure, not the network, when main has diverged' do
       commit(@install, 'notes.txt', 'local fix', 'local commit')
+      File.write(File.join(@install, 'scratch.txt'), 'in progress')
       release("- three\n")
 
       expect(result['error']).to eq('local')
       expect(result['message']).to include('git merge failed')
       expect(result['message']).not_to include('Try again')
+      expect(result['stashed']).to start_with(Updater::STASH_PREFIX)
       expect(Updater::EXIT_CODES[result['error']]).to eq(1)
+    end
+
+    it 'reports an unexpected failure as JSON, keeping the stash name, when a non-git step raises' do
+      allow(Library).to receive(:record_update_check!).and_raise(Errno::EACCES, 'update stamp')
+      File.write(File.join(@install, 'notes.txt'), 'in progress')
+      release("- four\n")
+
+      expect(result['error']).to eq('unexpected')
+      expect(result['message']).to include('Permission denied')
+      expect(result['stashed']).to start_with(Updater::STASH_PREFIX)
+      expect(Updater::EXIT_CODES[result['error']]).to eq(1)
+    end
+
+    context 'with the dependency sync' do
+      let(:result) { updater.run }
+
+      it 'hands the sync to the freshly pulled updater once the code has moved' do
+        commit(@dev, 'lib/buttercut/update.rb',
+               %(require "json"\nputs JSON.generate("dependencies" => { "bundle" => "from-release" }, "argv" => ARGV)\n),
+               'new updater')
+        release("- five\n")
+
+        expect(result['dependencies']).to eq('bundle' => 'from-release')
+        expect(result['argv']).to eq(['finish'])
+      end
+
+      it 'falls back to its own sync when the pulled updater fails' do
+        commit(@dev, 'lib/buttercut/update.rb', "exit 1\n", 'broken updater')
+        release("- six\n")
+
+        expect(result['dependencies']).to include('bundle' => 'skipped', 'whisperx' => 'skipped')
+      end
     end
   end
 
@@ -159,6 +204,17 @@ RSpec.describe Updater do
       skip 'macOS-only wrapper' if Platform.windows?
       File.write(wrapper, Updater::WRAPPER)
       expect(updater.finish_install['dependencies']['whisperx_wrapper']).to eq('ok')
+    end
+
+    it 'measures agent shells against the Ruby the checkout pins, not the one running the updater' do
+      skip 'macOS-only check' unless Platform.mac?
+      File.write(File.join(@install, '.mise.toml'), %([tools]\nruby = "9.9.1"\n))
+      shell_status = instance_double(Process::Status, success?: true)
+      allow(Open3).to receive(:capture3).and_call_original
+      allow(Open3).to receive(:capture3).with(anything, anything, 'ruby --version', chdir: @install)
+                                        .and_return(["ruby 9.9.1 (2027-01-01) [arm64-darwin25]\n", '', shell_status])
+
+      expect(updater.finish_install['shell_ruby_ok']).to be(true)
     end
   end
 
