@@ -112,6 +112,10 @@ class Export
 
     if type == 'image'
       raise "Image clip '#{source}' is missing a required 'duration:' field." unless clip['duration']
+      if clip.key?('speed')
+        raise "Image clip '#{source}' has a 'speed:' — a still has no motion to speed up or slow down. Set how " \
+              "long it's held with 'duration:' instead."
+      end
 
       duration = timecode_to_seconds(clip['duration'])
       unless duration.positive?
@@ -128,8 +132,29 @@ class Export
       result = { path: path, type: :video, start_at: start_at.to_f, duration: duration.to_f }
       # Silence this clip's audio entirely instead of playing it.
       result[:mute] = true if truthy_flag?(clip['mute'])
+      speed = clip_speed_percent(clip, "Clip '#{source}'")
+      result[:speed] = speed if speed && speed != 100
       result
     end
+  end
+
+  # A clip's playback speed as a percent of normal — 200 plays the in/out
+  # span twice as fast, in half the timeline time; 50 plays it at half speed.
+  # nil when the clip doesn't set one. Accepts a number or a numeric string,
+  # with or without a trailing "%". Zero and negative speeds (freeze frames,
+  # reverse playback) are refused rather than exported as something else.
+  def clip_speed_percent(clip, label)
+    return nil unless clip.key?('speed')
+
+    value = clip['speed']
+    speed = Float(value.to_s.strip.delete_suffix('%'), exception: false)
+    unless speed&.positive? && speed.finite?
+      raise "#{label} has speed #{value.inspect} — speed is a positive percent of normal (200 = twice as fast, " \
+            '50 = half speed). Reverse playback and freeze frames are not supported. Fix the value in the cut ' \
+            'YAML (or drop the field to play at normal speed).'
+    end
+
+    speed
   end
 
   # A clip has to end after it starts. Neither way of getting this wrong shows

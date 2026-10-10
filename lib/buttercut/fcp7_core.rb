@@ -188,9 +188,30 @@ class ButterCut
           asset_duration_frames: frames_for_fraction(asset[:asset_duration], asset[:frame_duration]),
           asset_timecode_start: frames_for_fraction(asset[:timecode], asset[:frame_duration])
         )
+        retime_payload!(payload, clip, timeline_frame_duration) if retimed?(clip)
       end
 
       payload
+    end
+
+    # A retimed clipitem counts <in>/<out> in RETIMED frames — source frames
+    # divided by the speed — and the Time Remap filter (add_speed_filter)
+    # maps them back onto the media: Resolve's own xmeml export writes a
+    # 400% clip cut from source frames 2852–3516 as in 713 / out 879. The out
+    # point is the in point plus the clip's timeline length, so the clipitem
+    # spans exactly the frames it occupies on the timeline.
+    def retime_payload!(payload, clip, timeline_frame_duration)
+      speed = clip[:speed]
+      media_frames = frames_for_fraction(clip[:asset][:asset_duration], timeline_frame_duration)
+      source_in = (payload[:source_in] / speed).round
+
+      payload.merge!(
+        speed: speed,
+        source_in: source_in,
+        source_out: source_in + payload[:timeline_duration],
+        retimed_media_frames: (media_frames / speed).floor,
+        media_frames: media_frames
+      )
     end
 
     def build_video_clipitem(xml, payload)
@@ -260,6 +281,7 @@ class ButterCut
         # FCP7/xmeml orders <filter> after <file> and before <sourcetrack>;
         # Premiere ignores filters that appear out of order.
         add_video_filters(xml, payload)
+        add_speed_filter(xml, payload)
         # sourcetrack is the stream INSIDE the source file (always 1 for our
         # single-stream footage), not the sequence track — that lives in <link>.
         xml.sourcetrack do
@@ -309,6 +331,7 @@ class ButterCut
         # Filters sit after <file> and before <sourcetrack> (Premiere ignores
         # out-of-order filters). A muted clip gets a level-0 cut here.
         add_audio_filters(xml, payload)
+        add_speed_filter(xml, payload)
         xml.sourcetrack do
           xml.mediatype 'audio'
           xml.trackindex 1
@@ -373,6 +396,72 @@ class ButterCut
           end
         end
       end
+    end
+
+    # A retimed clip carries a Time Remap filter on BOTH its clipitems, so the
+    # audio follows the picture — the shape Resolve's own xmeml export writes,
+    # down to the video mediatype on the audio clipitem's copy. `speed` is the
+    # percent; the graphdict keyframes map retimed frames (when) to source
+    # frames (value) at the clip's head, in, out and tail.
+    def add_speed_filter(xml, payload)
+      speed = payload[:speed]
+      return if speed.nil? || speed == 1
+
+      xml.filter do
+        xml.effect do
+          xml.name 'Time Remap'
+          xml.effectid 'timeremap'
+          xml.effectcategory 'motion'
+          xml.effecttype 'motion'
+          xml.mediatype 'video'
+          xml.parameter do
+            xml.parameterid 'variablespeed'
+            xml.name 'variablespeed'
+            xml.valuemin 0
+            xml.valuemax 1
+            xml.value 0
+          end
+          xml.parameter do
+            xml.parameterid 'speed'
+            xml.name 'speed'
+            xml.valuemin(-100000)
+            xml.valuemax 100000
+            xml.value speed_percent(speed)
+          end
+          xml.parameter do
+            xml.parameterid 'reverse'
+            xml.name 'reverse'
+            xml.value 'FALSE'
+          end
+          xml.parameter do
+            xml.parameterid 'frameblending'
+            xml.name 'frameblending'
+            xml.value 'FALSE'
+          end
+          xml.parameter do
+            xml.parameterid 'graphdict'
+            xml.name 'graphdict'
+            xml.valuemin 0
+            xml.valuemax payload[:media_frames]
+            [0, payload[:source_in], payload[:source_out], payload[:retimed_media_frames]].uniq.each do |frame|
+              xml.keyframe do
+                xml.when frame
+                xml.value speed_frame_value(frame * speed)
+              end
+            end
+          end
+        end
+      end
+    end
+
+    # 200 for 2x, 33.3333 for a third of 100% — whole percents stay whole.
+    def speed_percent(speed)
+      percent = speed * 100
+      percent.denominator == 1 ? percent.to_i : percent.to_f.round(4)
+    end
+
+    def speed_frame_value(frames)
+      frames.denominator == 1 ? frames.to_i : frames.to_f.round(4)
     end
 
     # clipindex is the clip's position within its own track: the video track

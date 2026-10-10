@@ -43,6 +43,16 @@ RSpec.describe ButterCut::ResolveLegacy do
     expect(xml).to match(%r{<parameterid>level</parameterid>\s*<name>Level</name>.*?<value>0</value>}m)
   end
 
+  # The xmeml Time Remap filter is how a Resolve user gets a speed change as
+  # the plain clip (the FCPXML flavor imports it as a compound clip): Resolve
+  # 21 reads in/out as retimed frames and the filter's percent as the speed.
+  it 'retimes a clip with a Time Remap filter on both clipitems' do
+    xml = described_class.new([{ path: video_path, start_at: 0.0, duration: 2.0, speed: 400 }]).to_xml
+
+    expect(xml.scan('<effectid>timeremap</effectid>').length).to eq(2)
+    expect(xml).to match(%r{<parameterid>speed</parameterid>.*?<value>400</value>}m)
+  end
+
   # Resolve auto-corrects the pixels from the source rotation flag, but the
   # sequence frame follows what the XML declares — a quarter-turn first clip
   # needs a portrait sequence. No baked rotation filter: that's Premiere-only.

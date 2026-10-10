@@ -10,9 +10,24 @@ class ButterCut
       stream_timecode_string(video_path) || format_timecode_string(video_path)
     end
 
-    def to_xml = super.tap { warn_about_conformed_clips }
+    def to_xml = super.tap { warn_about_conformed_clips; warn_about_retimed_clips }
 
     private
+
+    # Resolve reads a speed change out of an FCPXML <timeMap> correctly — the
+    # right source frames at the right speed — but wraps every retimed clip in
+    # a compound clip, and adds that compound to the media pool (reproduced in
+    # Resolve 21 with every timeMap shape, Resolve's own export included). The
+    # xmeml flavor's Time Remap filter imports as the plain clip, retimed.
+    def warn_about_retimed_clips
+      retimed = clips.select { |clip| clip_speed(clip) != 1 }.map { |clip| get_filename(clip[:path]) }.uniq
+      return if retimed.empty?
+
+      subject = retimed.length == 1 ? "#{retimed.first} has" : "#{retimed.join(', ')} have"
+      warn "Note: #{subject} a speed change. DaVinci Resolve imports speed-changed clips from an FCPXML as " \
+           'compound clips (the speed itself comes through correctly). Export this cut with ' \
+           '`--editor resolve_legacy` instead to get plain clips with the speed change applied.'
+    end
 
     # Resolve usually can't link a clip whose media frame rate differs from
     # the sequence's out of an FCPXML: the clip imports permanently offline

@@ -128,6 +128,18 @@ RSpec.describe ButterCut::Premiere do
   # Real cuts mix orientations — a single timeline can hold rotated and upright clips
   # in any order. Rotation is per-clip, so each video clipitem must be judged on its own
   # source flag; the sequence frame, by contrast, follows only the FIRST clip.
+  # The Time Remap filter comes from the shared FCP7 generator (fcp7_spec.rb);
+  # Premiere adds its Basic Motion ahead of it. Unverified in Premiere itself —
+  # the shape is the one Resolve exports and imports.
+  describe 'a retimed clip' do
+    it 'carries Basic Motion and Time Remap on the video clipitem, in that order' do
+      xml = described_class.new([{ path: rotated_clip_path, duration: 2.0, speed: 200 }]).to_xml
+      video = Nokogiri::XML(xml).at_xpath("//clipitem[@id='clipitem-video-1']")
+
+      expect(video.xpath('filter/effect/effectid').map(&:text)).to eq(%w[basic timeremap])
+    end
+  end
+
   describe 'a timeline mixing rotated and upright clips' do
     let(:xml) do
       described_class.new([

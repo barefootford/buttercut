@@ -818,6 +818,79 @@ RSpec.describe ButterCut::FCPX do
       end
     end
 
+    # A speed change is a <timeMap> — clip time against media time, one
+    # straight line from the media head — and the clip's start and duration
+    # are then measured in that retimed time. The shape Resolve's own FCPXML
+    # export writes for a constant-speed clip; Resolve 21 imports it at the
+    # right speed on the right source frames (as a compound clip — see
+    # resolve_spec.rb).
+    describe 'speed changes' do
+      let(:clip_path) { '/tmp/fcpx_speed.mov' }
+      let(:untimed_path) { '/tmp/fcpx_speed_untimed.mov' }
+
+      before do
+        stub_ffprobe(clip_path => build_metadata(frame_rate: '24/1', duration_seconds: 20.0, timecode: '01:00:00:00'),
+                     untimed_path => build_metadata(frame_rate: '24/1', duration_seconds: 20.0))
+      end
+
+      def spine(*clips) = Nokogiri::XML(ButterCut::FCPX.new(clips).to_xml).xpath('//spine/asset-clip')
+
+      it 'plays the source span in half the timeline time at 200%' do
+        clip = spine({ path: clip_path, start_at: 4.0, duration: 4.0, speed: 200 }).first
+
+        expect(fraction_seconds(clip['duration'])).to eq(2)
+        # 4s into media that starts at 01:00:00:00, at double speed.
+        expect(fraction_seconds(clip['start'])).to eq(3602)
+      end
+
+      it 'maps clip time onto media time from the media head to its tail' do
+        timepts = spine({ path: clip_path, start_at: 4.0, duration: 4.0, speed: 200 })
+                  .first.xpath('timeMap/timept')
+
+        expect(timepts.map { |pt| [fraction_seconds(pt['time']), fraction_seconds(pt['value'])] })
+          .to eq([[3600, 3600], [3610, 3620]])
+        expect(timepts.map { |pt| pt['interp'] }).to all(eq('linear'))
+      end
+
+      it 'stretches the source span at 50%' do
+        clip = spine({ path: clip_path, start_at: 4.0, duration: 2.0, speed: 50 }).first
+
+        expect(fraction_seconds(clip['duration'])).to eq(4)
+        expect(fraction_seconds(clip['start'])).to eq(3608)
+        expect(fraction_seconds(clip.xpath('timeMap/timept').last['time'])).to eq(3640)
+      end
+
+      it 'anchors the map at zero for media without timecode' do
+        clip = spine({ path: untimed_path, start_at: 3.0, duration: 3.0, speed: 300 }).first
+
+        expect(fraction_seconds(clip['start'])).to eq(1)
+        expect(clip.xpath('timeMap/timept').first['time']).to eq('0s')
+      end
+
+      it 'places the next clip after the retimed length' do
+        clips = spine({ path: clip_path, start_at: 4.0, duration: 4.0, speed: 400 },
+                      { path: clip_path, start_at: 0.0, duration: 1.0 })
+
+        expect(fraction_seconds(clips.last['offset'])).to eq(1)
+      end
+
+      # Order is part of the DTD: timing params (timeMap) before intrinsic
+      # params (adjust-volume).
+      it 'writes the timeMap ahead of adjust-volume, so a muted retimed clip stays valid' do
+        clip = spine({ path: clip_path, start_at: 4.0, duration: 4.0, speed: 200, mute: true }).first
+
+        expect(clip.element_children.map(&:name)).to eq(%w[timeMap adjust-volume])
+        expect(clip.at_xpath('adjust-volume')['amount']).to eq('-96')
+      end
+
+      it 'writes no timeMap for a clip at normal speed' do
+        clip = spine({ path: clip_path, start_at: 4.0, duration: 4.0 }).first
+
+        expect(clip.at_xpath('timeMap')).to be_nil
+        expect(fraction_seconds(clip['start'])).to eq(3604)
+      end
+    end
+
     describe 'per-asset format resources' do
       let(:clip_709_path) { '/tmp/clip_709.mov' }
       let(:clip_hdr_path) { '/tmp/clip_hdr.mov' }
