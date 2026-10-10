@@ -210,6 +210,72 @@ RSpec.describe Export do
       end
     end
 
+    # `speed` is a percent of normal: the in/out span plays faster or slower,
+    # filling less or more of the timeline. 2.0s of source at 200% is 1.0s —
+    # 24 frames at 23.976.
+    it 'passes speed through so the clip plays its span faster' do
+      cut = { 'clips' => [
+        { 'source_file' => 'MVI_0309_720p.mov', 'in_point' => 0, 'out_point' => 2, 'speed' => 200 },
+        { 'source_file' => 'MVI_0323_720p.mov', 'in_point' => 0, 'out_point' => 1 }
+      ] }
+      within_export_sandbox(cut: cut, media: [clip_a, clip_b]) do |cut_path, out|
+        perform(cut_path, out)
+        clips = parse(out).xpath('//spine/asset-clip')
+
+        expect(clips[0]['duration']).to eq('1001/1000s')
+        expect(clips[0].at_xpath('timeMap')).not_to be_nil
+        expect(clips[1]['offset']).to eq('1001/1000s')
+        expect(clips[1].at_xpath('timeMap')).to be_nil
+      end
+    end
+
+    it 'reads speed written as a quoted number or a percent' do
+      cut = { 'clips' => ['50', '50%', 50.0].map do |written|
+        { 'source_file' => 'MVI_0309_720p.mov', 'in_point' => 0, 'out_point' => 1, 'speed' => written }
+      end }
+      within_export_sandbox(cut: cut, media: [clip_a]) do |cut_path, out|
+        perform(cut_path, out)
+        durations = parse(out).xpath('//spine/asset-clip').map { |clip| clip['duration'] }
+
+        expect(durations).to eq(['1001/500s'] * 3) # 1.0s at half speed → 2.0s
+      end
+    end
+
+    it 'treats speed 100 as normal speed' do
+      cut = { 'clips' => [
+        { 'source_file' => 'MVI_0309_720p.mov', 'in_point' => 0, 'out_point' => 2, 'speed' => 100 }
+      ] }
+      within_export_sandbox(cut: cut, media: [clip_a]) do |cut_path, out|
+        perform(cut_path, out)
+
+        expect(parse(out).at_xpath('//timeMap')).to be_nil
+      end
+    end
+
+    # Zero would divide by nothing, and reverse playback has a format of its
+    # own in each editor that ButterCut doesn't write — refuse both rather
+    # than export something the editor plays differently.
+    it 'refuses a zero, negative, or non-numeric speed' do
+      [0, -200, 'fast', ''].each do |written|
+        cut = { 'clips' => [
+          { 'source_file' => 'MVI_0309_720p.mov', 'in_point' => 0, 'out_point' => 2, 'speed' => written }
+        ] }
+        within_export_sandbox(cut: cut, media: [clip_a]) do |cut_path, out|
+          expect { perform(cut_path, out) }
+            .to raise_error(/Clip 'MVI_0309_720p\.mov' has speed #{Regexp.escape(written.inspect)}.*positive percent/m)
+          expect(File.exist?(out)).to be(false)
+        end
+      end
+    end
+
+    it 'refuses a speed on an image clip' do
+      cut = { 'clips' => [{ 'source_file' => 'title card.png', 'duration' => 3, 'speed' => 200 }] }
+      within_export_sandbox(cut: cut, media: [@still_path]) do |cut_path, out|
+        expect { perform(cut_path, out) }
+          .to raise_error(/Image clip 'title card\.png' has a 'speed:'/)
+      end
+    end
+
     it 'skips a clip whose source_file is not in the library, with a warning' do
       cut = { 'clips' => [
         { 'source_file' => 'MVI_0309_720p.mov', 'in_point' => 0, 'out_point' => 2 },
@@ -345,7 +411,8 @@ RSpec.describe Export do
 
       mixed = { 'clips' => [
         { 'source_file' => 'MVI_0309_720p.mov', 'in_point' => 0, 'out_point' => 2 },
-        { 'source_file' => 'title card.png', 'duration' => 3 }
+        { 'source_file' => 'title card.png', 'duration' => 3 },
+        { 'source_file' => 'MVI_0309_720p.mov', 'in_point' => 1, 'out_point' => 3, 'speed' => 200, 'mute' => true }
       ] }
       within_export_sandbox(cut: mixed, media: [clip_a, @still_path]) do |cut_path, out|
         perform(cut_path, out)

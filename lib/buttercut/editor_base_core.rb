@@ -658,9 +658,23 @@ class ButterCut
         source_duration: duration_info[:asset],
         timeline_offset: current_offset,
         source_in: start_at,
+        speed: clip_speed(clip_def),
         clip_definition: clip_def
       }
     end
+
+    # A clip's playback rate as a multiple of normal speed — 2 for `speed: 200`,
+    # 1/2 for `speed: 50` — from the clip def's percent. Rational, so the
+    # retimed durations stay exact fractions; 1 when the clip sets none.
+    def clip_speed(clip_def)
+      speed = clip_def[:speed] or return Rational(1)
+
+      Rational(speed.to_s) / 100
+    end
+
+    # Whether a timeline clip plays at anything but normal speed. Clip data an
+    # edition builds without a :speed plays at normal speed.
+    def retimed?(clip) = (clip[:speed] || 1) != 1
 
     # Seconds — possibly negative — on the same 1/10000 grid every other
     # seconds-to-time conversion lands on. fraction_to_rational's parsing is
@@ -729,7 +743,12 @@ class ButterCut
       end
 
       asset_aligned = round_to_frame_boundary(duration, asset_frame_duration)
-      timeline_aligned = round_to_frame_boundary(asset_aligned, timeline_frame_duration)
+      # `duration` is the span of SOURCE the clip plays; at any speed but
+      # normal it fills a different span of timeline — 4s of source at 200%
+      # is 2s on the timeline.
+      speed = clip_speed(clip_def)
+      played = speed == 1 ? asset_aligned : rational_to_fraction(fraction_to_rational(asset_aligned) / speed)
+      timeline_aligned = round_to_frame_boundary(played, timeline_frame_duration)
 
       {
         asset: asset_aligned,

@@ -95,6 +95,41 @@ RSpec.describe ButterCut::Resolve do
     end
   end
 
+  # Resolve reads a speed change out of an FCPXML <timeMap> at the right speed
+  # on the right source frames, but wraps each retimed clip in a compound clip
+  # and adds it to the media pool (reproduced in Resolve 21 with every timeMap
+  # shape, Resolve's own export included). The xmeml Time Remap filter imports
+  # as the plain clip, so the notice points there.
+  describe 'speed-changed clips' do
+    it 'names the retimed clip once and points at the legacy flavor' do
+      stderr = capture_stderr do
+        described_class.new([{ path: video_path, start_at: 0.0, duration: 2.0, speed: 200 },
+                             { path: video_path, start_at: 2.0, duration: 1.0, speed: 50 }]).to_xml
+      end
+
+      expect(stderr.scan('resolve_spec.mov').length).to eq(1)
+      expect(stderr).to include('compound clips')
+      expect(stderr).to include('--editor resolve_legacy')
+    end
+
+    it 'stays quiet when every clip plays at normal speed' do
+      stderr = capture_stderr do
+        described_class.new([{ path: video_path, start_at: 0.0, duration: 2.0 }]).to_xml
+      end
+
+      expect(stderr).to eq('')
+    end
+
+    # Final Cut retimes the asset-clip in place — the compound is Resolve's alone.
+    it 'stays quiet for Final Cut on the same retimed cut' do
+      stderr = capture_stderr do
+        ButterCut::FCPX.new([{ path: video_path, start_at: 0.0, duration: 2.0, speed: 200 }]).to_xml
+      end
+
+      expect(stderr).to eq('')
+    end
+  end
+
   # Resolve reads the source rotation flag to display the pixels upright, but
   # it trusts the declared <format> dimensions — vertical phone footage stored
   # landscape needs a portrait declaration or it lands in a landscape timeline.

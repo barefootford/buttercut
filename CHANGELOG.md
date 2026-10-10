@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Per-clip speed.** Any video clip in a cut can play faster or slower — `speed: 400` timelapses 28 seconds of footage into 7, `speed: 50` plays it at half speed — exported to Final Cut, Premiere, and Resolve, with the clip's audio following the picture. DaVinci Resolve brings sped-up clips in from the default export as compound clips; export with `--editor resolve_legacy` for plain clips.
+
 ### Changed
 - Updating ButterCut is now a single step, so agents that review each command before running it (such as Claude Code's auto mode) can update without stopping to ask.
 

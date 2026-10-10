@@ -136,14 +136,17 @@ class ButterCut
     #
     # Same-rate media is already on the grid, so every same-rate export comes
     # through untouched.
+    #
+    # A retimed clip measures `start` in its own retimed time (see
+    # emit_time_map), so the snap and the cap both happen there.
     def build_standard_clip_data(clip_def, asset_map, current_offset, timeline_frame_duration)
       data = super
       asset = data[:asset]
       return data unless asset[:asset_duration]
 
-      start = [fraction_to_rational(round_to_frame_boundary(data[:start], timeline_frame_duration)),
+      start = [fraction_to_rational(round_to_frame_boundary(retimed_start(data), timeline_frame_duration)),
                fraction_to_rational(media_head(asset, timeline_frame_duration))].max
-      remaining = media_end(asset) - start
+      remaining = media_end(asset, data[:speed]) - start
 
       duration = data[:duration]
       duration = floor_to_frame_boundary(rational_to_fraction(remaining), timeline_frame_duration) if
@@ -159,9 +162,20 @@ class ButterCut
       ceil_to_frame_boundary(asset[:timecode] || '0s', timeline_frame_duration)
     end
 
-    # ...and where that media runs out, at wire precision.
-    def media_end(asset)
-      fraction_to_rational(asset[:timecode] || '0s') + fraction_to_rational(asset[:asset_duration])
+    # ...and where that media runs out, at wire precision — in the clip's
+    # retimed time, which a speed change stretches or squeezes.
+    def media_end(asset, speed = 1)
+      fraction_to_rational(asset[:timecode] || '0s') + (fraction_to_rational(asset[:asset_duration]) / speed)
+    end
+
+    # The clip's source start in its retimed time: the media head stays put
+    # and everything after it is scaled by the speed. Normal speed is the
+    # source start itself.
+    def retimed_start(clip)
+      return clip[:start] unless retimed?(clip)
+
+      head = fraction_to_rational(clip[:asset][:timecode] || '0s')
+      rational_to_fraction(head + ((fraction_to_rational(clip[:start]) - head) / clip[:speed]))
     end
 
     private
@@ -200,12 +214,34 @@ class ButterCut
       if video_only
         # No audio → no adjust-volume child; stay self-closing when there are
         # no connected clips to nest.
-        block_given? ? xml.video(**attrs) { yield } : xml.video(**attrs)
+        xml.video(**attrs) do
+          emit_time_map(xml, clip)
+          yield if block_given?
+        end
       else
         xml.send('asset-clip', **attrs) do
+          emit_time_map(xml, clip)
           xml.send('adjust-volume', amount: clip_volume_adjustment(clip))
           yield if block_given?
         end
+      end
+    end
+
+    # A speed change is a <timeMap>: a straight line from the media's first
+    # frame to its last, clip time against media time — the shape Resolve's
+    # own FCPXML export writes for a constant-speed clip. Both ends sit at
+    # the media head; the far end lands at the media's length divided by the
+    # speed. It retimes the whole asset-clip, so the audio follows the
+    # picture (pitch-corrected, the timeMap default).
+    def emit_time_map(xml, clip)
+      return unless retimed?(clip)
+
+      asset = clip[:asset]
+      head = rational_to_fraction(fraction_to_rational(asset[:timecode] || '0s'))
+      tail = rational_to_fraction(fraction_to_rational(head) + fraction_to_rational(asset[:asset_duration]))
+      xml.timeMap do
+        xml.timept(time: head, value: head, interp: 'linear')
+        xml.timept(time: rational_to_fraction(media_end(asset, clip[:speed])), value: tail, interp: 'linear')
       end
     end
 

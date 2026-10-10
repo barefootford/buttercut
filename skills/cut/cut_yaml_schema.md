@@ -41,6 +41,7 @@ Each entry in `clips:`. A clip is either a **video** (trimmed with in/out points
 | `out_point`          | `HH:MM:SS.ss`   | video      | End of the cut. Same precision rule. |
 | `duration`           | `HH:MM:SS.ss` or seconds | image | How long the still is held on the timeline. Images have no in/out — they're timeless. Omit to use the default (5s, or `still_duration` in `libraries/settings.yaml`). |
 | `mute`               | boolean         | video      | Silence this clip's audio entirely instead of playing it. Default: omit (the clip plays its own audio). |
+| `speed`              | percent         | video      | Play the clip faster or slower: `200` is twice as fast, `50` is half speed. `in_point`/`out_point` still name the footage used; the clip takes `(out − in) ÷ (speed ÷ 100)` on the timeline. Audio follows the picture. Default: omit (normal speed). See "Speed changes" below. |
 | `dialogue`           | string          | both       | Spoken words for the span; concatenate across transcript segments if the cut crosses them. Empty string when the clip is silent / B-roll / an image. |
 | `visual_description` | string          | both       | Shot description (video: what the contact sheet shows for the range; image: what the still depicts, from its summary). Wrap in brackets to match template style. |
 
@@ -58,6 +59,23 @@ clips:
 ```
 
 Remember ButterCut is single-track: a still has no audio of its own, so when the timeline reaches it you cut to silence (and back to sound on the next clip). Don't plan a still as a cutaway "over" continuing dialogue — that's a second track ButterCut doesn't have.
+
+### Speed changes
+
+`speed` is a percent of normal, for timelapsing repetitive footage or slowing a moment down. The in/out points still name the stretch of footage; speed changes how long it takes on the timeline:
+
+```yaml
+clips:
+  - source_file: "GH010531.MP4"
+    in_point: "00:05:00.00"
+    out_point: "00:05:28.00"   # 28s of footage…
+    speed: 400                 # …plays in 7s
+```
+
+- Constant speed only — no ramps, no reverse playback, no freeze frames. Speed must be a positive number.
+- The clip's audio plays at the same speed. Add `mute: true` when sped-up audio would be distracting.
+- When you total `metadata.total_duration`, use each clip's timeline length (footage length ÷ speed), not its footage length.
+- **DaVinci Resolve:** the default Resolve export brings speed-changed clips in as compound clips. If the editor wants plain clips, export with `--editor resolve_legacy` — the speed comes through the same either way.
 
 ## Timeline format
 
