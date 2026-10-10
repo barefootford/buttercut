@@ -143,6 +143,89 @@ RSpec.describe ButterCut::FCP7 do
       expect(audio).to include('<enabled>FALSE</enabled>')
     end
 
+    # A retimed clipitem counts <in>/<out> in RETIMED frames and carries a Time
+    # Remap filter mapping them back onto the media — the shape Resolve's own
+    # xmeml export writes. Resolve 21 imports it as the plain clip at the
+    # right speed on the right source frames. In/out written in source frames
+    # instead read as retimed ones: a 200% clip lands twice as deep in the
+    # media as it should.
+    describe 'speed changes' do
+      def clipitem(xml, id) = Nokogiri::XML(xml).at_xpath("//clipitem[@id='#{id}']")
+
+      def time_remap(item) = item.xpath('filter/effect').find { |effect| effect.at_xpath('effectid').text == 'timeremap' }
+
+      def parameter(effect, id) = effect.xpath('parameter').find { |param| param.at_xpath('parameterid').text == id }
+
+      # Source frames 20–60 of a 100-frame clip, at 200%: 20 timeline frames,
+      # retimed in/out 10–30.
+      let(:xml) { described_class.new([{ path: clip_a_path, start_at: 0.8, duration: 1.6, speed: 200 }]).to_xml }
+
+      it 'writes in/out in retimed frames and the timeline length in timeline frames' do
+        video = clipitem(xml, 'clipitem-video-1')
+
+        expect(video.at_xpath('start').text).to eq('0')
+        expect(video.at_xpath('end').text).to eq('20')
+        expect(video.at_xpath('in').text).to eq('10')
+        expect(video.at_xpath('out').text).to eq('30')
+      end
+
+      it 'retimes both clipitems, so the audio follows the picture' do
+        %w[clipitem-video-1 clipitem-audio-1].each do |id|
+          effect = time_remap(clipitem(xml, id))
+
+          expect(effect.at_xpath('name').text).to eq('Time Remap')
+          expect(parameter(effect, 'speed').at_xpath('value').text).to eq('200')
+          expect(parameter(effect, 'reverse').at_xpath('value').text).to eq('FALSE')
+          expect(parameter(effect, 'variablespeed').at_xpath('value').text).to eq('0')
+        end
+      end
+
+      it 'keyframes retimed frames onto source frames at the head, in, out and tail' do
+        graph = parameter(time_remap(clipitem(xml, 'clipitem-video-1')), 'graphdict')
+        keyframes = graph.xpath('keyframe').map { |kf| [kf.at_xpath('when').text, kf.at_xpath('value').text] }
+
+        expect(keyframes).to eq([%w[0 0], %w[10 20], %w[30 60], %w[50 100]])
+      end
+
+      it 'places the filter after <file> and before <sourcetrack>' do
+        names = clipitem(xml, 'clipitem-audio-1').element_children.map(&:name)
+
+        expect(names.index('filter')).to be > names.index('file')
+        expect(names.index('filter')).to be < names.index('sourcetrack')
+      end
+
+      it 'stretches the clip at 50%' do
+        video = clipitem(described_class.new([{ path: clip_a_path, start_at: 1.0, duration: 1.0, speed: 50 }]).to_xml,
+                         'clipitem-video-1')
+
+        expect(video.at_xpath('end').text).to eq('50')
+        expect(video.at_xpath('in').text).to eq('50')
+        expect(video.at_xpath('out').text).to eq('100')
+        expect(parameter(time_remap(video), 'speed').at_xpath('value').text).to eq('50')
+      end
+
+      it 'writes a fractional percent without trailing noise' do
+        video = clipitem(described_class.new([{ path: clip_a_path, speed: 33.33 }]).to_xml, 'clipitem-video-1')
+
+        expect(parameter(time_remap(video), 'speed').at_xpath('value').text).to eq('33.33')
+      end
+
+      it 'places the next clip after the retimed length' do
+        xml = described_class.new([{ path: clip_a_path, start_at: 0.8, duration: 1.6, speed: 200 },
+                                   { path: clip_b_path, duration: 1.0 }]).to_xml
+
+        expect(clipitem(xml, 'clipitem-video-2').at_xpath('start').text).to eq('20')
+        expect(time_remap(clipitem(xml, 'clipitem-video-2'))).to be_nil
+      end
+
+      it 'mutes a retimed clip alongside its Time Remap' do
+        xml = described_class.new([{ path: clip_a_path, duration: 2.0, speed: 200, mute: true }]).to_xml
+        effect_ids = clipitem(xml, 'clipitem-audio-1').xpath('filter/effect/effectid').map(&:text)
+
+        expect(effect_ids).to eq(%w[audiolevels timeremap])
+      end
+    end
+
     it 'writes both clipitems enabled when neither flag is given' do
       xml = described_class.new([{ path: clip_a_path }]).to_xml
       video = xml[/<clipitem id="clipitem-video-1">.*?<\/clipitem>/m]
