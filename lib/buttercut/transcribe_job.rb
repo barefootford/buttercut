@@ -9,6 +9,7 @@ require 'rbconfig'
 require 'tmpdir'
 require_relative 'job'
 require_relative 'media_tools'
+require_relative 'platform'
 
 # Transcribe one clip's audio with WhisperX, then slim the JSON with
 # prepare_audio_script.rb. Pure mechanics — the exact commands that used to live
@@ -29,16 +30,36 @@ class TranscribeJob < Job
   # clips flatten the extension into the key (vo.wav → vo_wav.json), so the
   # caller passes the canonical name and we move WhisperX's output onto it.
   # Defaults to WhisperX's convention for standalone (outside-a-library) runs.
-  def initialize(library_name:, clip:, video_path:, output_dir:, language_code:, whisper_model:, transcript_name: nil)
+  #
+  # `duration:` is the clip's library.yaml duration (HH:MM:SS); it scales the
+  # timeout below. Standalone runs don't know it and get the long ceiling.
+  def initialize(library_name:, clip:, video_path:, output_dir:, language_code:, whisper_model:,
+                 transcript_name: nil, duration: nil)
     super(library_name: library_name, clip: clip)
     @video_path = video_path
     @output_dir = output_dir
     @language_code = language_code
     @whisper_model = whisper_model
     @transcript_name = transcript_name || "#{File.basename(video_path, '.*')}.json"
+    @duration = duration
   end
 
   def transcript_path = File.join(@output_dir, @transcript_name)
+
+  # WhisperX has no timeout of its own, and one clip that never returns stalls
+  # the whole batch (ButterCut report 29: 16 hours on a 6.5-second clip). The
+  # ceiling is deliberately generous — the floor covers model load and a
+  # first-run model download, and CPU transcription runs far faster than 10×
+  # the clip's length — so it only ever catches a hang, never a slow run.
+  TIMEOUT_FLOOR_SECONDS = 30 * 60
+  TIMEOUT_PER_CLIP_SECOND = 10
+  UNKNOWN_DURATION_TIMEOUT_SECONDS = 12 * 60 * 60
+
+  def timeout_seconds
+    return UNKNOWN_DURATION_TIMEOUT_SECONDS if clip_seconds.zero?
+
+    [TIMEOUT_FLOOR_SECONDS, (clip_seconds * TIMEOUT_PER_CLIP_SECOND).ceil].max
+  end
 
   def perform
     if run_whisperx
@@ -52,6 +73,7 @@ class TranscribeJob < Job
   NO_SPEECH_MARKER = 'No active speech found in audio'
   LOAD_AUDIO_MARKER = 'Failed to load audio'
   PYTHON_TRACEBACK_MARKER = 'Traceback (most recent call last)'
+  KILL_GRACE_SECONDS = 5
 
   # The outcome is read from the evidence — the output file and whisperx's
   # own messages — before the exit status. The wrapper script older installs
@@ -93,8 +115,7 @@ class TranscribeJob < Job
     MediaTools.ffmpeg
     env = { 'PATH' => [MediaTools::DEPENDENCIES_DIR, ENV.fetch('PATH', '')].join(File::PATH_SEPARATOR) }
     Dir.mktmpdir('.whisperx_', @output_dir) do |tmp_dir|
-      output, status = Open3.capture2e(
-        env,
+      output, status, timed_out = capture_whisperx(env, [
         MediaTools.whisperx, @video_path,
         '--language', @language_code,
         '--model', @whisper_model,
@@ -102,7 +123,12 @@ class TranscribeJob < Job
         '--device', 'cpu',
         '--output_format', 'json',
         '--output_dir', tmp_dir
-      )
+      ], timeout: timeout_seconds)
+      # Checked before any marker: a run cut short may already have logged
+      # NO_SPEECH_MARKER, and rescuing it would mark an unfinished clip silent.
+      raise timeout_message(output) if timed_out
+      raise killed_message(status) if status.signaled?
+
       produced = File.join(tmp_dir, "#{File.basename(@video_path, '.*')}.json")
 
       if status.success? && File.exist?(produced)
@@ -126,6 +152,57 @@ class TranscribeJob < Job
 
       raise no_output_message(output, produced)
     end
+  end
+
+  # "00:01:30" → 90.0. Accepts bare seconds and MM:SS too; nil → 0.
+  def clip_seconds = @duration.to_s.split(':').map(&:to_f).reduce(0.0) { |total, part| (total * 60) + part }
+
+  # Open3.capture2e with a deadline. whisperx runs in its own process group so
+  # a timeout also takes down the ffmpeg it spawned, which would otherwise hold
+  # the output pipe open. Returns [output, status, timed_out].
+  def capture_whisperx(env, cmd, timeout:)
+    group = Platform.windows? ? { new_pgroup: true } : { pgroup: true }
+    Open3.popen2e(env, *cmd, **group) do |stdin, out, wait|
+      stdin.close
+      reader = Thread.new { out.read }
+      timed_out = wait.join(timeout).nil?
+      stop_process_group(wait) if timed_out
+      [reader.value, wait.value, timed_out]
+    end
+  end
+
+  # TERM first so whisperx can clean up, KILL if it's still there after the
+  # grace period. Windows has no process-group signals, so it gets KILL alone.
+  def stop_process_group(wait)
+    return signal_process(:KILL, wait.pid) if Platform.windows?
+
+    signal_process(:TERM, -wait.pid)
+    signal_process(:KILL, -wait.pid) unless wait.join(KILL_GRACE_SECONDS)
+  end
+
+  def signal_process(signal, pid)
+    Process.kill(signal, pid)
+  rescue Errno::ESRCH
+    nil
+  end
+
+  def timeout_message(output)
+    <<~MSG
+      whisperx was still running on #{clip} after #{timeout_seconds / 60} minutes, so ButterCut stopped it. That's many times longer than a clip this length needs, so whisperx hung rather than ran slowly.
+      Fix: retry this clip. If it hangs again, report it.
+      Last output from whisperx:
+      #{output.lines.last(15).join}
+    MSG
+  end
+
+  # Something outside ButterCut ended whisperx — a person killing it, or macOS
+  # reclaiming memory with several clips transcribing at once. Before this,
+  # status.exitstatus was nil here and the message read "exit )".
+  def killed_message(status)
+    <<~MSG
+      whisperx was stopped by SIG#{Signal.signame(status.termsig)} before it finished #{clip}, so no transcript was written. Something outside ButterCut ended it — often macOS reclaiming memory while several clips transcribe at once.
+      Fix: retry this clip. If it keeps happening, transcribe with fewer parallel jobs (--jobs 1).
+    MSG
   end
 
   # whisperx 3.8+ answers a silent audio stream with {"segments": []}. Treat
