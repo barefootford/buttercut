@@ -80,8 +80,10 @@ class ButterCut
       SecureRandom.uuid
     end
 
+    # Probed up front for every source; the fallback covers a caller holding a
+    # differently spelled path (an asset's expanded abs_path).
     def extract_metadata(video_path)
-      @metadata_cache[video_path]
+      @metadata_cache[video_path] ||= extract_metadata_from_ffprobe(video_path)
     end
 
     def video_stream(video_path)
@@ -97,8 +99,39 @@ class ButterCut
     UNDECODABLE_AUDIO_CODECS = %w[apac].freeze
 
     def audio_stream(video_path)
-      streams = extract_metadata(video_path)['streams'].select { |s| s['codec_type'] == 'audio' }
+      streams = audio_streams(video_path)
       streams.find { |s| !UNDECODABLE_AUDIO_CODECS.include?(s['codec_name']) } || streams.first
+    end
+
+    def audio_streams(video_path) = extract_metadata(video_path)['streams'].select { |s| s['codec_type'] == 'audio' }
+
+    # A source track whose loudest moment is quieter than this counts as empty.
+    # Digital silence reads about -91 dB; an unplugged mic input stays well under -60.
+    SILENT_TRACK_MAX_DB = -60.0
+    # How much of each track the level check reads.
+    LEVEL_CHECK_SECONDS = 300
+
+    # 1-based audio track inside the source file that the timeline should play.
+    # Track 1 unless it's silent: multi-mono MXF and some cameras leave channel
+    # 1 empty and record on 2 and 3, and pointing every clip at track 1 gave a
+    # timeline with no sound (ButterCut report 21). Single-track sources skip
+    # the ffmpeg level check entirely.
+    def source_audio_track(video_path)
+      @source_audio_track ||= {}
+      @source_audio_track[video_path] ||= begin
+        tracks = audio_streams(video_path).size
+        tracks > 1 ? (1..tracks).find { |track| audible_track?(video_path, track) } || 1 : 1
+      end
+    end
+
+    # A track ffmpeg can't decode (APAC) reads as silent, so it's never picked.
+    def audible_track?(video_path, track)
+      output, status = Open3.capture2e(
+        MediaTools.ffmpeg, '-hide_banner', '-nostats', '-t', LEVEL_CHECK_SECONDS.to_s, '-i', video_path,
+        '-map', "0:a:#{track - 1}", '-af', 'volumedetect', '-f', 'null', '-'
+      )
+      peak = output[/max_volume: (-?[\d.]+) dB/, 1]
+      status.success? && !peak.nil? && Float(peak) > SILENT_TRACK_MAX_DB
     end
 
     def video_width(video_path)

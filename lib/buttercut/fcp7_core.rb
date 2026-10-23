@@ -311,7 +311,7 @@ class ButterCut
         add_audio_filters(xml, payload)
         xml.sourcetrack do
           xml.mediatype 'audio'
-          xml.trackindex 1
+          xml.trackindex source_audio_track(asset[:abs_path])
         end
         build_link_entries(xml, payload)
       end
