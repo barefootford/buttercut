@@ -191,6 +191,21 @@ RSpec.describe ButterCut::FCP7 do
       expect(audio_trackindex(multi_mono('all_silent.mov', %i[silent silent]))).to eq(1)
     end
 
+    # Premiere resolves trackindex against the file's <audio> list; with one
+    # entry, track 2 of a multi-mono MOV linked to nothing.
+    it 'declares every source audio track in the file definition' do
+      path = multi_mono('three_tracks.mov', %i[silent tone tone])
+      media = described_class.new([{ path: path }]).to_xml[%r{<file id="[^"]+">.*?</file>}m]
+
+      expect(media.scan(%r{<audio>.*?<channelcount>(\d+)</channelcount>.*?</audio>}m).flatten).to eq(%w[1 1 1])
+    end
+
+    it 'keeps a single audio entry for a single-track source' do
+      media = described_class.new([{ path: clip_a_path }]).to_xml[%r{<file id="[^"]+">.*?</file>}m]
+
+      expect(media.scan('<audio>').size).to eq(1)
+    end
+
     it 'skips the level check for a single-track source' do
       generator = described_class.new([{ path: clip_a_path }])
       expect(generator).not_to receive(:audible_track?)

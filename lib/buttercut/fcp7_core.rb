@@ -246,15 +246,7 @@ class ButterCut
                 xml.fielddominance 'none'
               end
             end
-            unless still
-              xml.audio do
-                xml.samplecharacteristics do
-                  xml.samplerate asset_audio_rate(asset)
-                  xml.depth 16
-                end
-                xml.channelcount asset_audio_channels(asset)
-              end
-            end
+            emit_file_audio(xml, asset) unless still
           end
         end
         # FCP7/xmeml orders <filter> after <file> and before <sourcetrack>;
@@ -296,15 +288,7 @@ class ButterCut
             xml.ntsc payload[:asset_ntsc]
           end
           xml.duration payload[:asset_duration_frames]
-          xml.media do
-            xml.audio do
-              xml.samplecharacteristics do
-                xml.samplerate asset_audio_rate(asset)
-                xml.depth 16
-              end
-              xml.channelcount asset_audio_channels(asset)
-            end
-          end
+          xml.media { emit_file_audio(xml, asset) }
         end
         # Filters sit after <file> and before <sourcetrack> (Premiere ignores
         # out-of-order filters). A muted clip gets a level-0 cut here.
@@ -328,6 +312,29 @@ class ButterCut
       end
       @emitted_file_ids[file_id] = true
       xml.file(id: file_id) { yield }
+    end
+
+    # One <audio> per audio track in the source file. Premiere resolves a
+    # sourcetrack trackindex against this list, so a multi-track source that
+    # declared a single track left every clip pointing past track 1 silent
+    # (ButterCut report 21). Single-track sources keep their one entry.
+    def emit_file_audio(xml, asset)
+      source_audio_channel_counts(asset).each do |channels|
+        xml.audio do
+          xml.samplecharacteristics do
+            xml.samplerate asset_audio_rate(asset)
+            xml.depth 16
+          end
+          xml.channelcount channels
+        end
+      end
+    end
+
+    def source_audio_channel_counts(asset)
+      streams = audio_streams(asset[:abs_path])
+      return [asset_audio_channels(asset)] if streams.size <= 1
+
+      streams.map { |stream| stream['channels'].to_i.positive? ? stream['channels'].to_i : 1 }
     end
 
     # Channel count from the probe, defaulting to stereo. Never 0 or blank —
