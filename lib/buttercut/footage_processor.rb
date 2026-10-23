@@ -50,7 +50,7 @@ class FootageProcessor
       TranscribeJob.new(
         library_name: @library.name, clip: clip['filename'],
         video_path: clip['path'], output_dir: output_dir,
-        language_code: code, whisper_model: model
+        language_code: code, whisper_model: model, duration: clip['duration']
       )
     end
     process(jobs, 'transcript')

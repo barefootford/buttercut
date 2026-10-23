@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Clip names with accents, em dashes, or curly quotes no longer vanish from exports or break transcription** when ButterCut is started from a shell with no language setting.
+- **Sturdier footage processing and multi-channel audio.** Clips that make ButterCut's media check print a harmless warning (such as Panasonic 59.94 footage) now add to a library, and a transcription that hangs or gets stopped now fails that clip with a clear message instead of stalling the batch or marking the clip as having no dialogue. Premiere and Resolve (legacy XML) exports of footage with a silent first audio channel now play the channel that has sound.
 
 ## [0.9.1] - 2026-09-13
 

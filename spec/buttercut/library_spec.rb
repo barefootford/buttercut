@@ -119,6 +119,33 @@ RSpec.describe Library do
     end
   end
 
+  describe '.probe_duration' do
+    # A stand-in ffprobe that answers like the real one on footage it warns
+    # about: the warning on stderr, the duration alone on stdout.
+    def fake_ffprobe(dir, stdout:, stderr:, exit_code: 0)
+      path = File.join(dir, 'ffprobe')
+      File.write(path, "#!/bin/sh\nprintf '%s\\n' '#{stderr}' >&2\nprintf '%s\\n' '#{stdout}'\nexit #{exit_code}\n")
+      File.chmod(0o755, path)
+      allow(MediaTools).to receive(:ffprobe).and_return(path)
+    end
+
+    it 'reads the duration from stdout when ffprobe also warns on stderr' do
+      Dir.mktmpdir do |dir|
+        fake_ffprobe(dir, stdout: '59.560000',
+                          stderr: '[mov,mp4,m4a,3gp,3g2,mj2 @ 0x1] Drop frame is only allowed with multiples of 30000/1001 FPS')
+        expect(Library.probe_duration('/footage/P1000001.mov')).to eq('00:00:59')
+      end
+    end
+
+    it "quotes ffprobe's stderr when it fails" do
+      Dir.mktmpdir do |dir|
+        fake_ffprobe(dir, stdout: '', stderr: 'moov atom not found', exit_code: 1)
+        expect { Library.probe_duration('/footage/broken.mov') }
+          .to raise_error(ArgumentError, /ffprobe failed for .*moov atom not found/)
+      end
+    end
+  end
+
   describe '.create' do
     let(:video_path) { File.join(@libraries_root, 'src', 'a.mov') }
     let(:image_path) { File.join(@libraries_root, 'src', 'pic.png') }

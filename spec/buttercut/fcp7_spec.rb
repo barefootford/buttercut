@@ -153,6 +153,67 @@ RSpec.describe ButterCut::FCP7 do
     end
   end
 
+  # ButterCut report 21: multi-mono footage with an empty channel 1 and the
+  # real sound on 2 and 3 exported a timeline with no sound at all.
+  describe 'source audio track' do
+    let(:media_dir) { Dir.mktmpdir }
+    after { FileUtils.remove_entry(media_dir) }
+
+    # A real file, so the level check runs against real ffmpeg: one mono
+    # stream per source, silent where `tracks` says :silent.
+    def multi_mono(name, tracks)
+      path = File.join(media_dir, name)
+      sources = tracks.map { |kind| kind == :silent ? 'anullsrc=r=48000:cl=mono' : 'sine=f=440:r=48000' }
+      inputs = ['-f', 'lavfi', '-i', 'color=c=black:s=64x64:r=25'] + sources.flat_map { |src| ['-f', 'lavfi', '-i', src] }
+      maps = (0..sources.size).flat_map { |i| ['-map', i.to_s] }
+      _, status = Open3.capture2e(MediaTools.ffmpeg, '-y', *inputs, *maps, '-t', '1', '-c:v', 'mjpeg', '-c:a', 'pcm_s16le', path)
+      raise "couldn't build #{name}" unless status.success?
+
+      metadata_by_path[path] = JSON.parse(Open3.capture2(MediaTools.ffprobe, '-v', 'quiet', '-print_format', 'json',
+                                                         '-show_format', '-show_streams', path).first)
+      path
+    end
+
+    def audio_trackindex(path)
+      xml = described_class.new([{ path: path }]).to_xml
+      xml[/<clipitem id="clipitem-audio-1">.*?<sourcetrack>.*?<trackindex>(\d+)<\/trackindex>/m, 1].to_i
+    end
+
+    it 'points the audio at the first source track with sound when track 1 is silent' do
+      expect(audio_trackindex(multi_mono('silent_first.mov', %i[silent tone tone]))).to eq(2)
+    end
+
+    it 'keeps track 1 when it has sound' do
+      expect(audio_trackindex(multi_mono('tone_first.mov', %i[tone silent tone]))).to eq(1)
+    end
+
+    it 'falls back to track 1 when every track is silent' do
+      expect(audio_trackindex(multi_mono('all_silent.mov', %i[silent silent]))).to eq(1)
+    end
+
+    # Premiere resolves trackindex against the file's <audio> list; with one
+    # entry, track 2 of a multi-mono MOV linked to nothing.
+    it 'declares every source audio track in the file definition' do
+      path = multi_mono('three_tracks.mov', %i[silent tone tone])
+      media = described_class.new([{ path: path }]).to_xml[%r{<file id="[^"]+">.*?</file>}m]
+
+      expect(media.scan(%r{<audio>.*?<channelcount>(\d+)</channelcount>.*?</audio>}m).flatten).to eq(%w[1 1 1])
+    end
+
+    it 'keeps a single audio entry for a single-track source' do
+      media = described_class.new([{ path: clip_a_path }]).to_xml[%r{<file id="[^"]+">.*?</file>}m]
+
+      expect(media.scan('<audio>').size).to eq(1)
+    end
+
+    it 'skips the level check for a single-track source' do
+      generator = described_class.new([{ path: clip_a_path }])
+      expect(generator).not_to receive(:audible_track?)
+
+      expect(generator.to_xml).to match(%r{<mediatype>audio</mediatype>\s*<trackindex>1</trackindex>})
+    end
+  end
+
   # NTSC fractional rates (29.97/23.976) are what most real camera footage
   # shoots, and the 1001-denominator math is where xmeml frame drift hides:
   # the timebase must round to a whole number, <ntsc> must flag the fraction,

@@ -24,20 +24,31 @@ RSpec.describe TranscribeJob do
   # The fake whisperx writes `<basename>.json` into whatever --output_dir it was
   # given — the job runs it in a per-job tempdir and moves the result to the
   # canonical transcript_path.
-  def stub_whisperx(json: SPOKEN, output: '')
-    allow(Open3).to receive(:capture2e) do |env, *cmd|
+  def stub_whisperx(json: SPOKEN, output: '', on: job)
+    allow(on).to receive(:capture_whisperx) do |env, cmd, timeout:|
       whisper_out = cmd[cmd.index('--output_dir') + 1]
       File.write(File.join(whisper_out, 'clip.json'), json) if json
       @captured_env = env
       @captured_cmd = cmd
-      [output, instance_double(Process::Status, success?: true)]
+      @captured_timeout = timeout
+      [output, instance_double(Process::Status, success?: true, signaled?: false), false]
     end
   end
 
   def stub_whisperx_failure(output)
-    allow(Open3).to receive(:capture2e).and_return(
-      [output, instance_double(Process::Status, success?: false, exitstatus: 1)]
+    allow(job).to receive(:capture_whisperx).and_return(
+      [output, instance_double(Process::Status, success?: false, signaled?: false, exitstatus: 1), false]
     )
+  end
+
+  # A stand-in whisperx for the specs that need a real process to time out or
+  # be killed. Not exec'd, so sh is the parent of what it runs — the shape
+  # that left a child holding the output pipe after a plain kill.
+  def fake_whisperx(body)
+    path = File.join(output_dir, 'fake_whisperx')
+    File.write(path, "#!/bin/sh\n#{body}\n")
+    File.chmod(0o755, path)
+    allow(MediaTools).to receive(:whisperx).and_return(path)
   end
 
   def transcript = JSON.parse(File.read(File.join(output_dir, 'clip.json')))
@@ -99,7 +110,7 @@ RSpec.describe TranscribeJob do
       transcript_name: 'clip_wav.json'
     )
     # WhisperX names its output after the input file (clip.json), not our convention.
-    stub_whisperx
+    stub_whisperx(on: named)
     allow(named).to receive(:prepare_transcript)
 
     named.perform
@@ -111,7 +122,7 @@ RSpec.describe TranscribeJob do
   # all. whisperx can't decode what isn't there, so the job doesn't ask it to.
   it 'writes the no-dialogue transcript without running whisperx when the clip has no audio stream' do
     allow(MediaTools).to receive(:audio_stream?).with('/footage/clip.mov').and_return(false)
-    expect(Open3).not_to receive(:capture2e)
+    expect(job).not_to receive(:capture_whisperx)
     expect(job).not_to receive(:prepare_transcript)
 
     job.perform
@@ -210,5 +221,55 @@ RSpec.describe TranscribeJob do
     stub_whisperx_failure("some ffmpeg decode noise\n")
 
     expect { job.perform }.to raise_error('whisperx failed for clip.mov (exit 1)')
+  end
+
+  describe 'timeout' do
+    def job_for(duration) = described_class.new(
+      library_name: 'test-lib', clip: 'clip.mov', video_path: '/footage/clip.mov',
+      output_dir: output_dir, language_code: 'en', whisper_model: 'small', duration: duration
+    )
+
+    it 'gives a short clip the 30-minute floor' do
+      expect(job_for('00:00:06').timeout_seconds).to eq(30 * 60)
+    end
+
+    it 'scales with a long clip' do
+      expect(job_for('01:30:00').timeout_seconds).to eq(90 * 60 * 10)
+    end
+
+    it 'falls back to the long ceiling when the duration is unknown' do
+      expect(job.timeout_seconds).to eq(TranscribeJob::UNKNOWN_DURATION_TIMEOUT_SECONDS)
+    end
+
+    it 'hands whisperx the scaled timeout' do
+      timed = job_for('00:10:00')
+      stub_whisperx(on: timed)
+      allow(timed).to receive(:prepare_transcript)
+
+      timed.perform
+
+      expect(@captured_timeout).to eq(100 * 60)
+    end
+
+    # ButterCut report 29: whisperx logged no-speech, then hung for 16 hours.
+    # Being stopped must fail the clip, not mark it silent.
+    it 'stops a hung whisperx and its children, then fails the clip instead of marking it silent' do
+      fake_whisperx("echo 'No active speech found in audio'\nsleep 30")
+      allow(job).to receive(:timeout_seconds).and_return(0.5)
+
+      started = Time.now
+      expect { job.perform }.to raise_error(/whisperx was still running on clip\.mov.*Last output from whisperx:\nNo active speech/m)
+      expect(Time.now - started).to be < 10
+      expect(File.exist?(File.join(output_dir, 'clip.json'))).to be(false)
+    end
+
+    # The report's second clip: killed from outside, and the message read
+    # "whisperx failed for … (exit )" because a signalled process has no exit status.
+    it 'names the signal when something outside ButterCut kills whisperx' do
+      fake_whisperx("echo 'No active speech found in audio'\nkill -KILL $$")
+
+      expect { job.perform }.to raise_error(/whisperx was stopped by SIGKILL before it finished clip\.mov/)
+      expect(File.exist?(File.join(output_dir, 'clip.json'))).to be(false)
+    end
   end
 end

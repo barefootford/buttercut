@@ -199,12 +199,14 @@ class Library
 
   def self.probe_duration(path)
     # argv form (no shell) so paths never meet sh/cmd.exe quoting rules.
-    output, status = Open3.capture2e(
+    # stdout alone: ffprobe warns on stderr even at -v error (Panasonic's
+    # drop-frame flag on 59.94 footage), and a merged stream won't parse.
+    output, errors, status = Open3.capture3(
       MediaTools.ffprobe, '-v', 'error',
       '-show_entries', 'format=duration',
       '-of', 'default=noprint_wrappers=1:nokey=1', path
     )
-    raise ArgumentError, "ffprobe failed for #{path}: #{output.strip}" unless status.success?
+    raise ArgumentError, "ffprobe failed for #{path}: #{errors.strip}" unless status.success?
 
     Time.at(Float(output.strip).to_i).utc.strftime('%H:%M:%S')
   rescue ArgumentError, TypeError => e
