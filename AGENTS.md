@@ -149,7 +149,7 @@ bundle exec rspec
 ```
 
 ### Changelog and versions
-ButterCut has no version numbers and no release step: users get whatever is on `main`. When a change is something a video editor would notice, add one line to `CHANGELOG.md` under the current month's heading (`## November 2026`), in the editor's language, starting a new heading at the top when the month changes. Nothing else needs bumping: `lib/buttercut/version.rb` reads the newest month heading (`ButterCut::RELEASE` is `November 2026`, `ButterCut::VERSION` is `2026.11`), and bug reports add the install's commit.
+ButterCut has no version numbers: add user-facing changes to `CHANGELOG.md` under the current month's heading. Details in `DEVELOPMENT.md`.
 
 ### Running scripts
 On macOS the project pins Ruby via `.mise.toml`; once mise is activated in the user shell (the default setup), plain `ruby` and `python` should resolve to it through mise shims. On Windows, Ruby and Python come from RubyInstaller and python.org (installed by `windows-setup.md` via winget) and resolve from PATH. On either platform, if the shell has been changed/shell didn't activate/user has a custom setting, read `.buttercut_env` — it records the absolute invocations setup verified. If this doesn't exist, attempt to find the dependencies in standard locations and then replace this file. You can look for information about setting up this file in simple-setup.md (macOS) or windows-setup.md (Windows).
