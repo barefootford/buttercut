@@ -82,16 +82,18 @@ ruby lib/buttercut/export.rb --editor fcpx libraries/[library-name]/cuts/[slug]_
 ruby lib/buttercut/export.rb --editor premiere libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp].xml
 
 # DaVinci Resolve
-ruby lib/buttercut/export.rb --editor resolve libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp]_resolve.fcpxml
+ruby lib/buttercut/export.rb --editor resolve libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp]_resolve.xml
 ```
+
+Name the Resolve export `.xml` even though it's FCPXML inside: Resolve only picks up a file handed to it in step 10 when the name ends in `.xml`.
 
 **DaVinci Resolve fallback (temporary).** `resolve` above is the default and what every new cut should use. Two things send you to the fallback, `--editor resolve_legacy` — the older FCP7 XML format Resolve used before FCPXML:
 
-1. **The export itself warns you.** When a cut mixes frame rates (say, 23.976 footage on a 24p timeline), the `resolve` export prints a warning naming the mismatched clips: Resolve can't link those from FCPXML and imports them offline. Don't hand the editor that file. Re-export straight away with `resolve_legacy` and give them the `.xml` instead, mentioning why in a sentence. (A cut with multicam clips can't use the fallback — the warning says what the options are; relay them.)
+1. **The export itself warns you.** When a cut mixes frame rates (say, 23.976 footage on a 24p timeline), the `resolve` export prints a warning naming the mismatched clips: Resolve can't link those from FCPXML and imports them offline. Don't hand the editor that file. Re-export straight away with `resolve_legacy` and give them that file instead, mentioning why in a sentence. (A cut with multicam clips can't use the fallback — the warning says what the options are; relay them.)
 2. **The editor reports an import problem** with a Resolve FCPXML export — offer to re-export with `resolve_legacy`.
 
 ```bash
-ruby lib/buttercut/export.rb --editor resolve_legacy libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp]_resolve.xml
+ruby lib/buttercut/export.rb --editor resolve_legacy libraries/[library-name]/cuts/[slug]_[timestamp].yaml libraries/[library-name]/cuts/[slug]_[timestamp]_resolve_legacy.xml
 ```
 
 Otherwise leave it alone: don't offer it proactively or use it by default.
@@ -120,7 +122,7 @@ Include the one-line import instruction for the editor used:
 
 - **Final Cut Pro X:** Open the cut in Final Cut Pro with File → Import → XML
 - **Adobe Premiere Pro:** Open the cut in Premiere with File → Import, then select the XML file
-- **DaVinci Resolve:** Open the cut in Resolve with File → Import → Timeline, then select the exported `.fcpxml` file (`.xml` if you used the `resolve_legacy` fallback)
+- **DaVinci Resolve:** Open the cut in Resolve with File → Import → Timeline, then select the exported `.xml` file
 
 ## 10. Open in Editor (if enabled)
 Check `libraries/settings.yaml` for `open_in_editor_after_export`:
@@ -142,6 +144,8 @@ open -a "DaVinci Resolve" [xml path]
 ```
 
 If this is enabled, tell them "I've opened the file for you in __application_name__. Let me know if I can help with anything else."
+
+DaVinci Resolve needs two more clicks from them (checked in Resolve 21), so tell them this instead: Resolve is asking "Import Timeline or Media?"; choose **Import Timeline** (not the highlighted Import Media), then click **Ok** in the Load XML window. The timeline lands in the project they have open. If Resolve was closed or had no project open, it lands in a new untitled project, so mention that. An older export named `.fcpxml` isn't picked up this way: `open -a` only brings Resolve to the front, so repeat the import instruction from step 9 for it.
 
 **On Windows**, don't try to launch the editor with the XML — Premiere and Resolve *import* these files rather than open them, and the .xml file association would land in a browser or text editor. Reveal the file in Explorer instead and repeat the import instruction from step 9:
 
