@@ -9,9 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Updating ButterCut is now a single step, so agents that review each command before running it (such as Claude Code's auto mode) can update without stopping to ask.
+- Improved how exported timelines are named: each one now carries its cut's name instead of its first clip's filename, and Final Cut files it in an event named after the library.
 
 ### Fixed
 - **Clip names with accents, em dashes, or curly quotes no longer vanish from exports or break transcription** when ButterCut is started from a shell with no language setting.
+- Fixed automatic DaVinci Resolve imports.
 
 ## [0.9.1] - 2026-09-13
 
