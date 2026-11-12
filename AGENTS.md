@@ -40,13 +40,13 @@ The migration scripts in `scripts/` are helpers, not hard dependencies. Each one
 
 Known migration triggers (match each to a `scripts/NNN_migrate_*.rb` script via CHANGELOG.md):
 
-- `editor` missing (added in 0.4.0)
-- `transcript_refinement` missing (added in 0.5.0; missing means "predates the feature, default to `false`" — NOT the template default of `true`)
-- `footage_summary` missing OR old name `footage_description` present (renamed in 0.5.0)
-- video entries with `summary` missing (added in 0.5.0; missing means "todo", default to empty string)
-- video entries with `transcript_path` / `visual_transcript_path` (renamed to `transcript` / `visual_transcript` in 0.3.0)
-- video entries with `file_size_mb` (removed in 0.3.0)
-- top-level `videos:` key present (renamed to `media:` in 0.8.0, when libraries gained image support). The rename of that one key is the whole migration — every pre-existing entry is a video by definition (type is inferred from the file extension). `Library` refuses to load a `videos:`-keyed library and tells you to migrate, so this trigger is impossible to miss.
+- `editor` missing (added February 2026)
+- `transcript_refinement` missing (added April 2026; missing means "predates the feature, default to `false`" — NOT the template default of `true`)
+- `footage_summary` missing OR old name `footage_description` present (renamed April 2026)
+- video entries with `summary` missing (added April 2026; missing means "todo", default to empty string)
+- video entries with `transcript_path` / `visual_transcript_path` (renamed to `transcript` / `visual_transcript` in December 2025)
+- video entries with `file_size_mb` (removed December 2025)
+- top-level `videos:` key present (renamed to `media:` in June 2026, when libraries gained image support). The rename of that one key is the whole migration — every pre-existing entry is a video by definition (type is inferred from the file extension). `Library` refuses to load a `videos:`-keyed library and tells you to migrate, so this trigger is impossible to miss.
 - library has a `roughcuts/` directory (renamed to `cuts/` when the `roughcut` skill became `cut`). This trigger is layout, not YAML — check the directory listing, not the schema.
 
 A missing field is not the same as a field set to the template default — the template default only applies to freshly created libraries. If you see a schema issue not on this list, still check CHANGELOG.md; the list may be behind. After running migrations, re-read the library.yaml and continue with whatever the user asked for.
@@ -147,6 +147,9 @@ We have RSpec tests for the XML generation library and Library helpers. This doe
 # Run all tests
 bundle exec rspec
 ```
+
+### Changelog and versions
+ButterCut has no version numbers and no release step: users get whatever is on `main`. When a change is something a video editor would notice, add one line to `CHANGELOG.md` under the current month's heading (`## November 2026`), in the editor's language, starting a new heading at the top when the month changes. Nothing else needs bumping: `lib/buttercut/version.rb` reads the newest month heading (`ButterCut::RELEASE` is `November 2026`, `ButterCut::VERSION` is `2026.11`), and bug reports add the install's commit.
 
 ### Running scripts
 On macOS the project pins Ruby via `.mise.toml`; once mise is activated in the user shell (the default setup), plain `ruby` and `python` should resolve to it through mise shims. On Windows, Ruby and Python come from RubyInstaller and python.org (installed by `windows-setup.md` via winget) and resolve from PATH. On either platform, if the shell has been changed/shell didn't activate/user has a custom setting, read `.buttercut_env` — it records the absolute invocations setup verified. If this doesn't exist, attempt to find the dependencies in standard locations and then replace this file. You can look for information about setting up this file in simple-setup.md (macOS) or windows-setup.md (Windows).

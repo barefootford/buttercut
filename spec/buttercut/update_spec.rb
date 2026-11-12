@@ -15,7 +15,7 @@ RSpec.describe Updater do
       @home = File.join(root, 'buttercut-home')
       sh('git', 'init', '--bare', '-q', '--initial-branch=main', @origin)
       sh('git', 'clone', '-q', @origin, @dev)
-      commit(@dev, 'CHANGELOG.md', "# Changelog\n\n## [Unreleased]\n", 'first')
+      commit(@dev, 'CHANGELOG.md', "# Changelog\n\n## November 2026\n", 'first')
       sh('git', '-C', @dev, 'push', '-q', 'origin', 'main')
       sh('git', 'clone', '-q', @origin, @install)
       example.run
@@ -37,7 +37,7 @@ RSpec.describe Updater do
   end
 
   def release(lines)
-    commit(@dev, 'CHANGELOG.md', "# Changelog\n\n## [Unreleased]\n#{lines}", 'release')
+    commit(@dev, 'CHANGELOG.md', "# Changelog\n\n## November 2026\n#{lines}", 'release')
     sh('git', '-C', @dev, 'push', '-q', 'origin', 'main')
   end
 

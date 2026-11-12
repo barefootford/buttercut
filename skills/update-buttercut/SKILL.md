@@ -38,7 +38,7 @@ The updater also restarts the daily update-check clock, so ButterCut won't ask a
   - On a **core** install (`core`), the user only received the free changes. Recap those as "you can now…", then add the Pro ones as a light, optional heads-up — not as something they have — e.g. "Also new in ButterCut Pro: multi-track timelines and a live preview panel, more at buttercut.io." Keep it to one sentence, never pushy, and skip it entirely if the update brought no `### ButterCut Pro` lines.
 - If `changelog` is empty but `updated` is true, say they're up to date with the latest behind-the-scenes improvements — don't enumerate what those were. If `updated` is false, they were already current.
 - Never mention branches, commits, shas, tests, version files, migrations, or `main` in the recap.
-- Don't quote version numbers unless the update brought in a new numbered release section in the changelog. Numbered releases only happen when a batch of changes is publicized as one; between releases the version file lags behind `main` by design, so "still on 0.7.2" is meaningless to the user.
+- Don't mention version numbers. ButterCut has none: changes ship as they're ready, and the changelog groups them by month. If the user asks what they're on, the month is enough ("you have the November 2026 updates").
 - **Don't run the test suite after updating.** A wall of test output reads as something being wrong, and "the tests pass" answers a question no video editor asked.
 - If `stashed` was set, mention it once in plain terms ("I set aside a few local file edits before updating; they're saved if you ever want them back") — don't try to reapply it automatically.
 
