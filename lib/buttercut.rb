@@ -32,22 +32,25 @@ class ButterCut
   # `timeline:` is an optional explicit output format ({frame_rate:, width:,
   # height:}, any subset) — written by the cut skill into the cut YAML and
   # passed through Export. Without it the format follows the first video clip.
-  def self.new(clips, editor:, timeline: nil)
+  # `name:` and `event_name:` (both optional) are what the timeline and its
+  # Final Cut event are called; Export passes the cut's and library's names.
+  def self.new(clips, editor:, timeline: nil, name: nil, event_name: nil)
     raise ArgumentError, "editor: parameter is required" if editor.nil?
 
     unless SUPPORTED_EDITORS.include?(editor)
       raise ArgumentError, "Unsupported editor: #{editor.inspect}. Supported editors: #{SUPPORTED_EDITORS.map(&:inspect).join(', ')}"
     end
 
+    options = { timeline: timeline, name: name, event_name: event_name }
     case editor
     when :fcpx
-      ButterCut::FCPX.new(clips, timeline: timeline)
+      ButterCut::FCPX.new(clips, **options)
     when :resolve
-      ButterCut::Resolve.new(clips, timeline: timeline)
+      ButterCut::Resolve.new(clips, **options)
     when :resolve_legacy
-      ButterCut::ResolveLegacy.new(clips, timeline: timeline)
+      ButterCut::ResolveLegacy.new(clips, **options)
     when :premiere
-      ButterCut::Premiere.new(clips, timeline: timeline)
+      ButterCut::Premiere.new(clips, **options)
     else
       raise ArgumentError, "Editor #{editor.inspect} is not yet implemented."
     end

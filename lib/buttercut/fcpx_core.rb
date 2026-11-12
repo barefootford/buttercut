@@ -19,11 +19,6 @@ class ButterCut
       event_uid = generate_uuid
       project_uid = generate_uuid
 
-      first_path = clips.first[:path]
-      first_filename = get_filename(first_path)
-      project_basename = get_basename(first_filename)
-      timestamped_project_name = "#{project_basename} #{timestamp_suffix}"
-
       still_format_ids = build_still_format_ids(asset_map)
       video_format_ids = build_video_format_ids(asset_map)
 
@@ -102,8 +97,8 @@ class ButterCut
           end
 
           xml.library(location: './') do
-            xml.event(name: project_basename, uid: event_uid) do
-              xml.project(name: timestamped_project_name, uid: project_uid, modDate: '2025-10-31 17:25:16 GMT-7') do
+            xml.event(name: event_name, uid: event_uid) do
+              xml.project(name: timeline_name, uid: project_uid, modDate: '2025-10-31 17:25:16 GMT-7') do
                 xml.sequence(duration: sequence_duration, format: FORMAT_ID, tcStart: '0s', audioRate: '48k') do
                   xml.spine do
                     emit_spine(xml, timeline_clips)

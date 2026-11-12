@@ -150,6 +150,40 @@ RSpec.describe ButterCut::FCPX do
     end
   end
 
+  describe 'timeline naming' do
+    let(:doc) { Nokogiri::XML(generator.to_xml) }
+    let(:project_name) { doc.at_xpath('//project')['name'] }
+    let(:event_label) { doc.at_xpath('//event')['name'] }
+
+    context 'with a name and an event name' do
+      let(:generator) { ButterCut::FCPX.new(clips, name: 'Kitchen Tour', event_name: 'Wedding 94') }
+
+      it 'names the project after the cut, stamped, and the event after the library' do
+        expect(project_name).to eq("Kitchen Tour #{generator.send(:timestamp_suffix)}")
+        expect(event_label).to eq('Wedding 94')
+      end
+    end
+
+    context 'with a name alone' do
+      let(:generator) { ButterCut::FCPX.new(clips, name: 'Kitchen Tour') }
+
+      it 'names the event after the cut too' do
+        expect(event_label).to eq('Kitchen Tour')
+      end
+    end
+
+    context 'with no name, or a blank one' do
+      let(:generator) { ButterCut::FCPX.new(clips, name: ' ', event_name: '') }
+
+      it "falls back to the first clip's filename" do
+        basename = File.basename(clips.first[:path], '.*')
+
+        expect(project_name).to eq("#{basename} #{generator.send(:timestamp_suffix)}")
+        expect(event_label).to eq(basename)
+      end
+    end
+  end
+
   describe 'timecode-aware clips' do
     let(:gh5_generator) { ButterCut::FCPX.new([{ path: gh5_video_path }]) }
 
