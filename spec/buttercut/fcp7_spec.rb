@@ -84,6 +84,19 @@ RSpec.describe ButterCut::FCP7 do
       expect(xml).to include('<clipitem id="clipitem-audio-2">')
     end
 
+    it "names the sequence after the first clip's filename when no name is given" do
+      name = Nokogiri::XML(generator.to_xml).at_xpath('/xmeml/sequence/name').text
+
+      expect(name).to eq("fcp7_clip_a #{generator.send(:timestamp_suffix)}")
+    end
+
+    it 'names the sequence after the cut when a name is given' do
+      named = described_class.new([{ path: clip_a_path }], name: 'Kitchen Tour', event_name: 'Wedding 94')
+      name = Nokogiri::XML(named.to_xml).at_xpath('/xmeml/sequence/name').text
+
+      expect(name).to eq("Kitchen Tour #{named.send(:timestamp_suffix)}")
+    end
+
     it 'places clips sequentially with correct timeline math' do
       xml = generator.to_xml
 

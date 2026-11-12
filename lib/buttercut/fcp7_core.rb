@@ -22,9 +22,6 @@ class ButterCut
       sequence_uuid = generate_uuid
       sequence_id = "sequence-#{sequence_uuid}"
 
-      first_path = clips.first[:path]
-      sequence_name = "#{get_basename(get_filename(first_path))} #{timestamp_suffix}"
-
       sequence_rate = { timebase: timebase, ntsc: ntsc_flag, display: display_format }
       clip_payloads = build_clip_payloads(timeline_clips, timeline_frame_duration, sequence_rate)
       sequence_audio_rate = format_audio_rate || '48000'
@@ -39,7 +36,7 @@ class ButterCut
         xml.xmeml(version: '5') do
           xml.sequence(id: sequence_id) do
             xml.uuid sequence_uuid
-            xml.name sequence_name
+            xml.name timeline_name
             xml.duration sequence_duration_frames
             xml.rate do
               xml.timebase timebase

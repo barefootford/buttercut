@@ -25,8 +25,10 @@ class ButterCut
     # `timeline:` is an optional explicit output format (from the cut YAML's
     # `timeline:` block): frame_rate (fraction string or number), width,
     # height. Anything not given falls back to the first video clip, and —
-    # for image-only timelines — to 24fps 1920×1080.
-    def initialize(clips, timeline: nil)
+    # for image-only timelines — to 24fps 1920×1080. `name:` is what the
+    # timeline is called in the editor and `event_name:` the Final Cut event
+    # it lands in; without them both follow the first clip's filename.
+    def initialize(clips, timeline: nil, name: nil, event_name: nil)
       raise ArgumentError, "No clips provided" if clips.nil? || clips.empty?
 
       clips.each_with_index do |clip, index|
@@ -49,6 +51,8 @@ class ButterCut
 
       @clips = clips
       @timeline = normalize_timeline(timeline)
+      @name = presence(name)
+      @event_name = presence(event_name)
       @initial_offset = DEFAULT_INITIAL_OFFSET
       @volume_adjustment = DEFAULT_VOLUME_ADJUSTMENT
 
@@ -739,6 +743,18 @@ class ButterCut
 
     def timestamp_suffix
       @timestamp_suffix ||= Time.now.utc.strftime("%Y%m%d-%H%M%S")
+    end
+
+    # The timestamp keeps repeated exports of one cut apart in the editor.
+    def timeline_name = "#{@name || first_clip_basename} #{timestamp_suffix}"
+
+    def event_name = @event_name || @name || first_clip_basename
+
+    def first_clip_basename = get_basename(get_filename(clips.first[:path]))
+
+    def presence(value)
+      text = value.to_s.strip
+      text.empty? ? nil : text
     end
 
     def deterministic_asset_id(abs_path)

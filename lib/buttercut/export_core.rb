@@ -170,8 +170,20 @@ class Export
 
   def write_xml(clips, editor, timeline)
     puts "Converting #{clips.length} clips to #{EDITOR_LABELS.fetch(editor)}..."
-    ButterCut.new(clips, editor: editor, timeline: timeline).save(@output_path)
+    ButterCut.new(clips, editor: editor, timeline: timeline, name: cut_name,
+                         event_name: display_name(library_name(@roughcut_path))).save(@output_path)
     puts "\n✓ Rough cut exported to: #{@output_path}"
+  end
+
+  # The cut file's slug, without the creation stamp the cut skill appends.
+  def cut_name
+    slug = File.basename(@roughcut_path.tr('\\', '/'), '.*').sub(/_\d{8}_\d{6}\z/, '')
+    display_name(slug)
+  end
+
+  # "kitchen-tour_v2" → "Kitchen Tour V2", the way names are shown to editors.
+  def display_name(slug)
+    slug.split(/[-_\s]+/).reject(&:empty?).map { |word| word[0].upcase + word[1..] }.join(' ')
   end
 
   def validate_fcpxml(xml_path)

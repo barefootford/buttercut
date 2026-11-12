@@ -356,6 +356,48 @@ RSpec.describe Export do
     end
   end
 
+  describe 'timeline naming' do
+    let(:cut) do
+      { 'clips' => [{ 'source_file' => 'MVI_0309_720p.mov', 'in_point' => 0, 'out_point' => 2 }] }
+    end
+    let(:stamp) { /\d{8}-\d{6}/ }
+
+    # The cut skill names cut files [slug]_[YYYYMMDD_HHMMSS].yaml.
+    def with_named_cut(name)
+      within_export_sandbox(cut: cut, media: [clip_a], library: 'wedding-94') do |cut_path, out|
+        named = File.join(File.dirname(cut_path), name)
+        FileUtils.mv(cut_path, named)
+        yield named, out
+      end
+    end
+
+    it 'names the Final Cut project after the cut and the event after the library' do
+      with_named_cut('kitchen-tour_20261109_184500.yaml') do |cut_path, out|
+        perform(cut_path, out)
+        doc = parse(out)
+
+        expect(doc.at_xpath('//project')['name']).to match(/\AKitchen Tour #{stamp}\z/)
+        expect(doc.at_xpath('//event')['name']).to eq('Wedding 94')
+      end
+    end
+
+    it 'names the Premiere sequence after the cut' do
+      with_named_cut('kitchen-tour_20261109_184500.yaml') do |cut_path, out|
+        perform(cut_path, out, editor: 'premiere')
+
+        expect(parse(out).at_xpath('/xmeml/sequence/name').text).to match(/\AKitchen Tour #{stamp}\z/)
+      end
+    end
+
+    it 'keeps a cut name that has no creation stamp whole' do
+      with_named_cut('row01-sony_xavcs.yaml') do |cut_path, out|
+        perform(cut_path, out)
+
+        expect(parse(out).at_xpath('//project')['name']).to match(/\ARow01 Sony Xavcs #{stamp}\z/)
+      end
+    end
+  end
+
   describe 'timeline block' do
     it 'pins the output format from the cut YAML for an image-only cut' do
       cut = {
