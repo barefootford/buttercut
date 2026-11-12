@@ -4,6 +4,7 @@
 require 'digest'
 require 'json'
 require 'net/http'
+require 'open3'
 require 'optparse'
 require 'securerandom'
 require 'uri'
@@ -19,7 +20,7 @@ require_relative 'version'
 # scrubs: the agent owns both, because it's the one holding the failure.
 # See skills/report-bug/SKILL.md.
 class Report
-  SCHEMA_VERSION = 2 # 2: added the platform section
+  SCHEMA_VERSION = 3 # 2: added the platform section; 3: buttercut.version is a month, buttercut.build the commit
   KINDS = %w[bug feature].freeze
   FINGERPRINT_LENGTH = 12 # the server accepts 8–64 hex chars
   HTTP_TIMEOUT = 5 # seconds; a report is never worth stalling the user over
@@ -66,7 +67,7 @@ class Report
       'kind' => @kind,
       'source' => @kind == 'feature' ? 'user' : 'agent',
       'title' => @title,
-      'buttercut' => { 'version' => ButterCut::VERSION, 'edition' => ButterCut::EDITION.to_s },
+      'buttercut' => { 'version' => ButterCut::VERSION, 'build' => build, 'edition' => ButterCut::EDITION.to_s },
       'platform' => platform_section,
       'error' => error_section,
       'narrative' => @narrative,
@@ -115,6 +116,15 @@ class Report
   # itself still gets to report, and the server treats the section as optional.
   def platform_section
     Platform.facts
+  rescue StandardError
+    nil
+  end
+
+  # The install's commit. The version is only a month, and several builds ship
+  # in one; this says which of them failed.
+  def build
+    out, _err, status = Open3.capture3('git', 'rev-parse', '--short', 'HEAD', chdir: Library::REPO_ROOT)
+    status.success? ? out.strip : nil
   rescue StandardError
     nil
   end

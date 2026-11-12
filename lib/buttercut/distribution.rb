@@ -10,7 +10,7 @@ class ButterCut
   REPORT_ENDPOINT = "https://tubesalt.com/api/v1/buttercut_reports".freeze
 end
 
-# The buttercut RubyGems gem was deprecated in 0.7.1; the XML generator now
+# The buttercut RubyGems gem was deprecated in May 2026; the XML generator now
 # ships with the agent code in the repo. Warn only when loaded from a gem path.
 if __FILE__.include?("/gems/buttercut-")
   warn "[buttercut] The buttercut gem is deprecated. The XML generator now ships with the agent code at #{ButterCut::REPO_URL} — clone the repo instead. The 0.7.x gem will keep working but will not be updated."

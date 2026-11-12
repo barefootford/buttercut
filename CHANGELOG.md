@@ -1,21 +1,18 @@
 # Changelog
 
-All notable changes to ButterCut will be documented in this file.
+What's new in ButterCut, newest first.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+ButterCut has no version numbers. Changes ship as they're finished, and this file groups them by month: add each line under the current month's heading, and start a new heading when the month changes. Entries before September 2026 were numbered releases; where a month had several, each carries the date it shipped.
 
-## [Unreleased]
+## November 2026
 
 ### Changed
-- Updating ButterCut is now a single step, so agents that review each command before running it (such as Claude Code's auto mode) can update without stopping to ask.
 - Improved how exported timelines are named: each one now carries its cut's name instead of its first clip's filename, and Final Cut files it in an event named after the library.
 
 ### Fixed
-- **Clip names with accents, em dashes, or curly quotes no longer vanish from exports or break transcription** when ButterCut is started from a shell with no language setting.
 - Fixed automatic DaVinci Resolve imports.
 
-## [0.9.1] - 2026-09-13
+## September 2026
 
 **ButterCut comes to Windows, and Pro adds music and voiceover.**
 
@@ -40,9 +37,11 @@ ButterCut now runs on Windows 10 and 11 as a beta. ButterCut Pro adds standalone
 
 #### New & Improved
 - **ButterCut now runs on Windows.** Beta support for 64-bit Windows 10 and 11.
+- Updating ButterCut is now a single step, so agents that review each command before running it (such as Claude Code's auto mode) can update without stopping to ask.
 - Error reports now say which operating system and Ruby version the install runs, so a Windows-only problem is easier to reproduce. They still never include footage, transcripts, or names.
 
 #### Fixed
+- **Clip names with accents, em dashes, or curly quotes no longer vanish from exports or break transcription** when ButterCut is started from a shell with no language setting.
 - Fixed an issue with footage shot at a different frame rate than the timeline causing an import warning and a stray one-frame sliver in Final Cut.
 - Improved mixed frame rate exports for Resolve, which now name the affected clips and point you at the older XML format that imports them online.
 - Fixed an issue with some vertical phone footage being laid out on a horizontal timeline and not inferring vertical layout correctly.
@@ -50,7 +49,7 @@ ButterCut now runs on Windows 10 and 11 as a beta. ButterCut Pro adds standalone
 - Improved how transcription detects a WhisperX crash, which could previously be reported as a missing transcript.
 - **Transcription is sturdier.** ButterCut now runs the current WhisperX release (3.8.6, with pyannote-audio 4.0.7). This fixes the transcription failures some users hit on the old pinned version, and improves word-level timing accuracy so cuts land on cleaner points.
 
-## [0.9.0] - 2026-08-09
+## August 2026
 
 **ButterCut Pro learns multicam**
 
@@ -83,7 +82,7 @@ ButterCut now catches and reports its own errors automatically (with your permis
 - **Clips shot at a different frame rate than the sequence** no longer get trimmed at the wrong moment in Premiere and DaVinci Resolve.
 - **HDR and Apple Log footage now looks right in Final Cut** — exports carry each clip's true format and color.
 
-## [0.8.0] - 2026-06-26
+## June 26, 2026
 
 **ButterCut gets Multi-track editing, a new Preview app, and better support for misc production tasks**
 
@@ -118,7 +117,7 @@ Pro and Core both add the ability to add photos to libraries and mute clips (nic
 #### Fixed
 - **Premiere clips fill the frame.** Footage shot at a different size than your sequence now scales to fit when you export to Premiere, matching how Final Cut and Resolve already behaved.
 
-## [0.7.2] - 2026-06-02
+## June 2, 2026
 
 Processing your footage now uses less of your account, your Mac stays awake while it works, and we've fixed a bug in Premiere files so vertical clips export to Premiere right side up.
 
@@ -132,7 +131,7 @@ Processing your footage now uses less of your account, your Mac stays awake whil
 - **Vertical footage exports to Premiere right side up.** Phone clips and other vertical footage used to land in Premiere lying on their side. They now import upright. Final Cut and Resolve were already correct and are unchanged.
 - **Updating older projects is more reliable.** Bringing libraries from earlier versions up to date no longer trips on a few edge cases.
 
-## [0.7.1] - 2026-05-23
+## May 23, 2026
 
 Final RubyGems release of ButterCut xml generator. Having the ButterCut (agent) codebase live across skill scripts, shared scripts, and traditional lib code has gotten messy to work on and to explain to agents. I want to do a refactor where we pull all 'business' code into a single directory and it doesn't make sense to have the agent ruby code live with the xml generation code. Using the agent is by far the most popular use of this repository so it makes sense to make it be as easy as possible to work on and use that code. The agent + xml generation project will continue at the same location https://github.com/barefootford/buttercut;
 
@@ -144,7 +143,7 @@ Final RubyGems release of ButterCut xml generator. Having the ButterCut (agent) 
 - The 0.7.0 and 0.7.1 gems remain published on RubyGems indefinitely; existing installs keep working.
 - No functional changes to the XML generator, skills, or agent workflow.
 
-## [0.7.0] - 2026-05-21
+## May 21, 2026
 
 This release replaces the LLM-driven visual transcripts with a contact-sheet pipeline, splits roughcut creation across task types under a renamed `cut` skill, and moves shipped skills to top-level `skills/` so non-Claude agentic CLIs find them too.
 
@@ -174,7 +173,7 @@ This release replaces the LLM-driven visual transcripts with a contact-sheet pip
 - `skills/analyze-video/prepare_visual_script.rb` (no more visual transcripts).
 - `skills/analyze-video/summary_skeleton.rb` (sub-agents write the summary in one shot now; no placeholder skeleton needed).
 
-## [0.6.0] - 2026-05-03
+## May 3, 2026
 
 Honestly, this is the biggest single release for ButterCut so far. 0.6 has dramatically better rough cuts driven by the user, sharper editing thanks to new word-by-word timing, and process improvements that help ButterCut make sense of all your footage without getting overwhelmed. It's So. Much. Better.
 
@@ -192,7 +191,7 @@ Honestly, this is the biggest single release for ButterCut so far. 0.6 has drama
 - **Single-track timelines reinforced.** ButterCut produces one sequential video track — no B-roll over voiceover, no cutaways layered over continuing voiceover. For now. ;-)
 - **Tidier temporary files.** All scratch files now go in one place inside the project, instead of scattering across the system.
 
-## [0.5.0] - 2026-04-24
+## April 2026
 
 ### Added
 - **Improve video analysis performance and accuracy.** After WhisperX runs, ButterCut now optionally reviews transcripts and fixes misheard words using your library's context — names, places, technical jargon, speakers with accents, etc. On by default for new libraries.
@@ -223,7 +222,7 @@ ruby skills/backup-library/backup_libraries.rb
 ruby scripts/002_migrate_add_transcript_refinement.rb --all
 ```
 
-## [0.4.0] - 2026-02-24
+## February 2026
 
 ### Changed
 - **~2x faster roughcut generation** - Removed scratchpad workflow and increased transcript chunk size from 1000 to 5000 lines (~3.5min vs ~6-7min)
@@ -239,7 +238,7 @@ ruby scripts/002_migrate_add_transcript_refinement.rb --all
 ### Fixed
 - Timestamp variable not persisting across shell calls during export
 
-## [0.3.0] - 2025-12-01
+## December 2025
 
 ### Changed
 - **BREAKING**: Simplified library.yaml transcript fields
@@ -264,7 +263,7 @@ ruby skills/backup-library/backup_libraries.rb
 ruby scripts/001_migrate_0.2_to_0.3.rb --all
 ```
 
-## [0.2.0] - 2025-11-25
+## November 25, 2025
 
 ### Added
 - **backup-library skill**: Creates compressed ZIP backups of libraries (transcripts, roughcuts, YAML - not video files)
@@ -281,7 +280,7 @@ ruby scripts/001_migrate_0.2_to_0.3.rb --all
 - Added libyaml dependency to prevent psych extension build failures
 - Added note about Ruby compilation time (5-10 minutes via mise)
 
-## [0.1.1] - 2025-01-21
+## November 21, 2025
 
 ### Added
 - DaVinci Resolve support via FCP7 XML (xmeml version 5) format
@@ -295,7 +294,7 @@ ruby scripts/001_migrate_0.2_to_0.3.rb --all
 ### Fixed
 - Gemspec now references version from `lib/buttercut/version.rb` for single source of truth
 
-## [0.1.0] - 2025-01-15
+## November 10, 2025
 
 ### Added
 - Initial release of ButterCut gem

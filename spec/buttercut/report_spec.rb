@@ -50,7 +50,7 @@ RSpec.describe Report do
 
       payload = bug("error_reporting: always\n").payload
 
-      expect(payload['schema_version']).to eq(2)
+      expect(payload['schema_version']).to eq(3)
       expect(payload['platform']).to eq('os' => 'windows', 'release' => '10.0.26100', 'arch' => 'x86_64',
                                         'ruby' => '3.3.11')
     end
@@ -62,6 +62,21 @@ RSpec.describe Report do
 
       expect(payload['platform']).to be_nil
       expect(payload['buttercut']).to include('version' => ButterCut::VERSION)
+    end
+
+    it "names the build with the install's commit" do
+      status = instance_double(Process::Status, success?: true)
+      allow(Open3).to receive(:capture3).with('git', 'rev-parse', '--short', 'HEAD', chdir: Library::REPO_ROOT)
+                                        .and_return(["578c44a\n", '', status])
+
+      expect(bug("error_reporting: always\n").payload['buttercut'])
+        .to eq('version' => ButterCut::VERSION, 'build' => '578c44a', 'edition' => ButterCut::EDITION.to_s)
+    end
+
+    it 'sends no build when git cannot say' do
+      allow(Open3).to receive(:capture3).and_raise(Errno::ENOENT)
+
+      expect(bug("error_reporting: always\n").payload['buttercut']).to include('build' => nil)
     end
   end
 

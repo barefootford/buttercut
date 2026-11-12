@@ -5,7 +5,30 @@ require_relative 'utf8'
 ButterCut::UTF8.setup!
 
 class ButterCut
-  VERSION = "0.9.1"
+  # ButterCut has no version numbers to bump. Changes ship as they merge and
+  # CHANGELOG.md groups them by month, so the newest heading there
+  # ("## November 2026") names what an install is running: RELEASE is that
+  # month, VERSION its sortable form ("2026.11"). Add a changelog line under a
+  # new month and both follow.
+  CHANGELOG = File.expand_path('../../CHANGELOG.md', __dir__)
+  MONTHS = %w[January February March April May June July August September October November December].freeze
+  RELEASE_HEADING = /^## (#{MONTHS.join('|')}) (?:\d{1,2}, )?(\d{4})\s*$/
+
+  # [month name, year] from the newest changelog heading; nil when there is no
+  # changelog to read.
+  def self.newest_release(changelog = CHANGELOG)
+    File.foreach(changelog) do |line|
+      match = line.match(RELEASE_HEADING)
+      return [match[1], match[2].to_i] if match
+    end
+    nil
+  rescue SystemCallError
+    nil
+  end
+
+  release_month, release_year = newest_release
+  RELEASE = release_month ? "#{release_month} #{release_year}" : 'unknown'
+  VERSION = release_month ? format('%d.%02d', release_year, MONTHS.index(release_month) + 1) : 'unknown'
   EDITION = :core # :core for open-source ButterCut, :pro for ButterCut Pro
 
   def self.pro?
